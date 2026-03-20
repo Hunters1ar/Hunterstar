@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Private admin archive for portfolio submissions.">
+    <meta name="theme-color" content="#0a0a0b">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+
+    <title>Control Room | Private Archive</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="admin-page-body">
+    <div class="grain-overlay" aria-hidden="true"></div>
+    <div class="vignette-overlay" aria-hidden="true"></div>
+
+    <main class="admin-shell container">
+        <section class="admin-hero">
+            <span class="terminal-tagline">Private Channel // Admin Only</span>
+            <h1 class="headline">
+                Control Room
+                <span class="headline-accent">Archive</span>
+            </h1>
+            <p class="subtitle">
+                A hidden console for reviewing everything submitted through Firebase.
+            </p>
+            <p class="description">
+                Sign in with your Firebase admin account to inspect messages, mark them as handled,
+                and remove anything you no longer want to keep.
+            </p>
+        </section>
+
+        <section class="admin-auth-card" id="adminAuthCard">
+            <div class="admin-panel-heading">
+                <div>
+                    <p class="admin-eyebrow">Login Gate</p>
+                    <h2 class="admin-section-title">Unlock The Archive</h2>
+                </div>
+                <p class="admin-support-copy">
+                    This page is intentionally unlinked. Real protection should come from Firebase Auth
+                    and Firestore rules.
+                </p>
+            </div>
+
+            <form class="admin-login-form" id="adminLoginForm">
+                <div class="form-group">
+                    <label for="adminEmail" class="form-label">Admin Email</label>
+                    <input type="email" id="adminEmail" class="form-input" placeholder="you@example.com" autocomplete="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="adminPassword" class="form-label">Password</label>
+                    <input type="password" id="adminPassword" class="form-input" placeholder="Enter your password" autocomplete="current-password" required>
+                </div>
+
+                <button type="submit" class="submit-button" id="adminLoginBtn">Enter Control Room</button>
+            </form>
+
+            <div id="adminAuthStatus" class="form-status hidden"></div>
+        </section>
+
+        <section class="admin-dashboard hidden" id="adminDashboard">
+            <div class="admin-toolbar-card">
+                <div>
+                    <p class="admin-eyebrow">Archive Console</p>
+                    <h2 class="admin-section-title">Incoming Submissions</h2>
+                </div>
+
+                <div class="admin-session">
+                    <span class="admin-session-user" id="adminSessionUser">Signed in</span>
+                    <button type="button" class="cta-button" id="adminLogoutBtn">Sign Out</button>
+                </div>
+            </div>
+
+            <div class="admin-stats-grid">
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Total</span>
+                    <strong class="admin-stat-value" id="adminTotalCount">0</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Unread</span>
+                    <strong class="admin-stat-value" id="adminUnreadCount">0</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Read</span>
+                    <strong class="admin-stat-value" id="adminReadCount">0</strong>
+                </article>
+            </div>
+
+            <div class="admin-workspace">
+                <aside class="admin-panel admin-list-panel">
+                    <div class="admin-list-toolbar">
+                        <div>
+                            <p class="admin-eyebrow">Archive Feed</p>
+                            <h3 class="admin-subheading">Messages</h3>
+                        </div>
+                        <input
+                            type="search"
+                            id="adminSearch"
+                            class="form-input admin-search-input"
+                            placeholder="Search name, email, subject, message..."
+                        >
+                    </div>
+
+                    <div class="admin-list-status" id="adminListStatus">Waiting for secure session...</div>
+                    <div class="admin-submission-list" id="adminSubmissionList"></div>
+                </aside>
+
+                <section class="admin-panel admin-detail-panel">
+                    <div class="admin-empty-state" id="adminEmptyState">
+                        Select a submission to inspect its details.
+                    </div>
+
+                    <article class="admin-detail-card hidden" id="adminDetailCard">
+                        <div class="admin-detail-head">
+                            <div>
+                                <p class="admin-detail-label" id="adminDetailSubject">No subject</p>
+                                <h3 class="admin-detail-name" id="adminDetailName">Submission</h3>
+                            </div>
+                            <span class="admin-badge" id="adminDetailReadBadge">Unread</span>
+                        </div>
+
+                        <div class="admin-detail-meta">
+                            <div class="admin-detail-meta-item">
+                                <span class="admin-detail-meta-label">Email</span>
+                                <a href="#" id="adminDetailEmail" class="admin-detail-meta-value"></a>
+                            </div>
+                            <div class="admin-detail-meta-item">
+                                <span class="admin-detail-meta-label">Received</span>
+                                <span id="adminDetailDate" class="admin-detail-meta-value"></span>
+                            </div>
+                        </div>
+
+                        <div class="admin-detail-message">
+                            <span class="admin-detail-meta-label">Message</span>
+                            <p id="adminDetailMessage"></p>
+                        </div>
+
+                        <div class="admin-action-row">
+                            <button type="button" class="cta-button cta-button-primary" id="adminToggleReadBtn">
+                                Mark as Read
+                            </button>
+                            <button type="button" class="admin-danger-button" id="adminDeleteBtn">
+                                Delete Message
+                            </button>
+                        </div>
+                    </article>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

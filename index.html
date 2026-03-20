@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Portfolio - Backend Architect, AI Engineer & Fullstack Developer">
+    <meta name="theme-color" content="#0a0a0b">
+    <title>Portfolio | Backend Architect & AI Engineer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <meta property="og:title" content="Portfolio | Backend Architect & AI Engineer">
+    <meta property="og:description" content="A portfolio showcasing expertise in backend architecture, AI engineering, and fullstack development.">
+    <meta property="og:type" content="website">
+</head>
+<body class="is-loading">
+    <div class="retro-loader" id="retroLoader" role="status" aria-live="polite" aria-label="Loading portfolio">
+        <div class="retro-loader-bg" aria-hidden="true">
+            <div class="retro-loader-ornament retro-loader-ornament-left"></div>
+            <div class="retro-loader-ornament retro-loader-ornament-right"></div>
+            <div class="retro-loader-dust"></div>
+        </div>
+
+        <div class="retro-loader-panel">
+            <p class="retro-loader-kicker">Opening Folio I</p>
+            <h2 class="retro-loader-title">Preparing The Atelier</h2>
+            <p class="retro-loader-copy" id="loaderLabel">Drawing back the curtain...</p>
+            <p class="retro-loader-quote">
+                "The first impression should arrive like a well-kept letter:
+                deliberate, warm, and precise."
+            </p>
+
+            <div class="retro-loader-meter" aria-hidden="true">
+                <div class="retro-loader-meter-fill" id="loaderMeter"></div>
+            </div>
+
+            <div class="retro-loader-meta">
+                <span class="retro-loader-status" id="loaderStatus">STUDY LIT</span>
+                <span class="retro-loader-progress"><span id="loaderProgress">00</span>%</span>
+            </div>
+
+            <div class="retro-loader-terminal" aria-hidden="true">
+                <div class="retro-loader-terminal-bar">
+                    <span class="retro-loader-terminal-title">Archive Notes</span>
+                </div>
+                <ul class="retro-loader-log">
+                    <li class="retro-loader-log-item is-active">Lighting the study and waking the canvas</li>
+                    <li class="retro-loader-log-item">Arranging notes, sketches, and correspondence</li>
+                    <li class="retro-loader-log-item">Composing the opening impression</li>
+                    <li class="retro-loader-log-item">Setting every detail in its place</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="grain-overlay" aria-hidden="true"></div>
+    
+    <div class="vignette-overlay" aria-hidden="true"></div>
+    
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <span class="sr-only">Toggle theme</span>
+        <div class="icon-container">
+            <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+        </div>
+    </button>
+
+    <section id="hero" class="hero-section">
+        <div id="canvas-container" class="canvas-container"></div>
+        
+        <div class="content-overlay container">
+            <span class="terminal-tagline" id="typewriter"></span>
+            
+            <h1 class="headline">
+                Crafting Digital
+                <span class="headline-accent">Masterpieces</span>
+            </h1>
+            
+            <p class="subtitle">
+                "Where the elegance of classical engineering meets the frontier 
+                of artificial intelligence"
+            </p>
+            
+            <p class="description">
+                I architect robust backend systems, forge intelligent AI solutions, 
+                and build fullstack applications that stand the test of time. 
+                With expertise spanning Firebase, NoSQL, SQL databases, and 
+                cybersecurity, I transform complex challenges into elegant solutions.
+            </p>
+            
+            <div class="cta-group">
+                <a href="#projects" class="cta-button cta-button-primary">
+                    View My Work
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+                <a href="#contact" class="cta-button">Get in Touch</a>
+            </div>
+        </div>
+        
+        <div class="scroll-indicator">
+            <span class="scroll-text">Scroll</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <section id="skills" class="skills-section">
+        <div class="container">
+            <header class="section-header">
+                <span class="section-number">02 / Expertise</span>
+                <h2 class="section-title">The Arsenal</h2>
+                <p class="section-subtitle">
+                    A curated collection of technical proficiencies, 
+                    refined through years of engineering challenges.
+                </p>
+            </header>
+            
+            <div class="cabinet">
+                <article class="index-card">
+                    <div class="card-tab">Backend</div>
+                    <div class="card-header">
+                        <div class="card-icon">⚙</div>
+                        <h3 class="card-title">Backend Architecture</h3>
+                    </div>
+                    <ul class="skill-list">
+                        <li class="skill-item">Node.js</li>
+                        <li class="skill-item">Express</li>
+                        <li class="skill-item">NestJS</li>
+                        <li class="skill-item">REST APIs</li>
+                        <li class="skill-item">GraphQL</li>
+                        <li class="skill-item">Microservices</li>
+                    </ul>
+                    <p class="card-description">Designing scalable, maintainable server architectures that power enterprise applications.</p>
+                    <div class="proficiency-bar">
+                        <div class="proficiency-label">Proficiency</div>
+                        <div class="proficiency-track">
+                            <div class="proficiency-fill" style="width: 95%"></div>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="index-card">
+                    <div class="card-tab">Database</div>
+                    <div class="card-header">
+                        <div class="card-icon">◈</div>
+                        <h3 class="card-title">Database Systems</h3>
+                    </div>
+                    <ul class="skill-list">
+                        <li class="skill-item">Firebase</li>
+                        <li class="skill-item">MongoDB</li>
+                        <li class="skill-item">PostgreSQL</li>
+                        <li class="skill-item">MySQL</li>
+                        <li class="skill-item">Redis</li>
+                        <li class="skill-item">Prisma</li>
+                    </ul>
+                    <p class="card-description">Expert in both NoSQL and SQL databases, with deep understanding of data modeling.</p>
+                    <div class="proficiency-bar">
+                        <div class="proficiency-label">Proficiency</div>
+                        <div class="proficiency-track">
+                            <div class="proficiency-fill" style="width: 90%"></div>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="index-card">
+                    <div class="card-tab">AI</div>
+                    <div class="card-header">
+                        <div class="card-icon">✧</div>
+                        <h3 class="card-title">AI Engineering</h3>
+                    </div>
+                    <ul class="skill-list">
+                        <li class="skill-item">Machine Learning</li>
+                        <li class="skill-item">TensorFlow</li>
+                        <li class="skill-item">PyTorch</li>
+                        <li class="skill-item">LLMs</li>
+                        <li class="skill-item">NLP</li>
+                        <li class="skill-item">Computer Vision</li>
+                    </ul>
+                    <p class="card-description">Building intelligent systems that leverage cutting-edge AI to solve complex problems.</p>
+                    <div class="proficiency-bar">
+                        <div class="proficiency-label">Proficiency</div>
+                        <div class="proficiency-track">
+                            <div class="proficiency-fill" style="width: 88%"></div>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="index-card">
+                    <div class="card-tab">Security</div>
+                    <div class="card-header">
+                        <div class="card-icon">▣</div>
+                        <h3 class="card-title">Cybersecurity</h3>
+                    </div>
+                    <ul class="skill-list">
+                        <li class="skill-item">Pen Testing</li>
+                        <li class="skill-item">OWASP</li>
+                        <li class="skill-item">Security Audits</li>
+                        <li class="skill-item">Encryption</li>
+                        <li class="skill-item">Auth Systems</li>
+                        <li class="skill-item">SIEM</li>
+                    </ul>
+                    <p class="card-description">Protecting systems through comprehensive security practices and vulnerability assessments.</p>
+                    <div class="proficiency-bar">
+                        <div class="proficiency-label">Proficiency</div>
+                        <div class="proficiency-track">
+                            <div class="proficiency-fill" style="width: 85%"></div>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="index-card">
+                    <div class="card-tab">Cloud</div>
+                    <div class="card-header">
+                        <div class="card-icon">☁</div>
+                        <h3 class="card-title">Cloud & DevOps</h3>
+                    </div>
+                    <ul class="skill-list">
+                        <li class="skill-item">AWS</li>
+                        <li class="skill-item">GCP</li>
+                        <li class="skill-item">Docker</li>
+                        <li class="skill-item">Kubernetes</li>
+                        <li class="skill-item">CI/CD</li>
+                        <li class="skill-item">Serverless</li>
+                    </ul>
+                    <p class="card-description">Architecting cloud-native solutions with automated deployment pipelines.</p>
+                    <div class="proficiency-bar">
+                        <div class="proficiency-label">Proficiency</div>
+                        <div class="proficiency-track">
+                            <div class="proficiency-fill" style="width: 87%"></div>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="index-card">
+                    <div class="card-tab">Fullstack</div>
+                    <div class="card-header">
+                        <div class="card-icon">⬡</div>
+                        <h3 class="card-title">Fullstack Development</h3>
+                    </div>
+                    <ul class="skill-list">
+                        <li class="skill-item">React</li>
+                        <li class="skill-item">Next.js</li>
+                        <li class="skill-item">TypeScript</li>
+                        <li class="skill-item">Python</li>
+                        <li class="skill-item">Go</li>
+                        <li class="skill-item">Three.js</li>
+                    </ul>
+                    <p class="card-description">Crafting complete solutions from backend APIs to beautiful, responsive frontends.</p>
+                    <div class="proficiency-bar">
+                        <div class="proficiency-label">Proficiency</div>
+                        <div class="proficiency-track">
+                            <div class="proficiency-fill" style="width: 92%"></div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section id="projects" class="projects-section">
+        <div class="container">
+            <header class="section-header">
+                <span class="section-number">03 / Portfolio</span>
+                <h2 class="section-title">Selected Works</h2>
+                <p class="section-subtitle">
+                    A curated collection of projects that showcase technical depth 
+                    and creative problem-solving.
+                </p>
+            </header>
+            
+            <div class="projects-grid">
+                <article class="project-card">
+                    <div class="featured-badge">Featured</div>
+                    <div class="card-image">
+                        <div class="image-placeholder">
+                            <span class="placeholder-icon">👨‍🏫</span>
+                        </div>
+                        <div class="image-overlay"></div>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-number">Project 01</span>
+                        <h3 class="card-title">TengdoshUstoz</h3>
+                        <p class="card-description">
+                            A revolutionary peer-to-peer tutoring platform connecting students with qualified tutors across Uzbekistan. 
+                            Features intelligent matching algorithms, real-time video conferencing, and a comprehensive scheduling system.
+                        </p>
+                        <div class="tech-stack">
+                            <span class="tech-tag">Next.js</span>
+                            <span class="tech-tag">TypeScript</span>
+                            <span class="tech-tag">PostgreSQL</span>
+                            <span class="tech-tag">WebRTC</span>
+                            <span class="tech-tag">Redis</span>
+                        </div>
+                        <div class="card-links">
+                            <a href="#" class="card-link" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                                Live Demo
+                            </a>
+                            <a href="#" class="card-link" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                                </svg>
+                                Source Code
+                            </a>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="project-card">
+                    <div class="featured-badge">Featured</div>
+                    <div class="card-image">
+                        <div class="image-placeholder">
+                            <span class="placeholder-icon">📚</span>
+                        </div>
+                        <div class="image-overlay"></div>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-number">Project 02</span>
+                        <h3 class="card-title">EduVenture</h3>
+                        <p class="card-description">
+                            An immersive educational platform that transforms learning into adventure. 
+                            Combining gamification principles with adaptive AI to create personalized 
+                            learning journeys for students of all ages.
+                        </p>
+                        <div class="tech-stack">
+                            <span class="tech-tag">React</span>
+                            <span class="tech-tag">Node.js</span>
+                            <span class="tech-tag">Firebase</span>
+                            <span class="tech-tag">TensorFlow</span>
+                            <span class="tech-tag">MongoDB</span>
+                        </div>
+                        <div class="card-links">
+                            <a href="#" class="card-link" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                                Live Demo
+                            </a>
+                            <a href="#" class="card-link" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                                </svg>
+                                Source Code
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact-section">
+        <div class="container">
+            <header class="section-header">
+                <span class="section-number">04 / Connect</span>
+                <h2 class="section-title">Let's Correspond</h2>
+                <p class="section-subtitle">
+                    Have a project in mind or simply wish to discuss technology? 
+                    I welcome thoughtful conversations.
+                </p>
+            </header>
+            
+            <div class="contact-container">
+                <form id="contactForm" class="contact-form">
+                    <div class="form-group">
+                        <label for="name" class="form-label">Name <span class="required">*</span></label>
+                        <input type="text" id="name" name="name" class="form-input" placeholder="Your name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email" class="form-label">Email <span class="required">*</span></label>
+                        <input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" id="subject" name="subject" class="form-input" placeholder="What's this about?">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message" class="form-label">Message <span class="required">*</span></label>
+                        <textarea id="message" name="message" class="form-textarea" placeholder="Your message..." required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="submit-button" id="submitBtn">
+                        Send Message
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13"/>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                        </svg>
+                    </button>
+                    
+                    <div id="formStatus" class="form-status hidden"></div>
+                </form>
+                
+                <div class="alternative-contact">
+                    <p class="alternative-title">Or connect through these channels</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link" aria-label="GitHub Profile" target="_blank">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-link" aria-label="LinkedIn Profile" target="_blank">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
+                                <rect x="2" y="9" width="4" height="12"/>
+                                <circle cx="4" cy="4" r="2"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-link" aria-label="Twitter/X Profile" target="_blank">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4l11.733 16h4.267l-11.733 -16z"/>
+                                <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"/>
+                            </svg>
+                        </a>
+                        <a href="mailto:hello@example.com" class="social-link" aria-label="Email">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container footer-content">
+            <p class="copyright">
+                <span class="accent">©</span> <span id="year"></span> // All Rights Reserved
+            </p>
+            <p class="footer-quote">
+                "In the grand game of code, precision is the mark of mastery."
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/three-scene.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
