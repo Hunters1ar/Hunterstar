@@ -258,6 +258,71 @@
     });
 
     // ========================================================================
+    // INTERACTIONS
+    // ========================================================================
+
+    function initSiteInteractions() {
+        const supportsHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        const projectCards = document.querySelectorAll('.project-card');
+        const magneticElements = document.querySelectorAll('.cta-button, .card-link, .social-link');
+
+        projectCards.forEach((card) => {
+            const resetCard = () => {
+                card.style.setProperty('--card-rotate-x', '0deg');
+                card.style.setProperty('--card-rotate-y', '0deg');
+                card.style.setProperty('--spotlight-x', '50%');
+                card.style.setProperty('--spotlight-y', '30%');
+                card.classList.remove('is-engaged');
+            };
+
+            if (supportsHover && !prefersReducedMotion) {
+                card.addEventListener('pointermove', (event) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    const rotateY = ((x / rect.width) - 0.5) * 8;
+                    const rotateX = (0.5 - (y / rect.height)) * 8;
+
+                    card.style.setProperty('--card-rotate-x', `${rotateX.toFixed(2)}deg`);
+                    card.style.setProperty('--card-rotate-y', `${rotateY.toFixed(2)}deg`);
+                    card.style.setProperty('--spotlight-x', `${((x / rect.width) * 100).toFixed(2)}%`);
+                    card.style.setProperty('--spotlight-y', `${((y / rect.height) * 100).toFixed(2)}%`);
+                    card.classList.add('is-engaged');
+                });
+
+                card.addEventListener('pointerleave', resetCard);
+            }
+
+            card.addEventListener('focusin', () => card.classList.add('is-engaged'));
+            card.addEventListener('focusout', () => {
+                if (!card.matches(':hover')) {
+                    resetCard();
+                }
+            });
+        });
+
+        if (supportsHover && !prefersReducedMotion) {
+            magneticElements.forEach((element) => {
+                const resetElement = () => {
+                    element.style.transform = '';
+                };
+
+                element.addEventListener('pointermove', (event) => {
+                    const rect = element.getBoundingClientRect();
+                    const x = event.clientX - rect.left - rect.width / 2;
+                    const y = event.clientY - rect.top - rect.height / 2;
+                    element.style.transform = `translate(${(x * 0.06).toFixed(1)}px, ${(y * 0.10).toFixed(1)}px)`;
+                });
+
+                element.addEventListener('pointerleave', resetElement);
+                element.addEventListener('blur', resetElement);
+            });
+        }
+    }
+
+    initSiteInteractions();
+
+    // ========================================================================
     // CONTACT FORM
     // ========================================================================
 
@@ -379,16 +444,21 @@
         });
     }, observerOptions);
 
-    document.querySelectorAll('.index-card, .project-card').forEach((element) => {
+    document.querySelectorAll('.index-card').forEach((element) => {
         element.style.opacity = '0';
         element.style.transform = 'translateY(20px)';
         element.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
         animationObserver.observe(element);
     });
 
+    document.querySelectorAll('.project-card').forEach((element) => {
+        element.classList.add('reveal-ready');
+        animationObserver.observe(element);
+    });
+
     const style = document.createElement('style');
     style.textContent = `
-        .animate-in {
+        .index-card.animate-in {
             opacity: 1 !important;
             transform: translateY(0) !important;
         }

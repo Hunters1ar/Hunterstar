@@ -15,6 +15,7 @@
     // ========================================================================
 
     const container = document.getElementById('canvas-container');
+    const heroSection = document.getElementById('hero');
     if (!container) return;
 
     // Scene
@@ -282,12 +283,25 @@
     // SCROLL TRACKING
     // ========================================================================
 
-    let scrollProgress = 0;
+    let pageScrollProgress = 0;
+    let heroScrollProgress = 0;
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
 
     function updateScrollProgress() {
         const scrollTop = window.scrollY;
         const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-        scrollProgress = Math.min(Math.max(scrollTop / docHeight, 0), 1);
+        pageScrollProgress = clamp(docHeight > 0 ? scrollTop / docHeight : 0, 0, 1);
+
+        if (heroSection) {
+            const heroRect = heroSection.getBoundingClientRect();
+            const heroRange = Math.max(heroRect.height, window.innerHeight);
+            heroScrollProgress = clamp((-heroRect.top) / heroRange, 0, 1);
+        } else {
+            heroScrollProgress = pageScrollProgress;
+        }
     }
 
     window.addEventListener('scroll', updateScrollProgress, { passive: true });
@@ -343,31 +357,46 @@
         requestAnimationFrame(animate);
         time += 0.016;
 
+        const introScale = 0.92 + (heroScrollProgress * 0.28);
+        const pulseScale = 1 + (Math.sin(time * 1.4) * 0.012);
+        const disassemblyProgress = clamp((pageScrollProgress - 0.12) / 0.72, 0, 1);
+
         // Rotate chess piece
-        chessGroup.rotation.y = time * 0.1;
+        chessGroup.scale.setScalar(introScale * pulseScale);
+        chessGroup.rotation.y = (time * 0.1) + (heroScrollProgress * 0.25);
+        chessGroup.rotation.x = Math.sin(time * 0.3) * 0.03 + (heroScrollProgress * 0.08);
 
         // Floating effect
         const floatY = Math.sin(time * 1.5) * 0.1;
-        chessGroup.position.y = floatY;
+        chessGroup.position.y = floatY - (heroScrollProgress * 0.18);
+
+        camera.position.z = 5 - (heroScrollProgress * 0.35);
+        camera.position.y = 2 - (heroScrollProgress * 0.08);
+        camera.lookAt(0, 1 - (heroScrollProgress * 0.08), 0);
+
+        if (container) {
+            const containerScale = 1 + (heroScrollProgress * 0.04);
+            container.style.transform = `translate3d(0, ${(-heroScrollProgress * 1.5).toFixed(2)}%, 0) scale(${containerScale.toFixed(3)})`;
+            container.style.opacity = String(1 - (disassemblyProgress * 0.12));
+        }
 
         // Update parts based on scroll
-        parts.forEach((part, i) => {
-            part.scale.setScalar(1 - scrollProgress * 0.5);
+        parts.forEach((part) => {
+            part.scale.setScalar(1 - (disassemblyProgress * 0.42));
             if (part.material) {
-                part.material.opacity = 1 - scrollProgress;
+                part.material.opacity = 1 - (disassemblyProgress * 0.95);
             }
         });
-        chessGroup.visible = scrollProgress < 0.8;
+        chessGroup.visible = disassemblyProgress < 0.88;
 
         // Animate shards
-        shards.forEach((shard, i) => {
-            const progress = scrollProgress;
-            shard.mesh.position.lerpVectors(shard.startPos, shard.endPos, progress);
-            shard.mesh.rotation.x = shard.rotation.x * progress;
-            shard.mesh.rotation.y = shard.rotation.y * progress;
-            shard.mesh.rotation.z = shard.rotation.z * progress;
+        shards.forEach((shard) => {
+            shard.mesh.position.lerpVectors(shard.startPos, shard.endPos, disassemblyProgress);
+            shard.mesh.rotation.x = shard.rotation.x * disassemblyProgress;
+            shard.mesh.rotation.y = shard.rotation.y * disassemblyProgress;
+            shard.mesh.rotation.z = shard.rotation.z * disassemblyProgress;
             if (shard.mesh.material) {
-                shard.mesh.material.opacity = progress;
+                shard.mesh.material.opacity = disassemblyProgress;
             }
         });
 
@@ -375,14 +404,20 @@
         if (particles && particlePositions) {
             for (let i = 0; i < particleCount; i++) {
                 const angle = time * 0.1 + (i / particleCount) * Math.PI * 2;
-                const baseRadius = 1.5 + (i % 5) * 0.3;
+                const baseRadius = 1.5 + (i % 5) * 0.3 + (heroScrollProgress * 0.1);
 
                 particlePositions[i * 3] = Math.cos(angle + i * 0.1) * baseRadius;
                 particlePositions[i * 3 + 2] = Math.sin(angle + i * 0.1) * baseRadius;
                 particlePositions[i * 3 + 1] += Math.sin(time + i) * 0.001;
             }
+
+            if (particles.material) {
+                particles.material.opacity = 0.55 + ((1 - disassemblyProgress) * 0.15) + (heroScrollProgress * 0.1);
+                particles.material.size = 0.03 + (heroScrollProgress * 0.006);
+            }
+
             particles.geometry.attributes.position.needsUpdate = true;
-            particles.rotation.y = time * 0.05;
+            particles.rotation.y = time * 0.05 + (heroScrollProgress * 0.12);
         }
 
         renderer.render(scene, camera);

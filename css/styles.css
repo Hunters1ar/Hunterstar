@@ -588,6 +588,8 @@ a:hover { color: var(--color-accent-secondary); }
   height: 100%;
   z-index: 0;
   pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
 }
 
 .content-overlay {
@@ -1070,6 +1072,134 @@ a:hover { color: var(--color-accent-secondary); }
 .project-card:hover .tech-tag {
   border-color: var(--color-accent-tertiary);
   color: var(--color-text-secondary);
+}
+
+
+/* ============================================================================
+ * ENHANCED INTERACTIONS
+ * ============================================================================ */
+
+.projects-section {
+  background:
+    radial-gradient(circle at top center, var(--color-accent-glow) 0%, transparent 26%),
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.01) 100%);
+}
+
+.project-card {
+  --card-rotate-x: 0deg;
+  --card-rotate-y: 0deg;
+  --card-shift: 0px;
+  --card-scale: 1;
+  --reveal-y: 0px;
+  --spotlight-x: 50%;
+  --spotlight-y: 30%;
+  background:
+    radial-gradient(circle at var(--spotlight-x) var(--spotlight-y), var(--color-accent-glow) 0%, transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 26%),
+    var(--color-surface-card);
+  transform:
+    perspective(1200px)
+    translateY(calc(var(--reveal-y) + var(--card-shift)))
+    rotateX(var(--card-rotate-x))
+    rotateY(var(--card-rotate-y))
+    scale(var(--card-scale));
+  transition:
+    transform var(--transition-dramatic),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    opacity 0.7s ease,
+    filter 0.7s ease;
+  will-change: transform;
+}
+
+.project-card::before {
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+}
+
+.project-card::after {
+  background:
+    radial-gradient(circle at var(--spotlight-x) var(--spotlight-y), rgba(255, 255, 255, 0.08) 0%, transparent 30%),
+    linear-gradient(135deg, transparent 0%, transparent 55%, rgba(201, 162, 39, 0.09) 100%);
+}
+
+.project-card:hover,
+.project-card.is-engaged {
+  --card-shift: -10px;
+  --card-scale: 1.01;
+  box-shadow: 0 24px 48px var(--color-shadow-deep), 0 0 0 1px var(--color-accent-glow);
+}
+
+.project-card:hover::after,
+.project-card.is-engaged::after {
+  opacity: 1;
+}
+
+.project-card:hover::before,
+.project-card.is-engaged::before {
+  border-color: var(--color-accent-primary);
+}
+
+.project-card.reveal-ready {
+  --reveal-y: 28px;
+  opacity: 0;
+  filter: blur(10px);
+}
+
+.project-card.animate-in {
+  --reveal-y: 0px;
+  opacity: 1 !important;
+  filter: blur(0);
+}
+
+.card-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 18%, rgba(255, 255, 255, 0.08) 50%, transparent 82%);
+  transform: translateX(-120%);
+  transition: transform 0.9s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.project-card:hover .card-image::before,
+.project-card.is-engaged .card-image::before {
+  transform: translateX(120%);
+}
+
+.image-placeholder {
+  position: relative;
+}
+
+.image-placeholder::after {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border: 1px dashed rgba(201, 162, 39, 0.22);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.card-links,
+.card-link,
+.cta-button,
+.social-link {
+  position: relative;
+}
+
+.card-link,
+.cta-button,
+.social-link {
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    background-color var(--transition-base),
+    color var(--transition-base);
+  will-change: transform;
 }
 
 .card-links {
