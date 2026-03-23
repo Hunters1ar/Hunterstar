@@ -352,6 +352,197 @@
     }
 
     // ========================================================================
+    // PUBLIC CONTENT BOXES
+    // ========================================================================
+
+    const knowledgeSection = document.getElementById('knowledgeVault');
+    const knowledgeGrid = document.getElementById('knowledgeGrid');
+    const knowledgeStatus = document.getElementById('knowledgeStatus');
+
+    function setKnowledgeStatus(message) {
+        if (!knowledgeStatus) return;
+        knowledgeStatus.textContent = message;
+    }
+
+    function createSafeLink(url) {
+        try {
+            const parsed = new URL(url);
+            if (!['http:', 'https:'].includes(parsed.protocol)) {
+                return null;
+            }
+            return parsed.toString();
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function createResourceCard(box, index) {
+        const article = document.createElement('article');
+        article.className = 'resource-card';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'resource-toggle';
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', 'resourcePanel' + index);
+
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'resource-toggle-copy';
+
+        const eyebrow = document.createElement('span');
+        eyebrow.className = 'resource-eyebrow';
+        eyebrow.textContent = box.published ? 'Published Note' : 'Draft';
+
+        const title = document.createElement('h3');
+        title.className = 'resource-title';
+        title.textContent = box.title || 'Untitled Box';
+
+        const summary = document.createElement('p');
+        summary.className = 'resource-summary';
+        summary.textContent = box.summary || 'Open this card to view commands, notes, and links.';
+
+        const chevron = document.createElement('span');
+        chevron.className = 'resource-chevron';
+        chevron.setAttribute('aria-hidden', 'true');
+        chevron.innerHTML = '&#43;';
+
+        titleGroup.appendChild(eyebrow);
+        titleGroup.appendChild(title);
+        titleGroup.appendChild(summary);
+        button.appendChild(titleGroup);
+        button.appendChild(chevron);
+
+        const panel = document.createElement('div');
+        panel.className = 'resource-panel';
+        panel.id = 'resourcePanel' + index;
+        panel.hidden = true;
+
+        const panelInner = document.createElement('div');
+        panelInner.className = 'resource-panel-inner';
+
+        if (box.notes) {
+            const notesBlock = document.createElement('div');
+            notesBlock.className = 'resource-notes';
+
+            const notesLabel = document.createElement('p');
+            notesLabel.className = 'resource-block-label';
+            notesLabel.textContent = 'Notes';
+
+            const notesPre = document.createElement('pre');
+            notesPre.className = 'resource-code';
+            notesPre.textContent = box.notes;
+
+            notesBlock.appendChild(notesLabel);
+            notesBlock.appendChild(notesPre);
+            panelInner.appendChild(notesBlock);
+        }
+
+        if (Array.isArray(box.links) && box.links.length) {
+            const linksBlock = document.createElement('div');
+            linksBlock.className = 'resource-links-block';
+
+            const linksLabel = document.createElement('p');
+            linksLabel.className = 'resource-block-label';
+            linksLabel.textContent = 'Useful Links';
+            linksBlock.appendChild(linksLabel);
+
+            const linksList = document.createElement('div');
+            linksList.className = 'resource-links';
+
+            box.links.forEach((link) => {
+                const safeUrl = createSafeLink(link.url);
+                if (!safeUrl) return;
+
+                const anchor = document.createElement('a');
+                anchor.className = 'resource-link';
+                anchor.href = safeUrl;
+                anchor.target = '_blank';
+                anchor.rel = 'noopener noreferrer';
+                anchor.textContent = link.label || safeUrl;
+                linksList.appendChild(anchor);
+            });
+
+            if (linksList.childElementCount) {
+                linksBlock.appendChild(linksList);
+                panelInner.appendChild(linksBlock);
+            }
+        }
+
+        if (!panelInner.childElementCount) {
+            const empty = document.createElement('p');
+            empty.className = 'resource-empty';
+            empty.textContent = 'This box is empty right now.';
+            panelInner.appendChild(empty);
+        }
+
+        panel.appendChild(panelInner);
+
+        button.addEventListener('click', () => {
+            const isOpen = button.getAttribute('aria-expanded') === 'true';
+            button.setAttribute('aria-expanded', String(!isOpen));
+            article.classList.toggle('is-open', !isOpen);
+
+            if (isOpen) {
+                panel.style.maxHeight = panel.scrollHeight + 'px';
+                requestAnimationFrame(() => {
+                    panel.style.maxHeight = '0px';
+                    panel.style.opacity = '0';
+                });
+                window.setTimeout(() => {
+                    panel.hidden = true;
+                }, 320);
+                return;
+            }
+
+            panel.hidden = false;
+            panel.style.maxHeight = '0px';
+            panel.style.opacity = '0';
+            requestAnimationFrame(() => {
+                panel.style.maxHeight = panel.scrollHeight + 'px';
+                panel.style.opacity = '1';
+            });
+        });
+
+        article.appendChild(button);
+        article.appendChild(panel);
+        return article;
+    }
+
+    function renderKnowledgeBoxes(boxes) {
+        if (!knowledgeSection || !knowledgeGrid) return;
+
+        knowledgeGrid.innerHTML = '';
+
+        if (!Array.isArray(boxes) || !boxes.length) {
+            knowledgeSection.classList.add('hidden');
+            return;
+        }
+
+        boxes.forEach((box, index) => {
+            knowledgeGrid.appendChild(createResourceCard(box, index));
+        });
+
+        knowledgeSection.classList.remove('hidden');
+        setKnowledgeStatus(boxes.length === 1 ? '1 note published.' : boxes.length + ' notes published.');
+    }
+
+    if (window.firebaseConfig && typeof window.firebaseConfig.subscribeToPublicContentBoxes === 'function') {
+        try {
+            window.firebaseConfig.subscribeToPublicContentBoxes((boxes) => {
+                renderKnowledgeBoxes(boxes);
+            }, (error) => {
+                console.warn('Public content boxes are unavailable:', error);
+                if (knowledgeSection) knowledgeSection.classList.add('hidden');
+            });
+        } catch (error) {
+            console.warn('Public content boxes failed to initialize:', error);
+            if (knowledgeSection) knowledgeSection.classList.add('hidden');
+        }
+    } else if (knowledgeSection) {
+        knowledgeSection.classList.add('hidden');
+    }
+
+    // ========================================================================
     // FOOTER YEAR
     // ========================================================================
 

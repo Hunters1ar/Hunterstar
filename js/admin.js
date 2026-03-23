@@ -2,7 +2,7 @@
  * ============================================================================
  * ADMIN DASHBOARD
  * ============================================================================
- * Handles admin authentication and live Firestore archive management.
+ * Handles admin authentication, submissions, and public content box management.
  * ============================================================================
  */
 
@@ -35,12 +35,33 @@
     const unreadCount = document.getElementById('adminUnreadCount');
     const readCount = document.getElementById('adminReadCount');
 
+    const resourceForm = document.getElementById('adminResourceForm');
+    const resourceFormTitle = document.getElementById('adminResourceFormTitle');
+    const resourceTitleInput = document.getElementById('resourceTitle');
+    const resourceSummaryInput = document.getElementById('resourceSummary');
+    const resourceNotesInput = document.getElementById('resourceNotes');
+    const resourceLinksInput = document.getElementById('resourceLinks');
+    const resourceOrderInput = document.getElementById('resourceOrder');
+    const resourcePublishedInput = document.getElementById('resourcePublished');
+    const resourceSaveButton = document.getElementById('adminResourceSaveBtn');
+    const resourceResetButton = document.getElementById('adminResourceResetBtn');
+    const resourceDeleteButton = document.getElementById('adminResourceDeleteBtn');
+    const resourceStatus = document.getElementById('adminResourceStatus');
+    const resourceList = document.getElementById('adminResourceList');
+    const resourceListStatus = document.getElementById('adminResourceListStatus');
+    const resourceTotalCount = document.getElementById('adminBoxTotalCount');
+    const resourcePublishedCount = document.getElementById('adminBoxPublishedCount');
+
     const state = {
         submissions: [],
         filteredSubmissions: [],
         selectedId: null,
         loading: false,
-        unsubscribe: null
+        unsubscribe: null,
+        boxes: [],
+        selectedBoxId: null,
+        boxesLoading: false,
+        unsubscribeBoxes: null
     };
 
     function setStatus(element, message, type) {
@@ -63,11 +84,29 @@
         listStatus.style.color = isError ? '#f18f86' : '';
     }
 
+    function setResourceListStatus(message, isError) {
+        if (!resourceListStatus) return;
+
+        resourceListStatus.textContent = message;
+        resourceListStatus.style.color = isError ? '#f18f86' : '';
+    }
+
     function setLoginLoading(loading) {
         if (!loginButton) return;
 
         loginButton.disabled = loading;
         loginButton.textContent = loading ? 'Authorizing...' : 'Enter Control Room';
+    }
+
+    function setResourceSaving(loading) {
+        if (!resourceSaveButton) return;
+
+        resourceSaveButton.disabled = loading;
+        resourceSaveButton.textContent = loading ? 'Saving...' : (state.selectedBoxId ? 'Update Box' : 'Save Box');
+
+        if (resourceDeleteButton) {
+            resourceDeleteButton.disabled = loading || !state.selectedBoxId;
+        }
     }
 
     function getFriendlyError(error) {
@@ -98,12 +137,22 @@
         return state.submissions.find((submission) => submission.id === state.selectedId) || null;
     }
 
+    function getSelectedBox() {
+        return state.boxes.find((box) => box.id === state.selectedBoxId) || null;
+    }
+
     function updateStats() {
         const unread = state.submissions.filter((submission) => !submission.read).length;
 
         if (totalCount) totalCount.textContent = String(state.submissions.length);
         if (unreadCount) unreadCount.textContent = String(unread);
         if (readCount) readCount.textContent = String(state.submissions.length - unread);
+    }
+
+    function updateResourceStats() {
+        const publishedBoxes = state.boxes.filter((box) => box.published).length;
+        if (resourceTotalCount) resourceTotalCount.textContent = String(state.boxes.length);
+        if (resourcePublishedCount) resourcePublishedCount.textContent = String(publishedBoxes);
     }
 
     function createMetaText(submission) {
@@ -125,6 +174,106 @@
         if (!selectedVisible) {
             state.selectedId = state.filteredSubmissions[0].id;
         }
+    }
+
+    function formatLinksForTextarea(links) {
+        if (!Array.isArray(links) || !links.length) return '';
+        return links.map((link) => {
+            const label = (link.label || '').trim();
+            const url = (link.url || '').trim();
+            return label && label !== url ? label + ' | ' + url : url;
+        }).join('\n');
+    }
+
+    function parseLinksInput(rawValue) {
+        if (!rawValue) return [];
+
+        return rawValue
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => {
+                const parts = line.split('|').map((part) => part.trim()).filter(Boolean);
+                let label = '';
+                let url = '';
+
+                if (parts.length >= 2) {
+                    label = parts[0];
+                    url = parts.slice(1).join(' | ');
+                } else {
+                    url = line;
+                }
+
+                const normalizedUrl = normalizeUrl(url);
+                return {
+                    label: label || normalizedUrl,
+                    url: normalizedUrl
+                };
+            });
+    }
+
+    function normalizeUrl(value) {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) {
+            throw new Error('One of the links is empty.');
+        }
+
+        const hasProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed);
+        const candidate = hasProtocol ? trimmed : 'https://' + trimmed;
+        const parsed = new URL(candidate);
+
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+            throw new Error('Only http and https links are allowed in the public boxes.');
+        }
+
+        return parsed.toString();
+    }
+
+    function resetResourceForm(keepStatus) {
+        state.selectedBoxId = null;
+
+        if (resourceForm) {
+            resourceForm.reset();
+        }
+
+        if (resourceOrderInput) resourceOrderInput.value = '0';
+        if (resourcePublishedInput) resourcePublishedInput.checked = true;
+        if (resourceFormTitle) resourceFormTitle.textContent = 'Create New Box';
+        if (resourceSaveButton) resourceSaveButton.textContent = 'Save Box';
+        if (resourceDeleteButton) {
+            resourceDeleteButton.classList.add('hidden');
+            resourceDeleteButton.disabled = true;
+        }
+
+        if (!keepStatus) {
+            setStatus(resourceStatus, '', 'hidden');
+        }
+
+        renderResourceList();
+    }
+
+    function fillResourceForm(box) {
+        if (!box) {
+            resetResourceForm(true);
+            return;
+        }
+
+        state.selectedBoxId = box.id;
+
+        if (resourceTitleInput) resourceTitleInput.value = box.title || '';
+        if (resourceSummaryInput) resourceSummaryInput.value = box.summary || '';
+        if (resourceNotesInput) resourceNotesInput.value = box.notes || '';
+        if (resourceLinksInput) resourceLinksInput.value = formatLinksForTextarea(box.links);
+        if (resourceOrderInput) resourceOrderInput.value = String(Number.isFinite(Number(box.order)) ? Number(box.order) : 0);
+        if (resourcePublishedInput) resourcePublishedInput.checked = Boolean(box.published);
+        if (resourceFormTitle) resourceFormTitle.textContent = 'Edit Box';
+        if (resourceSaveButton) resourceSaveButton.textContent = 'Update Box';
+        if (resourceDeleteButton) {
+            resourceDeleteButton.classList.remove('hidden');
+            resourceDeleteButton.disabled = false;
+        }
+
+        renderResourceList();
     }
 
     function renderList() {
@@ -239,6 +388,76 @@
         setListStatus(state.filteredSubmissions.length + ' ' + suffix, false);
     }
 
+    function renderResourceList() {
+        if (!resourceList) return;
+
+        resourceList.innerHTML = '';
+
+        if (state.boxesLoading) {
+            setResourceListStatus('Syncing homepage boxes...', false);
+            return;
+        }
+
+        if (!state.boxes.length) {
+            setResourceListStatus('No public boxes created yet.', false);
+            return;
+        }
+
+        setResourceListStatus(state.boxes.length + (state.boxes.length === 1 ? ' box loaded.' : ' boxes loaded.'), false);
+
+        state.boxes.forEach((box) => {
+            const item = document.createElement('article');
+            item.className = 'admin-resource-item';
+            if (box.id === state.selectedBoxId) {
+                item.classList.add('is-active');
+            }
+
+            const top = document.createElement('div');
+            top.className = 'admin-resource-item-top';
+
+            const headingGroup = document.createElement('div');
+
+            const title = document.createElement('h4');
+            title.className = 'admin-resource-title';
+            title.textContent = box.title || 'Untitled Box';
+
+            const meta = document.createElement('p');
+            meta.className = 'admin-resource-meta';
+            meta.textContent = 'Order ' + (Number.isFinite(Number(box.order)) ? Number(box.order) : 0) + ' • ' + (box.published ? 'Published' : 'Draft');
+
+            headingGroup.appendChild(title);
+            headingGroup.appendChild(meta);
+
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'cta-button admin-mini-button';
+            editButton.textContent = 'Edit';
+            editButton.addEventListener('click', () => fillResourceForm(box));
+
+            top.appendChild(headingGroup);
+            top.appendChild(editButton);
+
+            const summary = document.createElement('p');
+            summary.className = 'admin-resource-summary';
+            summary.textContent = box.summary || (box.notes ? box.notes.slice(0, 120) + (box.notes.length > 120 ? '...' : '') : 'No summary yet.');
+
+            const footer = document.createElement('div');
+            footer.className = 'admin-resource-footer';
+            footer.textContent = box.updatedAtLabel || 'Pending update timestamp';
+
+            item.appendChild(top);
+            item.appendChild(summary);
+            item.appendChild(footer);
+
+            item.addEventListener('click', (event) => {
+                if (event.target === editButton) return;
+                fillResourceForm(box);
+            });
+
+            resourceList.appendChild(item);
+        });
+    }
+
     function applyFilter() {
         const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
@@ -261,7 +480,7 @@
         renderDetail();
     }
 
-    function stopSubscription() {
+    function stopSubmissionSubscription() {
         if (typeof state.unsubscribe === 'function') {
             state.unsubscribe();
         }
@@ -269,10 +488,18 @@
         state.unsubscribe = null;
     }
 
-    function startSubscription() {
+    function stopBoxSubscription() {
+        if (typeof state.unsubscribeBoxes === 'function') {
+            state.unsubscribeBoxes();
+        }
+
+        state.unsubscribeBoxes = null;
+    }
+
+    function startSubmissionSubscription() {
         if (!firebaseTools) return;
 
-        stopSubscription();
+        stopSubmissionSubscription();
         state.loading = true;
         state.submissions = [];
         state.filteredSubmissions = [];
@@ -302,6 +529,34 @@
             setStatus(authStatus, getFriendlyError(error), 'error');
             setListStatus('Signed in, but the archive is blocked by your Firestore rules.', true);
             renderDetail();
+        });
+    }
+
+    function startBoxSubscription() {
+        if (!firebaseTools || !firebaseTools.subscribeToContentBoxes) return;
+
+        stopBoxSubscription();
+        state.boxesLoading = true;
+        state.boxes = [];
+        updateResourceStats();
+        renderResourceList();
+
+        state.unsubscribeBoxes = firebaseTools.subscribeToContentBoxes((boxes) => {
+            state.boxesLoading = false;
+            state.boxes = boxes;
+
+            const selectedBoxStillExists = state.selectedBoxId && boxes.some((box) => box.id === state.selectedBoxId);
+            if (state.selectedBoxId && !selectedBoxStillExists) {
+                resetResourceForm(true);
+            }
+
+            updateResourceStats();
+            renderResourceList();
+        }, (error) => {
+            state.boxesLoading = false;
+            setStatus(resourceStatus, getFriendlyError(error), 'error');
+            setResourceListStatus('Signed in, but your rules are blocking the public boxes collection.', true);
+            renderResourceList();
         });
     }
 
@@ -385,6 +640,61 @@
         }
     }
 
+    async function handleResourceSave(event) {
+        event.preventDefault();
+
+        if (!firebaseTools || !firebaseTools.saveContentBox) {
+            setStatus(resourceStatus, 'Firebase content box helper is missing.', 'error');
+            return;
+        }
+
+        try {
+            setResourceSaving(true);
+            setStatus(resourceStatus, '', 'hidden');
+
+            const payload = {
+                id: state.selectedBoxId,
+                title: resourceTitleInput ? resourceTitleInput.value.trim() : '',
+                summary: resourceSummaryInput ? resourceSummaryInput.value.trim() : '',
+                notes: resourceNotesInput ? resourceNotesInput.value.trim() : '',
+                links: parseLinksInput(resourceLinksInput ? resourceLinksInput.value : ''),
+                order: resourceOrderInput ? Number(resourceOrderInput.value || 0) : 0,
+                published: resourcePublishedInput ? resourcePublishedInput.checked : true
+            };
+
+            if (!payload.title) {
+                throw new Error('Box title is required.');
+            }
+
+            const savedId = await firebaseTools.saveContentBox(payload);
+            state.selectedBoxId = savedId;
+            setStatus(resourceStatus, payload.id ? 'Box updated successfully.' : 'Box created successfully.', 'success');
+        } catch (error) {
+            setStatus(resourceStatus, getFriendlyError(error), 'error');
+        } finally {
+            setResourceSaving(false);
+        }
+    }
+
+    async function handleResourceDelete() {
+        const selected = getSelectedBox();
+        if (!selected || !firebaseTools || !firebaseTools.deleteContentBox) return;
+
+        const confirmed = window.confirm('Delete this homepage box permanently?');
+        if (!confirmed) return;
+
+        try {
+            setResourceSaving(true);
+            await firebaseTools.deleteContentBox(selected.id);
+            resetResourceForm(true);
+            setStatus(resourceStatus, 'Box deleted successfully.', 'success');
+        } catch (error) {
+            setStatus(resourceStatus, getFriendlyError(error), 'error');
+        } finally {
+            setResourceSaving(false);
+        }
+    }
+
     function handleAuthStateChange(user) {
         const isSignedIn = Boolean(user);
 
@@ -392,15 +702,21 @@
         if (dashboard) dashboard.classList.toggle('hidden', !isSignedIn);
 
         if (!isSignedIn) {
-            stopSubscription();
+            stopSubmissionSubscription();
+            stopBoxSubscription();
             state.loading = false;
             state.submissions = [];
             state.filteredSubmissions = [];
             state.selectedId = null;
+            state.boxesLoading = false;
+            state.boxes = [];
             updateStats();
+            updateResourceStats();
             renderListStatus();
             renderList();
             renderDetail();
+            renderResourceList();
+            resetResourceForm(true);
             if (sessionUser) sessionUser.textContent = 'Signed out';
             return;
         }
@@ -409,7 +725,8 @@
             sessionUser.textContent = user.email || 'Admin session';
         }
 
-        startSubscription();
+        startSubmissionSubscription();
+        startBoxSubscription();
     }
 
     function init() {
@@ -440,12 +757,31 @@
             deleteButton.disabled = true;
         }
 
+        if (resourceForm) {
+            resourceForm.addEventListener('submit', handleResourceSave);
+        }
+
+        if (resourceResetButton) {
+            resourceResetButton.addEventListener('click', () => resetResourceForm(false));
+        }
+
+        if (resourceDeleteButton) {
+            resourceDeleteButton.addEventListener('click', handleResourceDelete);
+            resourceDeleteButton.disabled = true;
+        }
+
         updateStats();
+        updateResourceStats();
         renderListStatus();
         renderDetail();
+        renderResourceList();
+        resetResourceForm(true);
 
         firebaseTools.onAdminAuthStateChanged(handleAuthStateChange);
-        window.addEventListener('beforeunload', stopSubscription);
+        window.addEventListener('beforeunload', () => {
+            stopSubmissionSubscription();
+            stopBoxSubscription();
+        });
     }
 
     init();

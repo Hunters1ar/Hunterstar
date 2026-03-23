@@ -151,6 +151,90 @@
                     </article>
                 </section>
             </div>
+
+            <section class="admin-notes-suite">
+                <div class="admin-toolbar-card admin-content-toolbar">
+                    <div>
+                        <p class="admin-eyebrow">Public Index Content</p>
+                        <h2 class="admin-section-title">Notes, Commands & Links</h2>
+                    </div>
+                    <p class="admin-support-copy">
+                        Create expandable boxes for the public homepage. Use them for commands, notes, references, docs, or useful links.
+                    </p>
+                </div>
+
+                <div class="admin-content-grid">
+                    <section class="admin-panel admin-content-form-panel">
+                        <div class="admin-panel-heading">
+                            <div>
+                                <p class="admin-eyebrow">Editor</p>
+                                <h3 class="admin-subheading" id="adminResourceFormTitle">Create New Box</h3>
+                            </div>
+                            <p class="admin-support-copy">
+                                Each line in the links field can be either <strong>Label | URL</strong> or just a raw URL.
+                            </p>
+                        </div>
+
+                        <form id="adminResourceForm" class="admin-resource-form">
+                            <div class="form-group">
+                                <label for="resourceTitle" class="form-label">Box Title</label>
+                                <input type="text" id="resourceTitle" class="form-input" maxlength="120" placeholder="Git Commands" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="resourceSummary" class="form-label">Short Summary</label>
+                                <input type="text" id="resourceSummary" class="form-input" maxlength="180" placeholder="Quick everyday terminal helpers">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="resourceNotes" class="form-label">Notes / Commands</label>
+                                <textarea id="resourceNotes" class="form-textarea admin-resource-textarea" placeholder="git status&#10;git pull origin main&#10;git checkout -b feature/new-ui"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="resourceLinks" class="form-label">Links</label>
+                                <textarea id="resourceLinks" class="form-textarea admin-resource-links" placeholder="GitHub | https://github.com/your/repo&#10;Docs | https://example.com/docs"></textarea>
+                            </div>
+
+                            <div class="admin-inline-fields">
+                                <div class="form-group">
+                                    <label for="resourceOrder" class="form-label">Order</label>
+                                    <input type="number" id="resourceOrder" class="form-input" value="0" step="1">
+                                </div>
+
+                                <label class="admin-toggle-row" for="resourcePublished">
+                                    <input type="checkbox" id="resourcePublished" checked>
+                                    <span>Published on index page</span>
+                                </label>
+                            </div>
+
+                            <div class="admin-action-row">
+                                <button type="submit" class="cta-button cta-button-primary" id="adminResourceSaveBtn">Save Box</button>
+                                <button type="button" class="cta-button" id="adminResourceResetBtn">Clear Form</button>
+                                <button type="button" class="admin-danger-button hidden" id="adminResourceDeleteBtn">Delete Box</button>
+                            </div>
+                        </form>
+
+                        <div id="adminResourceStatus" class="form-status hidden"></div>
+                    </section>
+
+                    <section class="admin-panel admin-content-list-panel">
+                        <div class="admin-list-toolbar">
+                            <div>
+                                <p class="admin-eyebrow">Published Library</p>
+                                <h3 class="admin-subheading">Homepage Boxes</h3>
+                            </div>
+                            <div class="admin-content-stats">
+                                <span class="admin-content-stat"><strong id="adminBoxTotalCount">0</strong> total</span>
+                                <span class="admin-content-stat"><strong id="adminBoxPublishedCount">0</strong> published</span>
+                            </div>
+                        </div>
+
+                        <div class="admin-list-status" id="adminResourceListStatus">Waiting for secure session...</div>
+                        <div class="admin-resource-list" id="adminResourceList"></div>
+                    </section>
+                </div>
+            </section>
         </section>
     </main>
 

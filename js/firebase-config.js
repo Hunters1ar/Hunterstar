@@ -9,6 +9,7 @@ const firebaseConfig = {
 };
 
 const submissionCollectionName = 'my comments';
+const contentBoxesCollectionName = 'content_boxes';
 
 let db = null;
 let auth = null;
@@ -221,6 +222,136 @@ async function deleteSubmission(id) {
     await db.collection(submissionCollectionName).doc(id).delete();
 }
 
+function normalizeResourceLinks(rawLinks) {
+    if (!Array.isArray(rawLinks)) return [];
+
+    return rawLinks
+        .map((link) => {
+            const label = typeof link?.label === 'string' ? link.label.trim() : '';
+            const url = typeof link?.url === 'string' ? link.url.trim() : '';
+
+            if (!url) return null;
+
+            return {
+                label: label || url,
+                url
+            };
+        })
+        .filter(Boolean);
+}
+
+function mapContentBox(doc) {
+    const data = doc.data() || {};
+    const createdAt = normalizeTimestamp(data.createdAt);
+    const updatedAt = normalizeTimestamp(data.updatedAt);
+
+    return {
+        id: doc.id,
+        title: data.title || 'Untitled Box',
+        summary: data.summary || '',
+        notes: data.notes || '',
+        links: normalizeResourceLinks(data.links),
+        order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
+        published: data.published !== false,
+        createdAt,
+        updatedAt,
+        updatedAtLabel: updatedAt ? updatedAt.toLocaleString() : 'Pending update timestamp'
+    };
+}
+
+function ensureFirestoreReady() {
+    if (!firebaseInitialized || !db) {
+        throw new Error('Firebase Firestore is not configured yet.');
+    }
+}
+
+function subscribeToPublicContentBoxes(onData, onError) {
+    ensureFirestoreReady();
+
+    return db.collection(contentBoxesCollectionName).where('published', '==', true).onSnapshot((snapshot) => {
+        const boxes = snapshot.docs.map(mapContentBox);
+
+        boxes.sort((a, b) => {
+            if (a.order !== b.order) {
+                return a.order - b.order;
+            }
+
+            const aTime = a.updatedAt ? a.updatedAt.getTime() : 0;
+            const bTime = b.updatedAt ? b.updatedAt.getTime() : 0;
+            return bTime - aTime;
+        });
+
+        onData(boxes);
+    }, (error) => {
+        if (typeof onError === 'function') {
+            onError(error);
+        }
+    });
+}
+
+function subscribeToContentBoxes(onData, onError) {
+    requireAuth();
+
+    return db.collection(contentBoxesCollectionName).onSnapshot((snapshot) => {
+        const boxes = snapshot.docs.map(mapContentBox);
+
+        boxes.sort((a, b) => {
+            if (a.order !== b.order) {
+                return a.order - b.order;
+            }
+
+            const aTime = a.updatedAt ? a.updatedAt.getTime() : 0;
+            const bTime = b.updatedAt ? b.updatedAt.getTime() : 0;
+            return bTime - aTime;
+        });
+
+        onData(boxes);
+    }, (error) => {
+        if (typeof onError === 'function') {
+            onError(error);
+        }
+    });
+}
+
+async function saveContentBox(payload) {
+    requireAuth();
+
+    const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
+    const summary = typeof payload?.summary === 'string' ? payload.summary.trim() : '';
+    const notes = typeof payload?.notes === 'string' ? payload.notes.trim() : '';
+    const order = Number.isFinite(Number(payload?.order)) ? Number(payload.order) : 0;
+    const published = Boolean(payload?.published);
+    const links = normalizeResourceLinks(payload?.links);
+
+    if (!title) {
+        throw new Error('A title is required.');
+    }
+
+    const boxData = {
+        title,
+        summary,
+        notes,
+        links,
+        order,
+        published,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (payload?.id) {
+        await db.collection(contentBoxesCollectionName).doc(payload.id).set(boxData, { merge: true });
+        return payload.id;
+    }
+
+    boxData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    const docRef = await db.collection(contentBoxesCollectionName).add(boxData);
+    return docRef.id;
+}
+
+async function deleteContentBox(id) {
+    requireAuth();
+    await db.collection(contentBoxesCollectionName).doc(id).delete();
+}
+
 window.firebaseConfig = {
     submitToFirebase,
     validateFormData,
@@ -232,7 +363,12 @@ window.firebaseConfig = {
     subscribeToSubmissions,
     updateSubmissionReadState,
     deleteSubmission,
+    subscribeToPublicContentBoxes,
+    subscribeToContentBoxes,
+    saveContentBox,
+    deleteContentBox,
     getSubmissionCollectionName: () => submissionCollectionName,
+    getContentBoxesCollectionName: () => contentBoxesCollectionName,
     isInitialized: () => firebaseInitialized,
     isAuthAvailable: () => authAvailable
 };
