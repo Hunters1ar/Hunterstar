@@ -1,10 +1,4 @@
-/**
- * ============================================================================
- * ADMIN DASHBOARD
- * ============================================================================
- * Handles admin authentication, submissions, and public content box management.
- * ============================================================================
- */
+
 
 (function() {
     'use strict';
@@ -613,7 +607,7 @@
         toggleReadButton.disabled = true;
 
         try {
-            await firebaseTools.updateSubmissionReadState(selected.id, !selected.read);
+            await firebaseTools.updateSubmissionReadState(selected.id, !selected.read, selected.collectionName);
         } catch (error) {
             setStatus(authStatus, getFriendlyError(error), 'error');
         } finally {
@@ -631,7 +625,7 @@
         deleteButton.disabled = true;
 
         try {
-            await firebaseTools.deleteSubmission(selected.id);
+            await firebaseTools.deleteSubmission(selected.id, selected.collectionName);
             state.selectedId = null;
         } catch (error) {
             setStatus(authStatus, getFriendlyError(error), 'error');

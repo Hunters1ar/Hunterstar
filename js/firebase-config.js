@@ -8,7 +8,12 @@ const firebaseConfig = {
     measurementId: "G-RR93XNL49Q"
 };
 
-const submissionCollectionName = 'my comments';
+const primarySubmissionCollectionName = 'my comments';
+const legacySubmissionCollectionNames = ['contact-submissions'];
+const submissionCollectionNames = Array.from(new Set([
+    primarySubmissionCollectionName,
+    ...legacySubmissionCollectionNames
+]));
 const contentBoxesCollectionName = 'content_boxes';
 
 let db = null;
@@ -50,38 +55,43 @@ async function submitToFirebase(formData) {
         };
     }
 
+    const submissionPayloadVariants = createSubmissionPayloadVariants(formData);
+
     try {
-        const submission = {
-            ...formData,
-            comment: formData.message,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            read: false,
-            source: 'contact-form'
-        };
+        for (const collectionName of submissionCollectionNames) {
+            for (const submission of submissionPayloadVariants) {
+                try {
+                    const docRef = await db.collection(collectionName).add(submission);
 
-        const docRef = await db.collection(submissionCollectionName).add(submission);
+                    console.log('Submission saved with ID:', docRef.id, 'in collection:', collectionName);
 
-        console.log('Submission saved with ID:', docRef.id);
+                    return {
+                        success: true,
+                        message: 'Thank you for your message! I\'ll get back to you soon.'
+                    };
+                } catch (error) {
+                    if (error.code === 'permission-denied') {
+                        console.warn('Submission blocked by Firestore rules for collection:', collectionName, error);
+                        continue;
+                    }
 
-        return {
-            success: true,
-            message: 'Thank you for your message! I\'ll get back to you soon.'
-        };
+                    console.error('Firebase submission error:', error);
+
+                    return {
+                        success: false,
+                        message: 'Something went wrong. Please try again later.'
+                    };
+                }
+            }
+        }
     } catch (error) {
         console.error('Firebase submission error:', error);
-
-        if (error.code === 'permission-denied') {
-            return {
-                success: false,
-                message: 'Unable to submit. Please check Firestore security rules.'
-            };
-        }
-
-        return {
-            success: false,
-            message: 'Something went wrong. Please try again later.'
-        };
     }
+
+    return {
+        success: false,
+        message: 'Unable to submit. Check Firestore rules for "' + primarySubmissionCollectionName + '".'
+    };
 }
 
 function validateFormData(data) {
@@ -120,6 +130,26 @@ function sanitizeInput(input) {
         .trim();
 }
 
+function createSubmissionPayloadVariants(formData) {
+    const payloadVariants = [{
+        name: formData.name,
+        email: formData.email,
+        message: formData.message,
+        comment: formData.message,
+        read: false
+    }];
+
+    return payloadVariants.map((payload) => Object.fromEntries(
+        Object.entries(payload).filter(([, value]) => {
+            if (typeof value === 'string') {
+                return value.trim().length > 0;
+            }
+
+            return value !== undefined && value !== null;
+        })
+    ));
+}
+
 function requireAuth() {
     if (!firebaseInitialized || !db) {
         throw new Error('Firebase Firestore is not configured yet.');
@@ -150,7 +180,7 @@ function normalizeTimestamp(value) {
 
 function mapSubmission(doc) {
     const data = doc.data() || {};
-    const timestamp = normalizeTimestamp(data.timestamp);
+    const timestamp = normalizeTimestamp(data.timestamp || data.createdAt);
     const message = data.message || data.comment || '';
 
     return {
@@ -158,12 +188,28 @@ function mapSubmission(doc) {
         collectionName: doc.ref.parent.id,
         name: data.name || data.author || data.username || data.email || 'Comment entry',
         email: data.email || '',
-        subject: data.subject || (data.comment && !data.subject ? 'Comment Entry' : 'No subject'),
+        subject: data.subject || 'Comment Entry',
         message,
         read: Boolean(data.read),
         timestamp,
         createdAtLabel: timestamp ? timestamp.toLocaleString() : 'Pending server timestamp'
     };
+}
+
+function sortSubmissions(submissions) {
+    return submissions.sort((a, b) => {
+        const aTime = a.timestamp ? a.timestamp.getTime() : 0;
+        const bTime = b.timestamp ? b.timestamp.getTime() : 0;
+        return bTime - aTime;
+    });
+}
+
+function resolveSubmissionCollectionName(collectionName) {
+    if (typeof collectionName === 'string' && submissionCollectionNames.includes(collectionName)) {
+        return collectionName;
+    }
+
+    return primarySubmissionCollectionName;
 }
 
 async function signInAdmin(email, password) {
@@ -193,33 +239,76 @@ function getCurrentAdminUser() {
 function subscribeToSubmissions(onData, onError) {
     requireAuth();
 
-    return db.collection(submissionCollectionName).onSnapshot((snapshot) => {
-        const submissions = snapshot.docs.map(mapSubmission);
+    const collectionState = new Map(
+        submissionCollectionNames.map((collectionName) => [
+            collectionName,
+            {
+                status: 'pending',
+                docs: [],
+                error: null
+            }
+        ])
+    );
 
-        submissions.sort((a, b) => {
-            const aTime = a.timestamp ? a.timestamp.getTime() : 0;
-            const bTime = b.timestamp ? b.timestamp.getTime() : 0;
-            return bTime - aTime;
-        });
+    function emitSubmissions() {
+        const states = Array.from(collectionState.values());
+        const hasReadyCollection = states.some((state) => state.status === 'ready');
 
-        onData(submissions);
-    }, (error) => {
-        if (typeof onError === 'function') {
-            onError(error);
+        if (hasReadyCollection) {
+            const submissions = submissionCollectionNames.flatMap((collectionName) => {
+                const state = collectionState.get(collectionName);
+                return state ? state.docs : [];
+            });
+
+            onData(sortSubmissions(submissions));
+            return;
         }
-    });
+
+        const hasPendingCollection = states.some((state) => state.status === 'pending');
+        if (!hasPendingCollection && typeof onError === 'function') {
+            onError(states.find((state) => state.error)?.error || new Error('No submission collections are accessible.'));
+        }
+    }
+
+    const unsubscribers = submissionCollectionNames.map((collectionName) => db.collection(collectionName).onSnapshot((snapshot) => {
+        const state = collectionState.get(collectionName);
+        if (!state) return;
+
+        state.status = 'ready';
+        state.docs = snapshot.docs.map(mapSubmission);
+        state.error = null;
+        emitSubmissions();
+    }, (error) => {
+        console.warn('Submission collection is unavailable:', collectionName, error);
+
+        const state = collectionState.get(collectionName);
+        if (!state) return;
+
+        state.status = 'error';
+        state.docs = [];
+        state.error = error;
+        emitSubmissions();
+    }));
+
+    return () => {
+        unsubscribers.forEach((unsubscribe) => {
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        });
+    };
 }
 
-async function updateSubmissionReadState(id, read) {
+async function updateSubmissionReadState(id, read, collectionName) {
     requireAuth();
-    await db.collection(submissionCollectionName).doc(id).set({
+    await db.collection(resolveSubmissionCollectionName(collectionName)).doc(id).set({
         read: Boolean(read)
     }, { merge: true });
 }
 
-async function deleteSubmission(id) {
+async function deleteSubmission(id, collectionName) {
     requireAuth();
-    await db.collection(submissionCollectionName).doc(id).delete();
+    await db.collection(resolveSubmissionCollectionName(collectionName)).doc(id).delete();
 }
 
 function normalizeResourceLinks(rawLinks) {
@@ -367,7 +456,8 @@ window.firebaseConfig = {
     subscribeToContentBoxes,
     saveContentBox,
     deleteContentBox,
-    getSubmissionCollectionName: () => submissionCollectionName,
+    getSubmissionCollectionName: () => primarySubmissionCollectionName,
+    getSubmissionCollectionNames: () => submissionCollectionNames.slice(),
     getContentBoxesCollectionName: () => contentBoxesCollectionName,
     isInitialized: () => firebaseInitialized,
     isAuthAvailable: () => authAvailable
