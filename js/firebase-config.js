@@ -131,12 +131,21 @@ function sanitizeInput(input) {
 }
 
 function createSubmissionPayloadVariants(formData) {
+    const createTimestamp = () => firebaseInitialized && typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue
+        ? firebase.firestore.FieldValue.serverTimestamp()
+        : new Date();
+
     const payloadVariants = [{
         name: formData.name,
         email: formData.email,
+        subject: formData.subject || 'Portfolio Contact',
         message: formData.message,
         comment: formData.message,
-        read: false
+        read: false,
+        timestamp: createTimestamp(),
+        createdAt: createTimestamp(),
+        source: 'portfolio-contact-form',
+        page: typeof window !== 'undefined' ? window.location.pathname : 'index.html'
     }];
 
     return payloadVariants.map((payload) => Object.fromEntries(

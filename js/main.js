@@ -52,6 +52,29 @@
     }
 
     // ========================================================================
+    // RESPONSIVE NAVIGATION
+    // ========================================================================
+
+    const navMenuButton = document.getElementById('navMenuButton');
+    const siteNavLinks = document.getElementById('siteNavLinks');
+
+    if (navMenuButton && siteNavLinks) {
+        navMenuButton.addEventListener('click', () => {
+            const isOpen = siteNavLinks.classList.toggle('is-open');
+            navMenuButton.classList.toggle('is-open', isOpen);
+            navMenuButton.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        siteNavLinks.querySelectorAll('a').forEach((link) => {
+            link.addEventListener('click', () => {
+                siteNavLinks.classList.remove('is-open');
+                navMenuButton.classList.remove('is-open');
+                navMenuButton.setAttribute('aria-expanded', 'false');
+            });
+        });
+    }
+
+    // ========================================================================
     // TYPEWRITER EFFECT
     // ========================================================================
 
@@ -92,31 +115,31 @@
     const loaderStages = [
         {
             threshold: 0,
-            label: 'Drawing back the curtain...',
-            status: 'STUDY LIT',
+            label: 'Initializing the Hunterstar interface...',
+            status: 'SYSTEM ONLINE',
             logIndex: 0
         },
         {
             threshold: 26,
-            label: 'Arranging notes, sketches, and correspondence...',
-            status: 'PAGES SORTED',
+            label: 'Loading expertise, projects, and notes...',
+            status: 'MODULES READY',
             logIndex: 1
         },
         {
             threshold: 54,
-            label: 'Composing the opening impression...',
-            status: 'SCENE FORMING',
+            label: 'Rendering premium portfolio motion...',
+            status: 'INTERFACE HOT',
             logIndex: 2
         },
         {
             threshold: 82,
             label: 'Setting every detail in its place...',
-            status: 'FINAL TOUCHES',
+            status: 'FRAME LOCK',
             logIndex: 3
         },
         {
             threshold: 100,
-            label: 'The portfolio is ready. Welcome in.',
+            label: 'Hunterstar is ready. Welcome in.',
             status: 'WELCOME',
             logIndex: 3
         }
@@ -280,8 +303,8 @@
                     const rect = card.getBoundingClientRect();
                     const x = event.clientX - rect.left;
                     const y = event.clientY - rect.top;
-                    const rotateY = ((x / rect.width) - 0.5) * 8;
-                    const rotateX = (0.5 - (y / rect.height)) * 8;
+                    const rotateY = ((x / rect.width) - 0.5) * 2.5;
+                    const rotateX = (0.5 - (y / rect.height)) * 2.5;
 
                     card.style.setProperty('--card-rotate-x', `${rotateX.toFixed(2)}deg`);
                     card.style.setProperty('--card-rotate-y', `${rotateY.toFixed(2)}deg`);
@@ -311,7 +334,7 @@
                     const rect = element.getBoundingClientRect();
                     const x = event.clientX - rect.left - rect.width / 2;
                     const y = event.clientY - rect.top - rect.height / 2;
-                    element.style.transform = `translate(${(x * 0.06).toFixed(1)}px, ${(y * 0.10).toFixed(1)}px)`;
+                    element.style.transform = `translate(${(x * 0.025).toFixed(1)}px, ${(y * 0.035).toFixed(1)}px)`;
                 });
 
                 element.addEventListener('pointerleave', resetElement);
@@ -321,6 +344,225 @@
     }
 
     initSiteInteractions();
+
+    // ========================================================================
+    // PORTFOLIO TERMINAL
+    // ========================================================================
+
+    function initPortfolioTerminal() {
+        const terminalForm = document.getElementById('portfolioTerminalForm');
+        const terminalInput = document.getElementById('portfolioTerminalInput');
+        const terminalLog = document.getElementById('portfolioTerminalLog');
+        const commandButtons = document.querySelectorAll('[data-terminal-command]');
+
+        if (!terminalForm || !terminalInput || !terminalLog) return;
+
+        const history = [];
+        let historyIndex = 0;
+
+        const commands = {
+            help: {
+                lines: [
+                    'Available commands:',
+                    'whoami    - show Hunterstar profile',
+                    'stack     - list core technologies',
+                    'projects  - jump to selected work',
+                    'contact   - jump to the message form',
+                    'archives  - open saved notes and tools',
+                    'stats     - show quick build stats',
+                    'clear     - clean this terminal'
+                ]
+            },
+            whoami: {
+                lines: [
+                    'Hunterstar // Backend Architect // AI Engineer // Fullstack Developer',
+                    'I build robust APIs, AI-assisted product flows, secure data layers, and polished interfaces.',
+                    'Current mode: calm execution, useful details, clean shipping.'
+                ]
+            },
+            stack: {
+                lines: [
+                    'Core stack: HTML, CSS, JavaScript, TypeScript, React, Next.js, Node.js, Firebase, Python, SQL, NoSQL, Three.js.',
+                    'Opening the stack section...'
+                ],
+                target: '#stack'
+            },
+            projects: {
+                lines: [
+                    'Selected work: TengdoshUstoz and EduVenture.',
+                    'Opening the portfolio section...'
+                ],
+                target: '#projects'
+            },
+            contact: {
+                lines: [
+                    'Contact channel ready.',
+                    'Opening the message form...'
+                ],
+                target: '#contact',
+                focus: '#name'
+            },
+            archives: {
+                lines: [
+                    'Opening Hunterstar Archives...',
+                    'Saved commands, notes, links, programs, and deployment tools live there.'
+                ],
+                navigate: 'archives.html'
+            },
+            stats: {
+                lines: [
+                    'Builds: 50+',
+                    'Core stacks: 6',
+                    'Experience: 3+ years',
+                    'Learning mode: 24/7'
+                ],
+                target: '#stats'
+            },
+            home: {
+                lines: [
+                    'Returning to the hero interface...'
+                ],
+                target: '#hero'
+            }
+        };
+
+        const aliases = {
+            about: 'whoami',
+            skills: 'stack',
+            work: 'projects',
+            mail: 'contact',
+            notes: 'archives',
+            cls: 'clear'
+        };
+
+        function scrollTerminalToBottom() {
+            terminalLog.scrollTop = terminalLog.scrollHeight;
+        }
+
+        function appendEntry(command, lines, modifierClass) {
+            const entry = document.createElement('div');
+            entry.className = 'terminal-entry';
+
+            const commandLine = document.createElement('span');
+            commandLine.className = 'terminal-command';
+
+            const path = document.createElement('span');
+            path.className = 'terminal-path';
+            path.textContent = 'hunterstar@portfolio:~$ ';
+
+            commandLine.append(path, document.createTextNode(command));
+
+            const response = document.createElement('div');
+            response.className = 'terminal-response';
+
+            if (modifierClass) {
+                response.classList.add(modifierClass);
+            }
+
+            lines.forEach((line) => {
+                const paragraph = document.createElement('p');
+                paragraph.textContent = line;
+                response.appendChild(paragraph);
+            });
+
+            entry.append(commandLine, response);
+            terminalLog.appendChild(entry);
+            scrollTerminalToBottom();
+        }
+
+        function runCommand(rawCommand) {
+            const originalCommand = rawCommand.trim();
+
+            if (!originalCommand) {
+                terminalInput.focus();
+                return;
+            }
+
+            history.push(originalCommand);
+            historyIndex = history.length;
+
+            const loweredCommand = originalCommand.toLowerCase();
+            const normalizedCommand = aliases[loweredCommand] || loweredCommand;
+
+            if (normalizedCommand === 'clear') {
+                terminalLog.textContent = '';
+                appendEntry('clear', ['Terminal cleared. Type help to see commands.']);
+                return;
+            }
+
+            const response = commands[normalizedCommand];
+
+            if (!response) {
+                appendEntry(originalCommand, [
+                    `command not found: ${originalCommand}`,
+                    "Type 'help' for available commands."
+                ], 'is-error');
+                return;
+            }
+
+            appendEntry(originalCommand, response.lines);
+
+            if (response.target) {
+                window.setTimeout(() => {
+                    const target = document.querySelector(response.target);
+
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                            block: 'start'
+                        });
+                    }
+
+                    if (response.focus) {
+                        const focusTarget = document.querySelector(response.focus);
+
+                        if (focusTarget) {
+                            window.setTimeout(() => focusTarget.focus({ preventScroll: true }), 450);
+                        }
+                    }
+                }, 420);
+            }
+
+            if (response.navigate) {
+                window.setTimeout(() => {
+                    window.location.href = response.navigate;
+                }, 700);
+            }
+        }
+
+        terminalForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            runCommand(terminalInput.value);
+            terminalInput.value = '';
+        });
+
+        terminalInput.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                historyIndex = Math.max(0, historyIndex - 1);
+                terminalInput.value = history[historyIndex] || '';
+                return;
+            }
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                historyIndex = Math.min(history.length, historyIndex + 1);
+                terminalInput.value = history[historyIndex] || '';
+            }
+        });
+
+        commandButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const command = button.getAttribute('data-terminal-command');
+                terminalInput.value = command;
+                runCommand(command);
+                terminalInput.value = '';
+                terminalInput.focus();
+            });
+        });
+    }
+
+    initPortfolioTerminal();
 
     // ========================================================================
     // CONTACT FORM
@@ -576,10 +818,21 @@
     function renderKnowledgeBoxes(boxes) {
         if (!knowledgeSection || !knowledgeGrid) return;
 
+        const isArchivePage = document.body.classList.contains('archive-page-body');
         knowledgeGrid.innerHTML = '';
 
         if (!Array.isArray(boxes) || !boxes.length) {
-            knowledgeSection.classList.add('hidden');
+            if (isArchivePage) {
+                knowledgeSection.classList.remove('hidden');
+                setKnowledgeStatus('No published boxes yet. Add one from admin.html and enable Published.');
+
+                const empty = document.createElement('article');
+                empty.className = 'resource-card archive-empty-card';
+                empty.innerHTML = '<div class="resource-toggle"><div class="resource-toggle-copy"><span class="resource-eyebrow">Empty Vault</span><h3 class="resource-title">No archive elements found</h3><p class="resource-summary">Create a box in the admin panel, publish it, and it will appear here automatically.</p></div></div>';
+                knowledgeGrid.appendChild(empty);
+            } else {
+                knowledgeSection.classList.add('hidden');
+            }
             return;
         }
 
@@ -597,14 +850,32 @@
                 renderKnowledgeBoxes(boxes);
             }, (error) => {
                 console.warn('Public content boxes are unavailable:', error);
-                if (knowledgeSection) knowledgeSection.classList.add('hidden');
+                if (knowledgeSection) {
+                    if (document.body.classList.contains('archive-page-body')) {
+                        knowledgeSection.classList.remove('hidden');
+                        setKnowledgeStatus('Firebase rules are blocking the archive, or the collection is unavailable.');
+                    } else {
+                        knowledgeSection.classList.add('hidden');
+                    }
+                }
             });
         } catch (error) {
             console.warn('Public content boxes failed to initialize:', error);
-            if (knowledgeSection) knowledgeSection.classList.add('hidden');
+            if (knowledgeSection) {
+                if (document.body.classList.contains('archive-page-body')) {
+                    knowledgeSection.classList.remove('hidden');
+                    setKnowledgeStatus('Firebase archive failed to initialize. Check SDK scripts and config.');
+                } else {
+                    knowledgeSection.classList.add('hidden');
+                }
+            }
         }
     } else if (knowledgeSection) {
-        knowledgeSection.classList.add('hidden');
+        if (document.body.classList.contains('archive-page-body')) {
+            setKnowledgeStatus('Firebase content helper is missing.');
+        } else {
+            knowledgeSection.classList.add('hidden');
+        }
     }
 
     // ========================================================================
@@ -637,8 +908,8 @@
 
     document.querySelectorAll('.index-card').forEach((element) => {
         element.style.opacity = '0';
-        element.style.transform = 'translateY(20px)';
-        element.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        element.style.transform = 'translateY(10px)';
+        element.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
         animationObserver.observe(element);
     });
 

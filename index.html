@@ -2,106 +2,83 @@
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="/logo.png">
+    <link rel="icon" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Portfolio - Backend Architect, AI Engineer & Fullstack Developer">
-    <meta name="theme-color" content="#0a0a0b">
-    <title>Portfolio | Backend Architect & AI Engineer</title>
+    <meta name="description" content="Hunterstar portfolio - Backend Architect, AI Engineer, and Fullstack Developer.">
+    <meta name="theme-color" content="#050505">
+    <title>Hunterstar | Backend Architect & AI Engineer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
-    <meta property="og:title" content="Portfolio | Backend Architect & AI Engineer">
-    <meta property="og:description" content="A portfolio showcasing expertise in backend architecture, AI engineering, and fullstack development.">
+    <meta property="og:title" content="Hunterstar | Backend Architect & AI Engineer">
+    <meta property="og:description" content="A sharp developer portfolio for backend architecture, AI engineering, fullstack builds, and secure systems.">
     <meta property="og:type" content="website">
 </head>
-<body class="is-loading">
-    <div class="retro-loader" id="retroLoader" role="status" aria-live="polite" aria-label="Loading portfolio">
-        <div class="retro-loader-bg" aria-hidden="true">
-            <div class="retro-loader-ornament retro-loader-ornament-left"></div>
-            <div class="retro-loader-ornament retro-loader-ornament-right"></div>
-            <div class="retro-loader-dust"></div>
-        </div>
-
-        <div class="retro-loader-panel">
-            <p class="retro-loader-kicker">Opening Folio I</p>
-            <h2 class="retro-loader-title">Preparing The Environment</h2>
-            <p class="retro-loader-copy" id="loaderLabel">Drawing back the curtain...</p>
-            <p class="retro-loader-quote">
-                "The first impression should arrive like a well-kept letter:
-                deliberate, warm, and precise."
-            </p>
-
-            <div class="retro-loader-meter" aria-hidden="true">
-                <div class="retro-loader-meter-fill" id="loaderMeter"></div>
-            </div>
-
-            <div class="retro-loader-meta">
-                <span class="retro-loader-status" id="loaderStatus">STUDY LIT</span>
-                <span class="retro-loader-progress"><span id="loaderProgress">00</span>%</span>
-            </div>
-
-            <div class="retro-loader-terminal" aria-hidden="true">
-                <div class="retro-loader-terminal-bar">
-                    <span class="retro-loader-terminal-title">Archive Notes</span>
-                </div>
-                <ul class="retro-loader-log">
-                    <li class="retro-loader-log-item is-active">Lighting the study and waking the canvas</li>
-                    <li class="retro-loader-log-item">Arranging notes, sketches, and correspondence</li>
-                    <li class="retro-loader-log-item">Composing the opening impression</li>
-                    <li class="retro-loader-log-item">Setting every detail in its place</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
+<body class="redline-page">
     <div class="grain-overlay" aria-hidden="true"></div>
-    
     <div class="vignette-overlay" aria-hidden="true"></div>
-    
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-        <span class="sr-only">Toggle theme</span>
-        <div class="icon-container">
-            <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5"/>
-                <line x1="12" y1="1" x2="12" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="23"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="1" y1="12" x2="3" y2="12"/>
-                <line x1="21" y1="12" x2="23" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-            <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-        </div>
-    </button>
 
-    <section id="hero" class="hero-section">
+    <nav class="site-nav" aria-label="Main navigation">
+        <a href="#hero" class="site-logo" aria-label="Hunterstar home">
+            <span class="site-logo-mark" aria-hidden="true">
+                <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 5L35 15V35L20 25L5 35V15L20 5Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+                    <path d="M14 14V27M26 14V27M14 20H26" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span>Hunterstar</span>
+        </a>
+
+        <div class="site-nav-links" id="siteNavLinks">
+            <a href="#terminal">Terminal</a>
+            <a href="#expertise">Expertise</a>
+            <a href="#stats">Stats</a>
+            <a href="#projects">Projects</a>
+            <a href="archives.html">Archives</a>
+            <a href="#stack">Stack</a>
+            <a href="#contact">Contact</a>
+        </div>
+
+        <div class="site-nav-actions">
+            <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                <span class="sr-only">Toggle theme</span>
+                <div class="icon-container">
+                    <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </div>
+            </button>
+            <button class="nav-menu-button" id="navMenuButton" aria-label="Toggle menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <section id="hero" class="hero-section portfolio-hero">
         <div id="canvas-container" class="canvas-container"></div>
-        
+        <div class="hero-grid-layer" aria-hidden="true"></div>
+
         <div class="content-overlay container">
             <span class="terminal-tagline" id="typewriter"></span>
-            
+
             <h1 class="headline">
-                Crafting Digital
-                <span class="headline-accent">Masterpieces</span>
+                I Build.<br>
+                I Secure.<br>
+                <span class="headline-accent">I Ship.</span>
             </h1>
-            
+
             <p class="subtitle">
-                "Where the elegance of classical engineering meets the frontier 
-                of artificial intelligence"
+                Hunterstar // backend architect, AI engineer, and fullstack developer.
             </p>
-            
+
             <p class="description">
-                I architect robust backend systems, forge intelligent AI solutions, 
-                and build fullstack applications that stand the test of time. 
-                With expertise spanning Firebase, NoSQL, SQL databases, and 
-                cybersecurity, I transform complex challenges into elegant solutions.
+                I architect robust backend systems, forge intelligent AI solutions, and build fullstack applications that stand the test of time. Firebase, NoSQL, SQL, security, and clean product execution all meet here.
             </p>
-            
+
             <div class="cta-group">
                 <a href="#projects" class="cta-button cta-button-primary">
                     View My Work
@@ -109,353 +86,213 @@
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
                 </a>
-                <a href="#contact" class="cta-button">Get in Touch</a>
+                <a href="#contact" class="cta-button">Get In Touch</a>
             </div>
         </div>
-        
+
         <div class="scroll-indicator">
             <span class="scroll-text">Scroll</span>
             <div class="scroll-line"></div>
         </div>
     </section>
 
-    <section id="skills" class="skills-section">
+    <section id="terminal" class="terminal-section">
+        <div class="container">
+            <header class="section-header compact terminal-section-header">
+                <span class="section-number">00 / Terminal</span>
+                <h2 class="section-title">Command Center</h2>
+                <p class="section-subtitle">A fast little interface for inspecting the portfolio, opening work, and reaching contact without leaving the style.</p>
+            </header>
+
+            <div class="terminal-layout">
+                <article class="portfolio-terminal" aria-label="Interactive Hunterstar terminal">
+                    <div class="terminal-topbar" aria-hidden="true">
+                        <div class="terminal-lights">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="terminal-title">hunterstar@portfolio: ~</span>
+                        <span class="terminal-status">online</span>
+                    </div>
+
+                    <div class="terminal-screen" id="portfolioTerminalLog" role="log" aria-live="polite" aria-atomic="false">
+                        <pre class="terminal-ascii" aria-hidden="true">    /\        HUNTERSTAR
+   /  \       portfolio shell
+  /_HS_\      v2.0
+  \    /      secure / build / ship
+   \  /
+    \/</pre>
+                        <div class="terminal-output">
+                            <p><strong>OS:</strong> Hunterstar Portfolio</p>
+                            <p><strong>Role:</strong> Backend Architect // AI Engineer // Fullstack Developer</p>
+                            <p><strong>Focus:</strong> Firebase, NoSQL, SQL, secure APIs, product execution</p>
+                            <p><strong>Hint:</strong> type <kbd>help</kbd> or use a quick command.</p>
+                        </div>
+                    </div>
+
+                    <form class="terminal-command-row" id="portfolioTerminalForm" autocomplete="off">
+                        <label class="sr-only" for="portfolioTerminalInput">Terminal command</label>
+                        <span class="terminal-prompt">hunterstar@portfolio:~$</span>
+                        <input id="portfolioTerminalInput" class="terminal-input" type="text" placeholder="try: projects, stack, contact" spellcheck="false">
+                        <button class="terminal-run" type="submit">Run</button>
+                    </form>
+                </article>
+
+                <aside class="terminal-sidecar" aria-label="Portfolio command shortcuts and signals">
+                    <div class="terminal-sidecar-panel">
+                        <span class="sidecar-label">Quick Commands</span>
+                        <div class="command-chip-grid">
+                            <button type="button" class="command-chip" data-terminal-command="help">help</button>
+                            <button type="button" class="command-chip" data-terminal-command="whoami">whoami</button>
+                            <button type="button" class="command-chip" data-terminal-command="projects">projects</button>
+                            <button type="button" class="command-chip" data-terminal-command="stack">stack</button>
+                            <button type="button" class="command-chip" data-terminal-command="contact">contact</button>
+                            <button type="button" class="command-chip" data-terminal-command="archives">archives</button>
+                        </div>
+                    </div>
+
+                    <div class="terminal-sidecar-panel">
+                        <span class="sidecar-label">System Signals</span>
+                        <div class="signal-list">
+                            <div class="signal-item"><span>Build Mode</span><strong>Focused</strong></div>
+                            <div class="signal-item"><span>Response</span><strong>Open</strong></div>
+                            <div class="signal-item"><span>Priority</span><strong>Useful systems</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="terminal-sidecar-panel">
+                        <span class="sidecar-label">Build Pulse</span>
+                        <div class="pulse-grid" aria-hidden="true">
+                            <span></span><span class="is-hot"></span><span></span><span class="is-on"></span><span></span><span class="is-on"></span><span></span><span class="is-hot"></span>
+                            <span class="is-on"></span><span></span><span></span><span></span><span class="is-hot"></span><span></span><span class="is-on"></span><span></span>
+                            <span></span><span class="is-on"></span><span class="is-hot"></span><span></span><span></span><span></span><span class="is-on"></span><span></span>
+                            <span class="is-hot"></span><span></span><span></span><span class="is-on"></span><span></span><span class="is-hot"></span><span></span><span class="is-on"></span>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </section>
+
+    <section id="expertise" class="skills-section">
         <div class="container">
             <header class="section-header">
-                <span class="section-number">02 / Expertise</span>
+                <span class="section-number">01 / Expertise</span>
                 <h2 class="section-title">The Arsenal</h2>
-                <p class="section-subtitle">
-                    A curated collection of technical proficiencies, 
-                    refined through years of engineering challenges.
-                </p>
+                <p class="section-subtitle">Focused engineering skills for products that need to look sharp, run fast, and survive real users.</p>
             </header>
-            
-            <div class="cabinet">
+
+            <div class="cabinet redline-service-grid">
                 <article class="index-card">
                     <div class="card-tab">Backend</div>
-                    <div class="card-header">
-                        <div class="card-icon">⚙</div>
-                        <h3 class="card-title">Backend Architecture</h3>
-                    </div>
-                    <ul class="skill-list">
-                        <li class="skill-item">Node.js</li>
-                        <li class="skill-item">Express</li>
-                        <li class="skill-item">NestJS</li>
-                        <li class="skill-item">REST APIs</li>
-                        <li class="skill-item">GraphQL</li>
-                        <li class="skill-item">Microservices</li>
-                    </ul>
-                    <p class="card-description">Designing scalable, maintainable server architectures that power enterprise applications.</p>
-                    <div class="proficiency-bar">
-                        <div class="proficiency-label">Proficiency</div>
-                        <div class="proficiency-track">
-                            <div class="proficiency-fill" style="width: 95%"></div>
-                        </div>
-                    </div>
+                    <div class="card-header"><div class="card-icon">API</div><h3 class="card-title">Backend Architecture</h3></div>
+                    <ul class="skill-list"><li class="skill-item">Node.js</li><li class="skill-item">Express</li><li class="skill-item">NestJS</li><li class="skill-item">REST APIs</li><li class="skill-item">GraphQL</li><li class="skill-item">Microservices</li></ul>
+                    <p class="card-description">Scalable server logic, clean API contracts, authentication, and maintainable application structure.</p>
+                    <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill" style="width: 95%"></div></div></div>
                 </article>
-                
+
                 <article class="index-card">
-                    <div class="card-tab">Database</div>
-                    <div class="card-header">
-                        <div class="card-icon">◈</div>
-                        <h3 class="card-title">Database Systems</h3>
-                    </div>
-                    <ul class="skill-list">
-                        <li class="skill-item">Firebase</li>
-                        <li class="skill-item">MongoDB</li>
-                        <li class="skill-item">PostgreSQL</li>
-                        <li class="skill-item">MySQL</li>
-                        <li class="skill-item">Redis</li>
-                        <li class="skill-item">Prisma</li>
-                    </ul>
-                    <p class="card-description">Expert in both NoSQL and SQL databases, with deep understanding of data modeling.</p>
-                    <div class="proficiency-bar">
-                        <div class="proficiency-label">Proficiency</div>
-                        <div class="proficiency-track">
-                            <div class="proficiency-fill" style="width: 90%"></div>
-                        </div>
-                    </div>
+                    <div class="card-tab">Data</div>
+                    <div class="card-header"><div class="card-icon">DB</div><h3 class="card-title">Database Systems</h3></div>
+                    <ul class="skill-list"><li class="skill-item">Firebase</li><li class="skill-item">MongoDB</li><li class="skill-item">PostgreSQL</li><li class="skill-item">MySQL</li><li class="skill-item">Redis</li><li class="skill-item">Prisma</li></ul>
+                    <p class="card-description">Practical data models for both NoSQL and SQL systems, with performance and reliability in mind.</p>
+                    <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill" style="width: 90%"></div></div></div>
                 </article>
-                
+
                 <article class="index-card">
                     <div class="card-tab">AI</div>
-                    <div class="card-header">
-                        <div class="card-icon">✧</div>
-                        <h3 class="card-title">AI Engineering</h3>
-                    </div>
-                    <ul class="skill-list">
-                        <li class="skill-item">Machine Learning</li>
-                        <li class="skill-item">TensorFlow</li>
-                        <li class="skill-item">PyTorch</li>
-                        <li class="skill-item">LLMs</li>
-                        <li class="skill-item">NLP</li>
-                        <li class="skill-item">Computer Vision</li>
-                    </ul>
-                    <p class="card-description">Building intelligent systems that leverage cutting-edge AI to solve complex problems.</p>
-                    <div class="proficiency-bar">
-                        <div class="proficiency-label">Proficiency</div>
-                        <div class="proficiency-track">
-                            <div class="proficiency-fill" style="width: 88%"></div>
-                        </div>
-                    </div>
+                    <div class="card-header"><div class="card-icon">AI</div><h3 class="card-title">AI Engineering</h3></div>
+                    <ul class="skill-list"><li class="skill-item">Machine Learning</li><li class="skill-item">TensorFlow</li><li class="skill-item">PyTorch</li><li class="skill-item">LLMs</li><li class="skill-item">NLP</li><li class="skill-item">Computer Vision</li></ul>
+                    <p class="card-description">Intelligent features and prototypes that turn complex workflows into usable product experiences.</p>
+                    <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill" style="width: 88%"></div></div></div>
                 </article>
-                
-                <article class="index-card">
-                    <div class="card-tab">Security</div>
-                    <div class="card-header">
-                        <div class="card-icon">▣</div>
-                        <h3 class="card-title">Cybersecurity</h3>
-                    </div>
-                    <ul class="skill-list">
-                        <li class="skill-item">Pen Testing</li>
-                        <li class="skill-item">OWASP</li>
-                        <li class="skill-item">Security Audits</li>
-                        <li class="skill-item">Encryption</li>
-                        <li class="skill-item">Auth Systems</li>
-                        <li class="skill-item">SIEM</li>
-                    </ul>
-                    <p class="card-description">Protecting systems through comprehensive security practices and vulnerability assessments.</p>
-                    <div class="proficiency-bar">
-                        <div class="proficiency-label">Proficiency</div>
-                        <div class="proficiency-track">
-                            <div class="proficiency-fill" style="width: 85%"></div>
-                        </div>
-                    </div>
-                </article>
-                
-                <article class="index-card">
-                    <div class="card-tab">Cloud</div>
-                    <div class="card-header">
-                        <div class="card-icon">☁</div>
-                        <h3 class="card-title">Cloud & DevOps</h3>
-                    </div>
-                    <ul class="skill-list">
-                        <li class="skill-item">AWS</li>
-                        <li class="skill-item">GCP</li>
-                        <li class="skill-item">Docker</li>
-                        <li class="skill-item">Kubernetes</li>
-                        <li class="skill-item">CI/CD</li>
-                        <li class="skill-item">Serverless</li>
-                    </ul>
-                    <p class="card-description">Architecting cloud-native solutions with automated deployment pipelines.</p>
-                    <div class="proficiency-bar">
-                        <div class="proficiency-label">Proficiency</div>
-                        <div class="proficiency-track">
-                            <div class="proficiency-fill" style="width: 87%"></div>
-                        </div>
-                    </div>
-                </article>
-                
+
                 <article class="index-card">
                     <div class="card-tab">Fullstack</div>
-                    <div class="card-header">
-                        <div class="card-icon">⬡</div>
-                        <h3 class="card-title">Fullstack Development</h3>
-                    </div>
-                    <ul class="skill-list">
-                        <li class="skill-item">React</li>
-                        <li class="skill-item">Next.js</li>
-                        <li class="skill-item">TypeScript</li>
-                        <li class="skill-item">Python</li>
-                        <li class="skill-item">Go</li>
-                        <li class="skill-item">Three.js</li>
-                    </ul>
-                    <p class="card-description">Crafting complete solutions from backend APIs to beautiful, responsive frontends.</p>
-                    <div class="proficiency-bar">
-                        <div class="proficiency-label">Proficiency</div>
-                        <div class="proficiency-track">
-                            <div class="proficiency-fill" style="width: 92%"></div>
-                        </div>
-                    </div>
+                    <div class="card-header"><div class="card-icon">UI</div><h3 class="card-title">Fullstack Development</h3></div>
+                    <ul class="skill-list"><li class="skill-item">React</li><li class="skill-item">Next.js</li><li class="skill-item">TypeScript</li><li class="skill-item">Python</li><li class="skill-item">Three.js</li><li class="skill-item">Security</li></ul>
+                    <p class="card-description">Complete builds from backend APIs to polished, responsive interfaces and deployment-ready details.</p>
+                    <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill" style="width: 92%"></div></div></div>
                 </article>
             </div>
+        </div>
+    </section>
+
+    <section id="stats" class="stats-section">
+        <div class="container stats-grid">
+            <div class="stat-card"><span class="stat-num">50+</span><span class="stat-label">Builds</span></div>
+            <div class="stat-card"><span class="stat-num">6</span><span class="stat-label">Core Stacks</span></div>
+            <div class="stat-card"><span class="stat-num">3+</span><span class="stat-label">Years Exp</span></div>
+            <div class="stat-card"><span class="stat-num">24/7</span><span class="stat-label">Learning Mode</span></div>
         </div>
     </section>
 
     <section id="projects" class="projects-section">
         <div class="container">
             <header class="section-header">
-                <span class="section-number">03 / Portfolio</span>
+                <span class="section-number">02 / Portfolio</span>
                 <h2 class="section-title">Selected Works</h2>
-                <p class="section-subtitle">
-                    A curated collection of projects that showcase technical depth 
-                    and creative problem-solving.
-                </p>
+                <p class="section-subtitle">A curated collection of projects that showcase technical depth and creative problem-solving.</p>
             </header>
-            
+
             <div class="projects-grid">
                 <article class="project-card">
                     <div class="featured-badge">Featured</div>
-                    <div class="card-image">
-                        <div class="image-placeholder">
-                            <span class="placeholder-icon">👨‍🏫</span>
-                        </div>
-                        <div class="image-overlay"></div>
-                    </div>
+                    <div class="card-image"><div class="image-placeholder"><span class="placeholder-icon">TU</span></div><div class="image-overlay"></div></div>
                     <div class="card-content">
                         <span class="card-number">Project 01</span>
                         <h3 class="card-title">TengdoshUstoz</h3>
-                        <p class="card-description">
-                            A revolutionary peer-to-peer tutoring platform connecting students with qualified tutors across Uzbekistan. 
-                            Features intelligent matching algorithms, real-time video conferencing, and a comprehensive scheduling system.
-                        </p>
-                        <div class="tech-stack">
-                            <span class="tech-tag">Next.js</span>
-                            <span class="tech-tag">TypeScript</span>
-                            <span class="tech-tag">PostgreSQL</span>
-                            <span class="tech-tag">WebRTC</span>
-                            <span class="tech-tag">Redis</span>
-                        </div>
-                        <div class="card-links">
-                            <a href="#" class="card-link" target="_blank">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                    <polyline points="15 3 21 3 21 9"/>
-                                    <line x1="10" y1="14" x2="21" y2="3"/>
-                                </svg>
-                                Live Demo
-                            </a>
-                            <a href="#" class="card-link" target="_blank">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-                                </svg>
-                                Source Code
-                            </a>
-                        </div>
+                        <p class="card-description">A peer-to-peer tutoring platform connecting students with qualified tutors across Uzbekistan, with matching, video flow, and scheduling architecture.</p>
+                        <div class="tech-stack"><span class="tech-tag">Next.js</span><span class="tech-tag">TypeScript</span><span class="tech-tag">PostgreSQL</span><span class="tech-tag">WebRTC</span><span class="tech-tag">Redis</span></div>
+                        <div class="card-links"><a href="#contact" class="card-link">Discuss Project</a><a href="archives.html" class="card-link">Project Notes</a></div>
                     </div>
                 </article>
-                
+
                 <article class="project-card">
                     <div class="featured-badge">Featured</div>
-                    <div class="card-image">
-                        <div class="image-placeholder">
-                            <span class="placeholder-icon">📚</span>
-                        </div>
-                        <div class="image-overlay"></div>
-                    </div>
+                    <div class="card-image"><div class="image-placeholder"><span class="placeholder-icon">EV</span></div><div class="image-overlay"></div></div>
                     <div class="card-content">
                         <span class="card-number">Project 02</span>
                         <h3 class="card-title">EduVenture</h3>
-                        <p class="card-description">
-                            An immersive educational platform that transforms learning into adventure. 
-                            Combining gamification principles with adaptive AI to create personalized 
-                            learning journeys for students of all ages.
-                        </p>
-                        <div class="tech-stack">
-                            <span class="tech-tag">React</span>
-                            <span class="tech-tag">Node.js</span>
-                            <span class="tech-tag">Firebase</span>
-                            <span class="tech-tag">TensorFlow</span>
-                            <span class="tech-tag">MongoDB</span>
-                        </div>
-                        <div class="card-links">
-                            <a href="eduventure.html" class="card-link">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                    <polyline points="15 3 21 3 21 9"/>
-                                    <line x1="10" y1="14" x2="21" y2="3"/>
-                                </svg>
-                                Live Demo
-                            </a>
-                            <a href="#" class="card-link" target="_blank">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-                                </svg>
-                                Source Code
-                            </a>
-                        </div>
+                        <p class="card-description">An immersive educational platform that turns learning into an adaptive adventure with gamification, personalized journeys, and AI-powered support.</p>
+                        <div class="tech-stack"><span class="tech-tag">React</span><span class="tech-tag">Node.js</span><span class="tech-tag">Firebase</span><span class="tech-tag">TensorFlow</span><span class="tech-tag">MongoDB</span></div>
+                        <div class="card-links"><a href="eduventure.html" class="card-link">Live Demo</a><a href="#contact" class="card-link">Discuss Project</a></div>
                     </div>
                 </article>
             </div>
         </div>
     </section>
-
-    <section id="knowledgeVault" class="resources-section hidden" aria-labelledby="resourcesTitle">
+    <section id="stack" class="tech-section">
         <div class="container">
-            <header class="section-header">
-                <span class="section-number">04 / Notes</span>
-                <h2 class="section-title" id="resourcesTitle">Command Vault</h2>
-                <p class="section-subtitle">
-                    Expandable notes, commands, and useful links curated from the admin panel.
-                </p>
-            </header>
-
-            <div class="resources-status" id="knowledgeStatus">Loading published notes...</div>
-            <div class="resources-grid" id="knowledgeGrid"></div>
+            <header class="section-header compact"><span class="section-number">04 / Stack</span><h2 class="section-title">Technologies I Use</h2></header>
+            <div class="tech-cloud"><span>HTML</span><span>CSS</span><span>JavaScript</span><span>TypeScript</span><span>React</span><span>Next.js</span><span>Node.js</span><span>Firebase</span><span>Python</span><span>SQL</span><span>NoSQL</span><span>Three.js</span></div>
         </div>
     </section>
 
     <section id="contact" class="contact-section">
         <div class="container">
             <header class="section-header">
-                <span class="section-number">05 / Connect</span>
+                <span class="section-number">05 / Contact</span>
                 <h2 class="section-title">Let's Correspond</h2>
-                <p class="section-subtitle">
-                    Have a project in mind or simply wish to discuss technology? 
-                    I welcome thoughtful conversations.
-                </p>
+                <p class="section-subtitle">Have a project in mind or want to discuss technology? Send a message.</p>
             </header>
-            
+
             <div class="contact-container">
                 <form id="contactForm" class="contact-form">
-                    <div class="form-group">
-                        <label for="name" class="form-label">Name <span class="required">*</span></label>
-                        <input type="text" id="name" name="name" class="form-input" placeholder="Your name" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="email" class="form-label">Email <span class="required">*</span></label>
-                        <input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="subject" class="form-label">Subject</label>
-                        <input type="text" id="subject" name="subject" class="form-input" placeholder="What's this about?">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="message" class="form-label">Message <span class="required">*</span></label>
-                        <textarea id="message" name="message" class="form-textarea" placeholder="Your message..." required></textarea>
-                    </div>
-                    
-                    <button type="submit" class="submit-button" id="submitBtn">
-                        Send Message
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 2L11 13"/>
-                            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
-                        </svg>
-                    </button>
-                    
+                    <div class="form-group"><label for="name" class="form-label">Name <span class="required">*</span></label><input type="text" id="name" name="name" class="form-input" placeholder="Your name" autocomplete="name" required></div>
+                    <div class="form-group"><label for="email" class="form-label">Email <span class="required">*</span></label><input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" autocomplete="email" required></div>
+                    <div class="form-group"><label for="subject" class="form-label">Subject</label><input type="text" id="subject" name="subject" class="form-input" placeholder="Backend, AI, portfolio, app..."></div>
+                    <div class="form-group"><label for="message" class="form-label">Message <span class="required">*</span></label><textarea id="message" name="message" class="form-textarea" placeholder="Your message..." autocomplete="off" required></textarea></div>
+                    <button type="submit" class="submit-button" id="submitBtn">Send Message <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></button>
                     <div id="formStatus" class="form-status hidden"></div>
                 </form>
-                
-                <div class="alternative-contact">
-                    <p class="alternative-title">Or connect through these channels</p>
+
+                <div class="alternative-contact redline-contact-panel">
+                    <p class="alternative-title">Hunterstar Identity</p>
+                    <p>Backend precision. AI curiosity. Fullstack polish. Systems that feel intentional.</p>
                     <div class="social-links">
-                        <a href="#" class="social-link" aria-label="GitHub Profile" target="_blank">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-                            </svg>
-                        </a>
-                        <a href="#" class="social-link" aria-label="LinkedIn Profile" target="_blank">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
-                                <rect x="2" y="9" width="4" height="12"/>
-                                <circle cx="4" cy="4" r="2"/>
-                            </svg>
-                        </a>
-                        <a href="#" class="social-link" aria-label="Twitter/X Profile" target="_blank">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 4l11.733 16h4.267l-11.733 -16z"/>
-                                <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"/>
-                            </svg>
-                        </a>
-                        <a href="mailto:hello@example.com" class="social-link" aria-label="Email">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                                <polyline points="22,6 12,13 2,6"/>
-                            </svg>
-                        </a>
+                        <a href="mailto:hello@hunterstar.uz?subject=Portfolio%20contact" class="social-link" aria-label="Email Hunterstar">MAIL</a>
+                        <a href="#projects" class="social-link" aria-label="View projects">WORK</a>
+                        <a href="archives.html" class="social-link" aria-label="Archives">AR</a>
                     </div>
                 </div>
             </div>
@@ -464,20 +301,14 @@
 
     <footer class="footer">
         <div class="container footer-content">
-            <p class="copyright">
-                <span class="accent">©</span> <span id="year"></span> // All Rights Reserved
-            </p>
-            <p class="footer-quote">
-                "In the grand game of code, precision is the mark of mastery."
-            </p>
+            <p class="copyright"><span class="accent">&copy;</span> <span id="year"></span> // Hunterstar Portfolio</p>
+            <p class="footer-quote">"In the grand game of code, precision is the mark of mastery."</p>
         </div>
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    
     <script src="js/firebase-config.js"></script>
     <script src="js/three-scene.js"></script>
     <script src="js/main.js"></script>
