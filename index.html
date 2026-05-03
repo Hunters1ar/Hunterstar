@@ -132,7 +132,7 @@
                     <form class="terminal-command-row" id="portfolioTerminalForm" autocomplete="off">
                         <label class="sr-only" for="portfolioTerminalInput">Terminal command</label>
                         <span class="terminal-prompt">hunterstar@portfolio:~$</span>
-                        <input id="portfolioTerminalInput" class="terminal-input" type="text" placeholder="try: projects, stack, contact" spellcheck="false">
+                        <input id="portfolioTerminalInput" class="terminal-input" type="text" placeholder="try: projects, stack, game" spellcheck="false">
                         <button class="terminal-run" type="submit">Run</button>
                     </form>
                 </article>
@@ -145,29 +145,12 @@
                             <button type="button" class="command-chip" data-terminal-command="whoami">whoami</button>
                             <button type="button" class="command-chip" data-terminal-command="projects">projects</button>
                             <button type="button" class="command-chip" data-terminal-command="stack">stack</button>
+                            <button type="button" class="command-chip" data-terminal-command="game">game</button>
                             <button type="button" class="command-chip" data-terminal-command="contact">contact</button>
                             <button type="button" class="command-chip" data-terminal-command="archives">archives</button>
                         </div>
                     </div>
 
-                    <div class="terminal-sidecar-panel">
-                        <span class="sidecar-label">System Signals</span>
-                        <div class="signal-list">
-                            <div class="signal-item"><span>Build Mode</span><strong>Focused</strong></div>
-                            <div class="signal-item"><span>Response</span><strong>Open</strong></div>
-                            <div class="signal-item"><span>Priority</span><strong>Useful systems</strong></div>
-                        </div>
-                    </div>
-
-                    <div class="terminal-sidecar-panel">
-                        <span class="sidecar-label">Build Pulse</span>
-                        <div class="pulse-grid" aria-hidden="true">
-                            <span></span><span class="is-hot"></span><span></span><span class="is-on"></span><span></span><span class="is-on"></span><span></span><span class="is-hot"></span>
-                            <span class="is-on"></span><span></span><span></span><span></span><span class="is-hot"></span><span></span><span class="is-on"></span><span></span>
-                            <span></span><span class="is-on"></span><span class="is-hot"></span><span></span><span></span><span></span><span class="is-on"></span><span></span>
-                            <span class="is-hot"></span><span></span><span></span><span class="is-on"></span><span></span><span class="is-hot"></span><span></span><span class="is-on"></span>
-                        </div>
-                    </div>
                 </aside>
             </div>
         </div>
@@ -265,6 +248,41 @@
         <div class="container">
             <header class="section-header compact"><span class="section-number">04 / Stack</span><h2 class="section-title">Technologies I Use</h2></header>
             <div class="tech-cloud"><span>HTML</span><span>CSS</span><span>JavaScript</span><span>TypeScript</span><span>React</span><span>Next.js</span><span>Node.js</span><span>Firebase</span><span>Python</span><span>SQL</span><span>NoSQL</span><span>Three.js</span></div>
+
+            <div class="game-menu" id="game-menu" aria-label="Embedded HTML5 game menu">
+                <div class="game-menu-bar">
+                    <div class="game-menu-heading">
+                        <span class="game-menu-kicker">Embedded HTML5 Game</span>
+                        <h3 class="game-menu-title">ScriptRunner 3D</h3>
+                    </div>
+                    <div class="game-menu-actions">
+                        <a class="game-menu-button game-menu-button-primary" href="#hunterstarGameFrame" aria-label="Play ScriptRunner 3D on this page">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            <span>Play</span>
+                        </a>
+                        <a class="game-menu-button" href="https://hunters1ar.github.io/game/" target="_blank" rel="noopener">Open Game</a>
+                    </div>
+                </div>
+                <div class="game-menu-meta" aria-label="Game technology details">
+                    <span>Three.js</span>
+                    <span>JavaScript</span>
+                    <span>GitHub Pages</span>
+                    <span>21 Floors</span>
+                </div>
+                <div class="game-frame-shell">
+                    <iframe
+                        id="hunterstarGameFrame"
+                        class="game-frame"
+                        src="https://hunters1ar.github.io/game/"
+                        title="ScriptRunner 3D embedded HTML5 game by Hunterstar"
+                        loading="lazy"
+                        allow="fullscreen; autoplay; gamepad; clipboard-write"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
         </div>
     </section>
 

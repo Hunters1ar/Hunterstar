@@ -287,7 +287,7 @@
     function initSiteInteractions() {
         const supportsHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
         const projectCards = document.querySelectorAll('.project-card');
-        const magneticElements = document.querySelectorAll('.cta-button, .card-link, .social-link');
+        const magneticElements = document.querySelectorAll('.cta-button, .card-link, .social-link, .game-menu-button');
 
         projectCards.forEach((card) => {
             const resetCard = () => {
@@ -366,6 +366,7 @@
                     'Available commands:',
                     'whoami    - show Hunterstar profile',
                     'stack     - list core technologies',
+                    'game      - open the embedded HTML5 game',
                     'projects  - jump to selected work',
                     'contact   - jump to the message form',
                     'archives  - open saved notes and tools',
@@ -386,6 +387,13 @@
                     'Opening the stack section...'
                 ],
                 target: '#stack'
+            },
+            game: {
+                lines: [
+                    'ScriptRunner 3D is embedded under the stack menu.',
+                    'Opening the game console...'
+                ],
+                target: '#game-menu'
             },
             projects: {
                 lines: [
@@ -429,6 +437,7 @@
         const aliases = {
             about: 'whoami',
             skills: 'stack',
+            play: 'game',
             work: 'projects',
             mail: 'contact',
             notes: 'archives',

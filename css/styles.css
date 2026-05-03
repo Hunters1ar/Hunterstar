@@ -2530,6 +2530,139 @@ a:hover { color: var(--color-accent-secondary); }
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
+.game-menu {
+  scroll-margin-top: 92px;
+  max-width: 1160px;
+  margin: clamp(2rem, 5vw, 3.5rem) auto 0;
+  border: 1px solid rgba(204,17,17,0.22);
+  background:
+    linear-gradient(135deg, rgba(204,17,17,0.08), transparent 34%),
+    rgba(8,8,8,0.88);
+  box-shadow:
+    0 24px 60px rgba(0,0,0,0.34),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+
+.game-menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: clamp(1rem, 2.4vw, 1.35rem);
+  border-bottom: 1px solid rgba(204,17,17,0.18);
+}
+
+.game-menu-heading {
+  min-width: 0;
+}
+
+.game-menu-kicker,
+.game-menu-meta span,
+.game-menu-button {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.game-menu-kicker {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--color-accent-primary);
+  font-size: var(--text-xs);
+}
+
+.game-menu-title {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0;
+}
+
+.game-menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.game-menu-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.95rem;
+  border: 1px solid rgba(204,17,17,0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(15,15,15,0.76);
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    transform var(--transition-base),
+    border-color var(--transition-base),
+    background-color var(--transition-base),
+    color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.game-menu-button:hover,
+.game-menu-button:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--color-surface-border-hover);
+  color: var(--color-text-primary);
+  box-shadow: 0 14px 32px rgba(204,17,17,0.18);
+}
+
+.game-menu-button svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.game-menu-button-primary {
+  background: var(--color-accent-primary);
+  color: var(--color-bg-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.game-menu-button-primary:hover,
+.game-menu-button-primary:focus-visible {
+  background: var(--color-accent-secondary);
+  color: var(--color-bg-primary);
+}
+
+.game-menu-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.85rem clamp(1rem, 2.4vw, 1.35rem);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(2,2,2,0.55);
+}
+
+.game-menu-meta span {
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
+}
+
+.game-frame-shell {
+  height: clamp(520px, 58vw, 720px);
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 44px),
+    #05080b;
+}
+
+.game-frame {
+  scroll-margin-top: 92px;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #05080b;
+}
+
 .redline-contact-panel {
   align-self: stretch;
   display: flex;
@@ -2992,6 +3125,19 @@ a:hover { color: var(--color-accent-secondary); }
   .nav-menu-button { display: block; }
   .portfolio-hero { padding-top: 68px; }
   .archive-resources-section { padding-top: calc(68px + var(--space-2xl)); }
+
+  .game-menu-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .game-menu-actions {
+    justify-content: stretch;
+  }
+
+  .game-menu-button {
+    flex: 1 1 150px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -3021,6 +3167,20 @@ a:hover { color: var(--color-accent-secondary); }
 
   .site-logo span:last-child { display: none; }
   .portfolio-hero .headline { font-size: clamp(2.5rem, 14vw, 4.2rem); }
+
+  .game-menu {
+    margin-top: var(--space-xl);
+  }
+
+  .game-menu-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-frame-shell {
+    height: min(78vh, 680px);
+    min-height: 520px;
+  }
 }
 
 /* ============================================================================
