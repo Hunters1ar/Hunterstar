@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+Disallow: /api
+Disallow: /api/
+Disallow: /botApi
+Disallow: /botApi/
+Disallow: /chatApi
+Disallow: /chatApi/
+Disallow: /link-preview
+Disallow: /link-preview/
+Disallow: /linkprev
+Disallow: /linkprev/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /pages/admin/
+Disallow: /script_controller.hta
+
+Sitemap: https://www.hunterstar.uz/sitemap.xml
