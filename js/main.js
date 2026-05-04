@@ -574,6 +574,57 @@
     initPortfolioTerminal();
 
     // ========================================================================
+    // EMBEDDED GAME FRAME
+    // ========================================================================
+
+    function initEmbeddedGameFrame() {
+        const gameFrame = document.getElementById('hunterstarGameFrame');
+        const gameShell = gameFrame ? gameFrame.closest('.game-frame-shell') : null;
+        const gamePlayButtons = document.querySelectorAll('[data-game-play]');
+
+        if (!gameFrame || !gameShell) return;
+
+        const embedSource = gameFrame.getAttribute('data-game-embed-src');
+
+        function ensureGameLoaded() {
+            const currentSource = gameFrame.getAttribute('src') || '';
+
+            if (embedSource && currentSource !== embedSource) {
+                gameFrame.setAttribute('src', embedSource);
+            }
+        }
+
+        function focusGameFrame() {
+            gameShell.classList.add('is-focused');
+            gameFrame.focus();
+        }
+
+        gameFrame.addEventListener('load', () => {
+            gameShell.classList.add('is-loaded');
+        });
+
+        gamePlayButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                ensureGameLoaded();
+
+                gameFrame.scrollIntoView({
+                    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                    block: 'start'
+                });
+
+                window.setTimeout(focusGameFrame, prefersReducedMotion ? 80 : 520);
+            });
+        });
+
+        gameFrame.addEventListener('blur', () => {
+            gameShell.classList.remove('is-focused');
+        });
+    }
+
+    initEmbeddedGameFrame();
+
+    // ========================================================================
     // CONTACT FORM
     // ========================================================================
 

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="logo.png">
+    <link rel="icon" href="assets/logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hunterstar portfolio - Backend Architect, AI Engineer, and Fullstack Developer.">
     <meta name="theme-color" content="#050505">
@@ -256,7 +256,7 @@
                         <h3 class="game-menu-title" id="gameMenuTitle">ScriptRunner 3D</h3>
                     </div>
                     <div class="game-menu-actions">
-                        <a class="game-menu-button game-menu-button-primary" href="#hunterstarGameFrame" aria-label="Play ScriptRunner 3D on this page">
+                        <a class="game-menu-button game-menu-button-primary" href="#hunterstarGameFrame" data-game-play aria-label="Play ScriptRunner 3D on this page">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M8 5v14l11-7z"/>
                             </svg>
@@ -272,12 +272,16 @@
                     <li>21 Floors</li>
                 </ul>
                 <div class="game-frame-shell">
+                    <div class="game-frame-status" id="gameFrameStatus">Loading ScriptRunner 3D...</div>
                     <iframe
                         id="hunterstarGameFrame"
                         class="game-frame"
-                        src="https://hunters1ar.github.io/game/"
+                        src="https://hunters1ar.github.io/game/?embed=1&amp;compact=1"
+                        data-game-embed-src="https://hunters1ar.github.io/game/?embed=1&amp;compact=1"
                         title="ScriptRunner 3D embedded HTML5 game by Hunterstar"
-                        loading="lazy"
+                        loading="eager"
+                        tabindex="0"
+                        referrerpolicy="strict-origin-when-cross-origin"
                         allow="fullscreen; autoplay; gamepad; clipboard-write"
                         allowfullscreen>
                     </iframe>
@@ -308,9 +312,15 @@
                     <p class="alternative-title">Hunterstar Identity</p>
                     <p>Backend precision. AI curiosity. Fullstack polish. Systems that feel intentional.</p>
                     <div class="social-links">
-                        <a href="mailto:hello@hunterstar.uz?subject=Portfolio%20contact" class="social-link" aria-label="Email Hunterstar">MAIL</a>
-                        <a href="#projects" class="social-link" aria-label="View projects">WORK</a>
-                        <a href="archives.html" class="social-link" aria-label="Archives">AR</a>
+                        <a href="mailto:kyuter789@gmail.com?subject=Portfolio%20contact" class="social-link" aria-label="Email Hunterstar">
+                            <img src="assets/gmail.webp" alt="" loading="lazy">
+                        </a>
+                        <a href="https://www.linkedin.com/in/khurshidkhursandov" class="social-link" aria-label="Hunterstar on LinkedIn" target="_blank" rel="noopener noreferrer">
+                            <img src="assets/linkedin.webp" alt="" loading="lazy">
+                        </a>
+                        <a href="https://t.me/Hunters1ar" class="social-link" aria-label="Hunterstar on Telegram" target="_blank" rel="noopener noreferrer">
+                            <img src="assets/telegram.webp" alt="" loading="lazy">
+                        </a>
                     </div>
                 </div>
             </div>

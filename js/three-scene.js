@@ -314,7 +314,7 @@
     function loadLogo() {
         const loader = new THREE.TextureLoader();
         loader.load(
-            'logo.png',
+            'assets/logo.png',
             (texture) => {
                 createLogoMesh(texture);
                 updateResponsiveLayout();
