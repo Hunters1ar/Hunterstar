@@ -533,6 +533,7 @@ a:hover { color: var(--color-accent-secondary); }
 }
 
 .icon-container {
+  display: block;
   position: relative;
   width: 24px;
   height: 24px;
@@ -907,6 +908,11 @@ a:hover { color: var(--color-accent-secondary); }
   border-radius: 2px;
   transition: width var(--transition-slow);
 }
+
+.proficiency-fill-88 { width: 88%; }
+.proficiency-fill-90 { width: 90%; }
+.proficiency-fill-92 { width: 92%; }
+.proficiency-fill-95 { width: 95%; }
 
 /* ============================================================================
  * PROJECTS SECTION
@@ -2558,7 +2564,7 @@ a:hover { color: var(--color-accent-secondary); }
 }
 
 .game-menu-kicker,
-.game-menu-meta span,
+.game-menu-meta li,
 .game-menu-button {
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -2637,12 +2643,14 @@ a:hover { color: var(--color-accent-secondary); }
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
+  margin: 0;
   padding: 0.85rem clamp(1rem, 2.4vw, 1.35rem);
   border-bottom: 1px solid rgba(255,255,255,0.06);
   background: rgba(2,2,2,0.55);
+  list-style: none;
 }
 
-.game-menu-meta span {
+.game-menu-meta li {
   color: var(--color-text-tertiary);
   font-size: 0.72rem;
 }
