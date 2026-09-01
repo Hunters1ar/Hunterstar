@@ -386,10 +386,31 @@
         const searchInput = document.getElementById('searchInput');
         const sourceSelect = document.getElementById('sourceSelect');
         
-        function loadState() {
+        async function loadState() {
             try {
                 const q = localStorage.getItem('hunterstar_queue');
                 if (q) fullQueue = JSON.parse(q);
+                
+                // If opened directly (e.g. from Telegram WebApp) and queue is empty, fetch from API
+                if (!fullQueue || fullQueue.length === 0) {
+                    try {
+                        const res = await fetch('https://api.hunterstar.uz/api/playlists');
+                        const data = await res.json();
+                        if (data.ok && data.playlists) {
+                            let tracks = [];
+                            data.playlists.forEach(p => {
+                                const source = p.title || 'Unknown';
+                                p.videos.forEach(v => {
+                                    tracks.push({ ...v, source });
+                                });
+                            });
+                            fullQueue = tracks;
+                            localStorage.setItem('hunterstar_queue', JSON.stringify(fullQueue));
+                        }
+                    } catch(e) {
+                        console.error('Failed to fetch initial queue', e);
+                    }
+                }
                 
                 queue = [...fullQueue];
                 
@@ -620,9 +641,11 @@
         });
 
         // Init
-        loadState();
-        renderQueue();
-        renderNowPlaying();
+        (async function init() {
+            await loadState();
+            renderQueue();
+            renderNowPlaying();
+        })();
     </script>
 </body>
 </html>
