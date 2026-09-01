@@ -584,15 +584,21 @@
         
         // Listen to BroadcastChannel for new plays from other tabs
         const bc = new BroadcastChannel('hunterstar_player_channel');
-        bc.onmessage = (event) => {
+        bc.onmessage = async (event) => {
             if (event.data.type === 'play') {
-                loadState();
+                await loadState();
                 renderQueue();
                 renderNowPlaying();
                 if (player && player.loadVideoById) {
                     player.loadVideoById(event.data.id);
                     isPlaying = true;
                     updatePlayPauseIcon();
+                } else {
+                    // Player might not be initialized yet if opened directly
+                    currentIndex = queue.findIndex(t => t.id === event.data.id) || 0;
+                    if (window.YT && window.YT.Player) {
+                        onYouTubeIframeAPIReady();
+                    }
                 }
             }
         };
@@ -643,8 +649,23 @@
         // Init
         (async function init() {
             await loadState();
+            
+            // If opened directly from Telegram, there might be no active track saved
+            const activeId = localStorage.getItem('hunterstar_active_id');
+            if (activeId) {
+                currentIndex = queue.findIndex(t => t.id === activeId);
+                if (currentIndex === -1) currentIndex = 0;
+            } else {
+                currentIndex = 0; // Default to first track
+            }
+
             renderQueue();
             renderNowPlaying();
+
+            // Try to initialize player if API is ready
+            if (window.YT && window.YT.Player && !player) {
+                onYouTubeIframeAPIReady();
+            }
         })();
     </script>
 </body>
