@@ -1,0 +1,24 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function archiveBoxPublished(boxId) {
+      return firestore.exists(/databases/(default)/documents/content_boxes/$(boxId))
+        && firestore.get(/databases/(default)/documents/content_boxes/$(boxId)).data.published == true;
+    }
+
+    match /archives/{boxId}/{filePath=**} {
+      allow read: if signedIn() || archiveBoxPublished(boxId);
+      allow create, update: if signedIn();
+      allow delete: if signedIn();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

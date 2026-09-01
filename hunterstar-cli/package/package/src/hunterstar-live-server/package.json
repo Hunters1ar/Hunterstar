@@ -1,0 +1,194 @@
+{
+  "name": "hunters-live-server",
+  "displayName": "Hunters Live Server",
+  "description": "Open HTML files with Hunters Live Server from VS Code.",
+  "version": "0.2.0",
+  "publisher": "hunterstar",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hunters/hunters-live-server"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:hunters-live-server.start",
+    "onCommand:hunters-live-server.startLocal",
+    "onCommand:hunters-live-server.startGlobal",
+    "onCommand:hunters-live-server.startStaticProxy",
+    "onCommand:hunters-live-server.startFullStackProxy",
+    "onCommand:hunters-live-server.stop",
+    "onCommand:hunters-live-server.open",
+    "onCommand:hunters-live-server.copyShareUrl"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0f766e",
+    "theme": "dark"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "hunters-live-server.start",
+        "title": "Open Live Server",
+        "category": "Hunters",
+        "icon": "$(radio-tower)"
+      },
+      {
+        "command": "hunters-live-server.startLocal",
+        "title": "Open Local Live Server",
+        "category": "Hunters",
+        "icon": "$(device-desktop)"
+      },
+      {
+        "command": "hunters-live-server.startGlobal",
+        "title": "Open Global Live Server",
+        "category": "Hunters",
+        "icon": "$(radio-tower)"
+      },
+      {
+        "command": "hunters-live-server.stop",
+        "title": "Stop Live Server",
+        "category": "Hunters",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "hunters-live-server.open",
+        "title": "Open Current Server",
+        "category": "Hunters",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "hunters-live-server.openLocal",
+        "title": "Open Local Server",
+        "category": "Hunters",
+        "icon": "$(device-desktop)"
+      },
+      {
+        "command": "hunters-live-server.copyShareUrl",
+        "title": "Copy Share URL",
+        "category": "Hunters",
+        "icon": "$(link)"
+      },
+      {
+        "command": "hunters-live-server.startStaticProxy",
+        "title": "Start Static + Proxy",
+        "category": "Hunters",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "hunters-live-server.startFullStackProxy",
+        "title": "Start Full-Stack Proxy",
+        "category": "Hunters",
+        "icon": "$(server-process)"
+      }
+    ],
+    "configuration": {
+      "title": "Hunters Live Server",
+      "properties": {
+        "hunters-live-server.relayUrl": {
+          "type": "string",
+          "default": "wss://hunterstaronline.online/tunnel",
+          "markdownDescription": "VPS relay URL used for public sharing. Production builds use the Hunters relay by default. Use `wss://live.example.com/tunnel` for a domain with HTTPS, or override this for a private relay."
+        },
+        "hunters-live-server.relayToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional bearer token for advanced private relay servers only. The public Hunters production relay should leave `RELAY_TOKEN` empty so users do not need manual setup."
+        },
+        "hunters-live-server.backendPort": {
+          "type": "number",
+          "default": 0,
+          "markdownDescription": "Port of the local backend server to proxy API requests to (e.g. `3000`, `5000`, `8080`). Set to `0` for auto-detection."
+        },
+        "hunters-live-server.apiPrefix": {
+          "type": "string",
+          "default": "/api",
+          "markdownDescription": "URL prefix that triggers backend proxying in **Static + Proxy** mode. Requests starting with this path are forwarded to the backend port instead of being served as static files."
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "hunters-live-server.startLocal",
+          "when": "resourceScheme == file && (resourceLangId == html || resourceExtname == .html || resourceExtname == .htm)",
+          "group": "0_hunters@1"
+        },
+        {
+          "command": "hunters-live-server.startGlobal",
+          "when": "resourceScheme == file && (resourceLangId == html || resourceExtname == .html || resourceExtname == .htm)",
+          "group": "0_hunters@2"
+        },
+        {
+          "command": "hunters-live-server.stop",
+          "when": "huntersLiveServer.isRunning",
+          "group": "0_hunters@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "hunters-live-server.startLocal",
+          "when": "resourceScheme == file && (resourceLangId == html || resourceExtname == .html || resourceExtname == .htm)",
+          "group": "0_hunters@1"
+        },
+        {
+          "command": "hunters-live-server.startGlobal",
+          "when": "resourceScheme == file && (resourceLangId == html || resourceExtname == .html || resourceExtname == .htm)",
+          "group": "0_hunters@2"
+        },
+        {
+          "command": "hunters-live-server.stop",
+          "when": "huntersLiveServer.isRunning",
+          "group": "0_hunters@3"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "hunters-live-server.start",
+          "when": "resourceScheme == file && (resourceLangId == html || resourceExtname == .html || resourceExtname == .htm)",
+          "group": "navigation@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "relay": "node relay/server.js",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "vsix": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "1.95.0",
+    "@types/ws": "^8.18.1",
+    "@vscode/vsce": "^3.6.4",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.3",
+    "eslint": "^9.39.3",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  },
+  "dependencies": {
+    "ws": "^8.20.0"
+  }
+}

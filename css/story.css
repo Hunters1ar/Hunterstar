@@ -1,0 +1,605 @@
+/* ==============================================
+   HUNTERSTAR V2.0 — CINEMATIC STORY STYLES
+   ============================================== */
+
+/* ── CSS Variables ── */
+:root {
+    --color-bg: #050505;
+    --color-surface: #101010;
+    --color-primary: #D33A2C;
+    --color-accent: #FF5C48;
+    --color-text: #F5F5F5;
+    --color-muted: #9C9C9C;
+    --color-border: rgba(255, 70, 70, 0.15);
+    --font-serif: "Cormorant Garamond", serif;
+    --font-sans: "Inter", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+}
+
+/* ── Utility ── */
+.hidden { display: none !important; }
+.ml-4 { margin-left: 1rem; }
+
+/* ══════════════════════════════════════════════
+   BOOT SEQUENCE
+   ══════════════════════════════════════════════ */
+.cinematic-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: var(--color-bg);
+    overflow: hidden;
+}
+.pointer-events-auto { pointer-events: auto; }
+
+.boot-sequence {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+    padding: 2rem;
+    z-index: 10000;
+}
+.boot-text-container {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: left;
+}
+.boot-line {
+    min-height: 1.5rem;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+    opacity: 0;
+}
+.boot-line.visible { opacity: 1; }
+.boot-line-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #FFFFFF;
+    margin-top: 2rem;
+    letter-spacing: 0.2em;
+}
+.boot-progress-container {
+    width: 100%;
+    max-width: 800px;
+    margin-top: 1.5rem;
+    text-align: left;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.boot-progress-bar {
+    display: inline-block;
+    height: 2px;
+    background: var(--color-primary);
+    width: 0%;
+    transition: width 0.1s linear;
+}
+.boot-progress-text {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    min-width: 3rem;
+}
+
+/* ══════════════════════════════════════════════
+   ARCHIVE SPLASH
+   ══════════════════════════════════════════════ */
+.archive-splash {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--color-bg);
+    opacity: 0;
+    z-index: 9999;
+}
+.splash-title {
+    font-family: var(--font-serif);
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 1rem;
+    letter-spacing: 0.1em;
+}
+.drop-glow {
+    text-shadow: 0 0 30px rgba(211, 58, 44, 0.5), 0 0 60px rgba(211, 58, 44, 0.2);
+}
+.splash-subtitle {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+}
+.cyber-btn {
+    margin-top: 3rem;
+    padding: 0.75rem 2rem;
+    background-color: rgba(16, 16, 16, 0.8);
+    border: 1px solid var(--color-border);
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+.cyber-btn:hover {
+    background-color: var(--color-primary);
+    color: #FFFFFF;
+    box-shadow: 0 0 20px rgba(211, 58, 44, 0.4);
+}
+
+/* ══════════════════════════════════════════════
+   STORY WRAPPER
+   ══════════════════════════════════════════════ */
+.story-wrapper {
+    position: relative;
+    z-index: 1;
+    background: var(--color-bg);
+    min-height: 100vh;
+}
+#starfield-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════
+   MISSION SECTION
+   ══════════════════════════════════════════════ */
+.mission {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Mission HUD ── */
+.mission-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem 2.5rem;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+}
+.mission-hud-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.mission-hud-number {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--color-primary);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+.mission-hud-sep {
+    color: var(--color-muted);
+    font-size: 0.7rem;
+}
+.mission-hud-title {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--color-muted);
+    letter-spacing: 0.15em;
+}
+.mission-hud-year {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    color: rgba(245, 245, 245, 0.15);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+/* ── Mission Stage ── */
+.mission-stage {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6rem 2rem 4rem;
+    min-height: 100vh;
+    gap: 2rem;
+}
+
+/* ══════════════════════════════════════════════
+   LAPTOP SCENE
+   ══════════════════════════════════════════════ */
+.laptop-scene {
+    position: relative;
+    opacity: 0;
+    transform: scale(0.85) translateY(30px);
+    flex-shrink: 0;
+}
+.laptop-frame {
+    width: clamp(280px, 45vw, 480px);
+    background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+    border-radius: 12px 12px 0 0;
+    padding: 10px 10px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    position: relative;
+}
+.laptop-screen {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.screen-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.screen-game {
+    z-index: 1;
+    background: linear-gradient(135deg, #0a1a0a 0%, #050f05 100%);
+}
+.game-screen-pixels {
+    width: 100%;
+    height: 100%;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 3px,
+            rgba(26, 92, 42, 0.08) 3px,
+            rgba(26, 92, 42, 0.08) 4px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 5px,
+            rgba(26, 92, 42, 0.04) 5px,
+            rgba(26, 92, 42, 0.04) 6px
+        );
+    position: relative;
+}
+.game-screen-pixels::after {
+    content: '▶';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    color: rgba(211, 58, 44, 0.3);
+}
+.screen-vscode {
+    z-index: 2;
+    opacity: 0;
+    background: #1e1e1e;
+}
+.vscode-content {
+    font-family: var(--font-mono);
+    font-size: clamp(0.45rem, 1vw, 0.65rem);
+    padding: 1rem;
+    line-height: 1.6;
+    color: #d4d4d4;
+    width: 100%;
+}
+.vc-kw { color: #569cd6; }
+.vc-var { color: #9cdcfe; }
+.vc-str { color: #ce9178; }
+.vc-fn { color: #dcdcaa; }
+.vscode-cursor {
+    display: inline-block;
+    width: 6px;
+    height: 1em;
+    background: #d4d4d4;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+}
+@keyframes blink {
+    50% { opacity: 0; }
+}
+.scanline-overlay {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+}
+.laptop-base {
+    width: clamp(300px, 50vw, 520px);
+    height: 10px;
+    background: linear-gradient(to bottom, #1a1a1a, #111);
+    border-radius: 0 0 6px 6px;
+    margin: 0 auto;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: none;
+    position: relative;
+}
+.laptop-base::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 0 0 2px 2px;
+}
+.laptop-glow {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 60px;
+    background: radial-gradient(ellipse, rgba(211, 58, 44, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+.laptop-scene:hover .laptop-glow {
+    opacity: 1;
+}
+
+/* ══════════════════════════════════════════════
+   STORY TEXT
+   ══════════════════════════════════════════════ */
+.story-text {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    text-align: center;
+    max-width: 600px;
+    line-height: 1.6;
+    opacity: 0;
+    transform: translateY(20px);
+}
+.story-text-main {
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    font-weight: 500;
+}
+.story-text-sub {
+    font-size: clamp(0.95rem, 2vw, 1.15rem);
+    color: var(--color-muted);
+    font-style: italic;
+}
+
+/* Typewriter characters */
+.story-text .char {
+    opacity: 0;
+    transition: opacity 0.01s;
+}
+.story-text .char.revealed {
+    opacity: 1;
+}
+
+/* ══════════════════════════════════════════════
+   GAME COVERS
+   ══════════════════════════════════════════════ */
+.game-covers {
+    display: flex;
+    gap: clamp(0.5rem, 1.5vw, 1rem);
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 700px;
+    opacity: 0;
+}
+.game-cover {
+    width: clamp(80px, 12vw, 120px);
+    aspect-ratio: 3 / 4;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease;
+    opacity: 0;
+    transform: translateY(40px) rotate(var(--cover-rotate, 0deg));
+    position: relative;
+}
+.game-cover:nth-child(1) { --cover-rotate: -3deg; }
+.game-cover:nth-child(2) { --cover-rotate: 2deg; }
+.game-cover:nth-child(3) { --cover-rotate: -1deg; }
+.game-cover:nth-child(4) { --cover-rotate: 3deg; }
+.game-cover:nth-child(5) { --cover-rotate: -2deg; }
+.game-cover:hover {
+    transform: translateY(-8px) rotate(0deg) scale(1.05);
+    box-shadow: 0 8px 30px rgba(211, 58, 44, 0.2);
+    z-index: 2;
+}
+.game-cover-art {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+    position: relative;
+}
+.game-cover-art::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+}
+.game-cover-title {
+    font-family: var(--font-mono);
+    font-size: clamp(0.5rem, 0.9vw, 0.65rem);
+    color: #FFFFFF;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+    text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════
+   LESSON BLOCK
+   ══════════════════════════════════════════════ */
+.lesson-block {
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.9);
+    padding: 2rem 0;
+}
+.lesson-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--color-primary);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+}
+.lesson-text {
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    color: var(--color-text);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+    position: relative;
+}
+.lesson-text::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 2px;
+    background: var(--color-primary);
+    margin: 1rem auto 0;
+    border-radius: 1px;
+}
+/* Glitch reveal */
+.lesson-text .glitch-char {
+    display: inline-block;
+    min-width: 0.3em;
+}
+
+/* ══════════════════════════════════════════════
+   WARP FLASH
+   ══════════════════════════════════════════════ */
+.warp-flash {
+    position: fixed;
+    inset: 0;
+    background: #FFFFFF;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0;
+}
+
+/* ══════════════════════════════════════════════
+   MISSION NEXT (Placeholder)
+   ══════════════════════════════════════════════ */
+.mission-next {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg);
+}
+.mission-next-content {
+    text-align: center;
+    opacity: 0;
+    transform: translateY(30px);
+}
+.mission-next-title {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: var(--color-text);
+    font-weight: 700;
+    margin: 0.75rem 0;
+    letter-spacing: 0.05em;
+}
+.mission-next-year {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    color: rgba(245, 245, 245, 0.15);
+    margin-bottom: 2rem;
+}
+.mission-next-line {
+    width: 60px;
+    height: 1px;
+    background: var(--color-primary);
+    margin: 0 auto 2rem;
+}
+.mission-next-sub {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .mission-hud {
+        padding: 1.25rem 1.5rem;
+    }
+    .mission-hud-year {
+        font-size: 1.1rem;
+    }
+    .mission-stage {
+        padding: 5rem 1.25rem 3rem;
+        gap: 1.5rem;
+    }
+    .game-covers {
+        gap: 0.5rem;
+    }
+    .game-cover {
+        width: clamp(65px, 16vw, 90px);
+    }
+    .laptop-frame {
+        width: clamp(240px, 80vw, 360px);
+    }
+    .laptop-base {
+        width: clamp(260px, 85vw, 380px);
+    }
+}
+
+@media (max-width: 480px) {
+    .mission-hud-left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    .mission-hud-sep { display: none; }
+    .game-cover {
+        width: clamp(55px, 17vw, 75px);
+    }
+}

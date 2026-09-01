@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://hunterstar.uz/</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://hunterstar.uz/assets/hunterstar-portfolio-preview.png</image:loc>
+      <image:title>Hunterstar Developer Portfolio — Khurshid Khursandov (Xurshid Xursandov)</image:title>
+      <image:caption>Official portfolio of Khurshid Khursandov (Xurshid Xursandov) — Founder &amp; CEO of Hunterstar, Backend Architect and AI Engineer from Uzbekistan</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://hunterstar.uz/galery/hunterreal.png</image:loc>
+      <image:title>Khurshid Khursandov — Xurshid Xursandov — Founder &amp; CEO of Hunterstar</image:title>
+      <image:caption>Photo of Khurshid Khursandov (Xurshid Xursandov, Хуршид Хурсандов) — Founder and CEO of Hunterstar, Backend Architect and AI Engineer from Uzbekistan</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://hunterstar.uz/me</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://hunterstar.uz/galery/hunterreal.png</image:loc>
+      <image:title>Khurshid Khursandov (Xurshid Xursandov) — Founder &amp; CEO of Hunterstar</image:title>
+      <image:caption>Official photo of Khurshid Khursandov (Xurshid Xursandov, Хуршид Хурсандов) — Backend Architect and AI Engineer from Uzbekistan. Founder of Hunterstar.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://hunterstar.uz/archives</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://hunterstar.uz/assets/hunterstar-archives-preview.png</image:loc>
+      <image:title>Hunterstar Archives Preview</image:title>
+      <image:caption>Hunterstar Command Vault notes, commands, programs, and useful engineering links preview</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://hunterstar.uz/eduventure</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://hunterstar.uz/assets/eduventure-preview.png</image:loc>
+      <image:title>EduVenture English Learning PWA Preview</image:title>
+      <image:caption>EduVenture offline lessons, gamified English practice, and AI-powered learning support preview</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://hunterstar.uz/family.html</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://hunterstar.uz/playlist</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://hunterstar.uz/projects/hunterstar_live_server.html</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://hunterstar.uz/assets/hunterstar-live-server-preview.png</image:loc>
+      <image:title>Hunters Live Server Preview</image:title>
+      <image:caption>Hunters Live Server launches a local dev server with auto-reload, then shares it to the world over a secure tunnel with one click. A VS Code extension.</image:caption>
+    </image:image>
+  </url>
+</urlset>

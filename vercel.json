@@ -1,0 +1,113 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "queue.hunterstar.uz"
+        }
+      ],
+      "destination": "/accountqueue",
+      "permanent": false
+    },
+    {
+      "source": "/accountqueue.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/accountqueue",
+      "has": [
+        {
+          "type": "host",
+          "value": "hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/accountqueue.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/accountqueue",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/admin",
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/admin.html",
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "admin.hunterstar.uz"
+        }
+      ],
+      "destination": "https://hunterstar.uz/",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "admin.hunterstar.uz"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/archives",
+      "destination": "/archives.html"
+    },
+    {
+      "source": "/me",
+      "destination": "/me.html"
+    },
+    {
+      "source": "/eduventure",
+      "destination": "/projects/eduventure.html"
+    }
+  ]
+}

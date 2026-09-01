@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Private admin archive for portfolio submissions.">
+    <meta name="theme-color" content="#0a0a0b">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-title" content="Hunterstar">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <title>Control Room | Private Archive</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="admin-page-body">
+    <div class="grain-overlay" aria-hidden="true"></div>
+    <div class="vignette-overlay" aria-hidden="true"></div>
+
+    <main class="admin-shell container">
+        <section class="admin-hero">
+            <span class="terminal-tagline">Private Channel // Admin Only</span>
+            <h1 class="headline">
+                Control Room
+                <span class="headline-accent">Archive</span>
+            </h1>
+            <p class="subtitle">
+                A hidden console for reviewing everything submitted through Firebase.
+            </p>
+            <p class="description">
+                Sign in with your Firebase admin account to inspect messages, mark them as handled,
+                and remove anything you no longer want to keep.
+            </p>
+        </section>
+
+        <section class="admin-auth-card" id="adminAuthCard">
+            <div class="admin-panel-heading">
+                <div>
+                    <p class="admin-eyebrow">Login Gate</p>
+                    <h2 class="admin-section-title">Unlock The Archive</h2>
+                </div>
+                <p class="admin-support-copy">
+                    This page is intentionally unlinked. Real protection should come from Firebase Auth
+                    and Firestore rules.
+                </p>
+            </div>
+
+            <form class="admin-login-form" id="adminLoginForm">
+                <div class="form-group">
+                    <label for="adminEmail" class="form-label">Admin Email</label>
+                    <input type="email" id="adminEmail" class="form-input" placeholder="you@example.com" autocomplete="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="adminPassword" class="form-label">Password</label>
+                    <input type="password" id="adminPassword" class="form-input" placeholder="Enter your password" autocomplete="current-password" required>
+                </div>
+
+                <button type="submit" class="submit-button" id="adminLoginBtn">Enter Control Room</button>
+            </form>
+
+            <div class="admin-two-factor-panel hidden" id="adminTwoFactorPanel">
+                <div class="admin-two-factor-head">
+                    <div>
+                        <p class="admin-eyebrow" id="adminTwoFactorEyebrow">Authenticator Check</p>
+                        <h3 class="admin-subheading" id="adminTwoFactorTitle">Enter Authenticator Code</h3>
+                    </div>
+                    <p class="admin-support-copy" id="adminTwoFactorCopy">
+                        Open your authenticator app and enter the current 6-digit code.
+                    </p>
+                </div>
+
+                <div class="admin-two-factor-setup hidden" id="adminTwoFactorSetup">
+                    <img
+                        id="adminTwoFactorQr"
+                        class="admin-two-factor-qr"
+                        src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                        alt="Authenticator setup QR code"
+                    >
+                    <div class="admin-two-factor-manual">
+                        <span class="admin-detail-meta-label">Manual Key</span>
+                        <code id="adminTwoFactorManualKey"></code>
+                    </div>
+                </div>
+
+                <form class="admin-two-factor-form" id="adminTwoFactorForm">
+                    <div class="form-group">
+                        <label for="adminTwoFactorCode" class="form-label">Authenticator Code</label>
+                        <input
+                            type="text"
+                            id="adminTwoFactorCode"
+                            class="form-input admin-two-factor-code"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                            placeholder="123456"
+                            maxlength="8"
+                            required
+                        >
+                    </div>
+                    <button type="submit" class="submit-button" id="adminTwoFactorBtn">Verify Code</button>
+                </form>
+            </div>
+
+            <div id="adminAuthStatus" class="form-status hidden"></div>
+        </section>
+
+        <section class="admin-dashboard hidden" id="adminDashboard">
+            <div class="admin-toolbar-card">
+                <div>
+                    <p class="admin-eyebrow">Archive Console</p>
+                    <h2 class="admin-section-title">Incoming Submissions</h2>
+                </div>
+
+                <div class="admin-session">
+                    <span class="admin-session-user" id="adminSessionUser">Signed in</span>
+                    <button type="button" class="cta-button" id="adminLogoutBtn">Sign Out</button>
+                </div>
+            </div>
+
+            <div class="admin-stats-grid">
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Total</span>
+                    <strong class="admin-stat-value" id="adminTotalCount">0</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Unread</span>
+                    <strong class="admin-stat-value" id="adminUnreadCount">0</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Read</span>
+                    <strong class="admin-stat-value" id="adminReadCount">0</strong>
+                </article>
+            </div>
+
+            <div class="admin-workspace">
+                <aside class="admin-panel admin-list-panel">
+                    <div class="admin-list-toolbar">
+                        <div>
+                            <p class="admin-eyebrow">Archive Feed</p>
+                            <h3 class="admin-subheading">Messages</h3>
+                        </div>
+                        <input
+                            type="search"
+                            id="adminSearch"
+                            class="form-input admin-search-input"
+                            placeholder="Search name, email, subject, message..."
+                        >
+                    </div>
+
+                    <div class="admin-list-status" id="adminListStatus">Waiting for secure session...</div>
+                    <div class="admin-submission-list" id="adminSubmissionList"></div>
+                </aside>
+
+                <section class="admin-panel admin-detail-panel">
+                    <div class="admin-empty-state" id="adminEmptyState">
+                        Select a submission to inspect its details.
+                    </div>
+
+                    <article class="admin-detail-card hidden" id="adminDetailCard">
+                        <div class="admin-detail-head">
+                            <div>
+                                <p class="admin-detail-label" id="adminDetailSubject">No subject</p>
+                                <h3 class="admin-detail-name" id="adminDetailName">Submission</h3>
+                            </div>
+                            <span class="admin-badge" id="adminDetailReadBadge">Unread</span>
+                        </div>
+
+                        <div class="admin-detail-meta">
+                            <div class="admin-detail-meta-item">
+                                <span class="admin-detail-meta-label">Email</span>
+                                <a href="#" id="adminDetailEmail" class="admin-detail-meta-value">No email selected</a>
+                            </div>
+                            <div class="admin-detail-meta-item">
+                                <span class="admin-detail-meta-label">Received</span>
+                                <span id="adminDetailDate" class="admin-detail-meta-value"></span>
+                            </div>
+                        </div>
+
+                        <div class="admin-detail-message">
+                            <span class="admin-detail-meta-label">Message</span>
+                            <p id="adminDetailMessage"></p>
+                        </div>
+
+                        <div class="admin-action-row">
+                            <button type="button" class="cta-button cta-button-primary" id="adminToggleReadBtn">
+                                Mark as Read
+                            </button>
+                            <button type="button" class="admin-danger-button" id="adminDeleteBtn">
+                                Delete Message
+                            </button>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <section class="admin-notes-suite">
+                <div class="admin-toolbar-card admin-content-toolbar">
+                    <div>
+                        <p class="admin-eyebrow">Public Index Content</p>
+                        <h2 class="admin-section-title">Notes, Commands &amp; Links</h2>
+                    </div>
+                    <p class="admin-support-copy">
+                        Create expandable boxes for the public homepage. Use them for commands, notes, references, docs, or useful links.
+                    </p>
+                </div>
+
+                <div class="admin-content-grid">
+                    <section class="admin-panel admin-content-form-panel">
+                        <div class="admin-panel-heading">
+                            <div>
+                                <p class="admin-eyebrow">Editor</p>
+                                <h3 class="admin-subheading" id="adminResourceFormTitle">Create New Box</h3>
+                            </div>
+                            <p class="admin-support-copy">
+                                Each line in the links field can be either <strong>Label | URL</strong> or just a raw URL.
+                            </p>
+                        </div>
+
+                        <form id="adminResourceForm" class="admin-resource-form">
+                            <div class="form-group">
+                                <label for="resourceTitle" class="form-label">Box Title</label>
+                                <input type="text" id="resourceTitle" class="form-input" maxlength="120" placeholder="Git Commands" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="resourceSummary" class="form-label">Short Summary</label>
+                                <input type="text" id="resourceSummary" class="form-input" maxlength="180" placeholder="Quick everyday terminal helpers">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="resourceNotes" class="form-label">Notes / Commands</label>
+                                <div class="admin-format-toolbar" id="resourceNotesToolbar" role="toolbar" aria-label="Notes formatting tools">
+                                    <button type="button" class="admin-format-button" data-format="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+                                    <button type="button" class="admin-format-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+                                    <button type="button" class="admin-format-button" data-format="underline" aria-label="Underline" title="Underline"><span class="admin-format-underline">U</span></button>
+                                    <button type="button" class="admin-format-button" data-format="strike" aria-label="Strikethrough" title="Strikethrough"><s>S</s></button>
+                                    <button type="button" class="admin-format-button" data-format="inlineCode" aria-label="Inline code" title="Inline code"><code>&lt;/&gt;</code></button>
+                                    <button type="button" class="admin-format-button" data-format="quote" aria-label="Quote" title="Quote">&gt;</button>
+                                    <button type="button" class="admin-format-button" data-format="list" aria-label="List" title="List">-</button>
+                                    <button type="button" class="admin-format-button admin-format-button-wide" data-format="codeBlock" aria-label="Copy code block" title="Copy code block: Ctrl+Shift+M"><code>```</code></button>
+                                </div>
+                                <textarea id="resourceNotes" class="form-textarea admin-resource-textarea" placeholder="git status&#10;git pull origin main&#10;git checkout -b feature/new-ui"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="resourceLinks" class="form-label">Links</label>
+                                <textarea id="resourceLinks" class="form-textarea admin-resource-links" placeholder="GitHub | https://github.com/your/repo&#10;Docs | https://example.com/docs"></textarea>
+                            </div>
+
+                            <div class="form-group admin-file-upload-group">
+                                <label for="resourceFiles" class="form-label">Archive Files</label>
+                                <div class="admin-file-picker">
+                                    <input type="file" id="resourceFiles" class="admin-file-input sr-only" multiple>
+                                    <label for="resourceFiles" class="admin-file-picker-target" aria-describedby="adminFilePickerNote">
+                                        <span class="admin-file-picker-mark" aria-hidden="true">+</span>
+                                        <span class="admin-file-picker-copy">
+                                            <span class="admin-file-picker-title">Choose archive files</span>
+                                            <span class="admin-file-picker-note" id="adminFilePickerNote">Drop files here or choose anything you need, including real EXE/MSI installers. Program files are stored as downloads.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="admin-upload-progress hidden" id="adminUploadProgress" aria-live="polite">
+                                    <div class="admin-upload-progress-head">
+                                        <span id="adminUploadProgressText">Waiting for upload...</span>
+                                        <span id="adminUploadProgressMeta">0%</span>
+                                    </div>
+                                    <progress class="admin-upload-progress-track" id="adminUploadProgressBar" value="0" max="100">0%</progress>
+                                </div>
+                                <div class="admin-list-status admin-file-preview-status" id="adminResourceFilePreviewStatus">No files attached yet.</div>
+                                <div class="admin-attachment-grid" id="adminResourceFilePreviewList"></div>
+                            </div>
+
+                            <div class="admin-inline-fields">
+                                <div class="form-group">
+                                    <label for="resourceOrder" class="form-label">Order</label>
+                                    <input type="number" id="resourceOrder" class="form-input" value="0" step="1">
+                                </div>
+
+                                <label class="admin-toggle-row">
+                                    <input type="checkbox" id="resourcePublished" checked>
+                                    <span>Published on index page</span>
+                                </label>
+                            </div>
+
+                            <div class="admin-action-row">
+                                <button type="submit" class="cta-button cta-button-primary" id="adminResourceSaveBtn">Save Box</button>
+                                <button type="button" class="cta-button" id="adminResourceResetBtn">Clear Form</button>
+                                <button type="button" class="admin-danger-button hidden" id="adminResourceDeleteBtn">Delete Box</button>
+                            </div>
+                        </form>
+
+                        <div id="adminResourceStatus" class="form-status hidden"></div>
+                    </section>
+
+                    <section class="admin-panel admin-content-list-panel">
+                        <div class="admin-list-toolbar">
+                            <div>
+                                <p class="admin-eyebrow">Published Library</p>
+                                <h3 class="admin-subheading">Homepage Boxes</h3>
+                            </div>
+                            <div class="admin-content-stats">
+                                <span class="admin-content-stat"><strong id="adminBoxTotalCount">0</strong> total</span>
+                                <span class="admin-content-stat"><strong id="adminBoxPublishedCount">0</strong> published</span>
+                            </div>
+                        </div>
+
+                        <div class="admin-list-status" id="adminResourceListStatus">Waiting for secure session...</div>
+                        <div class="admin-resource-list" id="adminResourceList"></div>
+                    </section>
+                </div>
+            </section>
+
+            <section class="admin-notes-suite admin-playlist-suite">
+                <div class="admin-toolbar-card">
+                    <div>
+                        <p class="admin-eyebrow">Playlist Gallery</p>
+                        <h2 class="admin-section-title">YouTube Playlists</h2>
+                    </div>
+                    <p class="admin-support-copy">
+                        Paste a YouTube playlist link or ID. Each one shows as a carousel on the public Playlist page, with its title pulled from YouTube automatically. Playlists must be Public or Unlisted.
+                    </p>
+                </div>
+
+                <div class="admin-content-grid">
+                    <section class="admin-panel">
+                        <div class="admin-panel-heading">
+                            <div>
+                                <p class="admin-eyebrow">Add</p>
+                                <h3 class="admin-subheading">Add a Playlist</h3>
+                            </div>
+                        </div>
+
+                        <form id="adminPlaylistForm" class="admin-resource-form">
+                            <div class="form-group">
+                                <label for="playlistInput" class="form-label">Playlist URL or ID</label>
+                                <input type="text" id="playlistInput" class="form-input" placeholder="https://www.youtube.com/playlist?list=PL..." autocomplete="off" required>
+                            </div>
+                            <div class="admin-action-row">
+                                <button type="submit" class="cta-button cta-button-primary" id="adminPlaylistAddBtn">Add Playlist</button>
+                            </div>
+                        </form>
+
+                        <div id="adminPlaylistStatus" class="form-status hidden"></div>
+                    </section>
+
+                    <section class="admin-panel">
+                        <div class="admin-list-toolbar">
+                            <div>
+                                <p class="admin-eyebrow">Configured</p>
+                                <h3 class="admin-subheading">Live Playlists</h3>
+                            </div>
+                            <div class="admin-content-stats">
+                                <span class="admin-content-stat"><strong id="adminPlaylistCount">0</strong> total</span>
+                            </div>
+                        </div>
+
+                        <div class="admin-list-status" id="adminPlaylistListStatus">Waiting for secure session...</div>
+                        <div class="admin-resource-list" id="adminPlaylistList"></div>
+                    </section>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

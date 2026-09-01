@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSubmissionCollection(collectionName) {
+      return collectionName in ['my comments', 'contact-submissions'];
+    }
+
+    function validText(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function validOptionalText(value, maxLength) {
+      return value == null || value == '' || (value is string && value.size() <= maxLength);
+    }
+
+    function validSubmission() {
+      return validText(request.resource.data.name, 100)
+        && validText(request.resource.data.email, 180)
+        && validText(request.resource.data.message, 5000)
+        && validOptionalText(request.resource.data.subject, 180);
+    }
+
+    match /{collectionName}/{documentId} {
+      allow create: if isSubmissionCollection(collectionName) && validSubmission();
+      allow read, update, delete: if isSubmissionCollection(collectionName) && signedIn();
+    }
+
+    match /content_boxes/{boxId} {
+      allow get, list: if signedIn() || resource.data.published == true;
+      allow create, update, delete: if signedIn();
+    }
+
+    match /account_queue/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Queue | Hunterstar</title>
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .queue-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding-top: calc(var(--space-4xl) + 2rem);
+            padding-bottom: var(--space-4xl);
+        }
+
+        /* Main Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Column Headers */
+        .col-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--color-surface-border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .col-header h2 {
+            font-size: 1.2rem;
+            color: var(--color-text-secondary);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .count-badge {
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-secondary);
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            font-family: var(--font-mono);
+            border-radius: var(--radius-sm);
+        }
+
+        /* Input Panel */
+        .input-panel {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            align-items: end;
+            margin-bottom: 1rem;
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 20px var(--color-shadow-medium);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            color: var(--color-text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .queue-input {
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-primary);
+            padding: 0.8rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            outline: none;
+            transition: var(--transition-fast);
+            width: 100%;
+            border-radius: var(--radius-sm);
+        }
+
+        .queue-input:focus {
+            border-color: var(--color-accent-primary);
+            box-shadow: inset 0 0 10px var(--color-accent-glow);
+        }
+
+        .btn-add {
+            background: transparent;
+            color: var(--color-accent-primary);
+            border: 1px solid var(--color-accent-primary);
+            padding: 0 1.5rem;
+            height: 44px;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-add:hover {
+            background: var(--color-accent-primary);
+            color: #fff;
+            box-shadow: 0 0 15px var(--color-accent-glow);
+        }
+
+        /* List Items */
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 200px;
+            padding: 10px;
+            border: 2px dashed transparent;
+            border-radius: var(--radius-sm);
+            transition: var(--transition-fast);
+        }
+
+        .list-container.drag-over {
+            background: var(--color-bg-tertiary);
+            border-color: var(--color-accent-primary);
+        }
+
+        .item-card {
+            background: var(--color-surface-card);
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            transition: var(--transition-fast);
+            border: 1px solid var(--color-surface-border);
+            border-radius: var(--radius-sm);
+            cursor: grab;
+        }
+
+        .item-card:active {
+            cursor: grabbing;
+        }
+
+        .item-card:hover {
+            background: var(--color-bg-elevated);
+            border-color: var(--color-surface-border-hover);
+        }
+
+        /* Active (Right) */
+        .item-card.active {
+            border-left: 3px solid var(--color-accent-primary);
+        }
+        .item-card.active:hover {
+            transform: translateX(5px);
+            box-shadow: -5px 0 15px var(--color-accent-glow);
+        }
+
+        /* Archive (Left) */
+        .item-card.archive {
+            border-left: 3px solid var(--color-text-muted);
+            opacity: 0.7;
+        }
+        .item-card.archive:hover {
+            opacity: 1;
+            border-left-color: var(--color-text-primary);
+        }
+
+        .item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .item-text {
+            font-size: 1rem;
+            font-family: var(--font-mono);
+            color: var(--color-text-primary);
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .item-date {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--color-accent-primary);
+            background: var(--color-accent-glow);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+        }
+
+        .archive .item-date {
+            color: var(--color-text-muted);
+            background: var(--color-bg-tertiary);
+            text-decoration: line-through;
+        }
+
+        /* Action Buttons Row */
+        .item-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 10px;
+            border-top: 1px dashed var(--color-surface-border);
+            padding-top: 10px;
+        }
+
+        .btn-action {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 5px 12px;
+            cursor: pointer;
+            border: 1px solid var(--color-text-muted);
+            background: transparent;
+            color: var(--color-text-secondary);
+            transition: var(--transition-fast);
+            text-transform: uppercase;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-action:hover {
+            border-color: var(--color-text-primary);
+            color: var(--color-text-primary);
+        }
+
+        .btn-delete:hover {
+            border-color: var(--color-accent-primary);
+            color: var(--color-accent-primary);
+            background: var(--color-accent-glow);
+        }
+
+        .btn-reschedule {
+            border-color: var(--color-text-secondary);
+        }
+
+        .empty-msg {
+            color: var(--color-text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 2rem;
+            border: 1px dashed var(--color-surface-border);
+            border-radius: var(--radius-sm);
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .input-panel {
+                grid-template-columns: 1fr;
+            }
+            .btn-add {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="redline-page">
+    <div class="grain-overlay" aria-hidden="true"></div>
+    <div class="vignette-overlay" aria-hidden="true"></div>
+
+    <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html" class="site-logo" aria-label="Hunterstar home">
+            <span class="site-logo-mark" aria-hidden="true">
+                <img src="assets/logo.png" alt="Hunterstar Logo" class="site-logo-image">
+            </span>
+            <span>Hunterstar</span>
+        </a>
+        <div class="site-nav-actions">
+            <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                <span class="sr-only">Toggle theme</span>
+                <span class="icon-container">
+                    <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="queue-container container">
+        <header class="section-header" style="text-align: center; align-items: center; margin-bottom: 0;">
+            <span class="section-number">System / Queue</span>
+            <h1 class="section-title">Account Queue</h1>
+            <p class="section-subtitle">Manage upcoming and available accounts.</p>
+        </header>
+
+        <!-- Input Module (Top, full width) -->
+        <div class="input-panel">
+            <div class="input-group">
+                <label for="infoInput">New Entry</label>
+                <input type="text" id="infoInput" class="queue-input" placeholder="> Enter account email..." autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label for="dateInput">Target Date</label>
+                <input type="date" id="dateInput" class="queue-input">
+            </div>
+            <button class="btn-add" id="addBtn">Add</button>
+        </div>
+
+        <div class="main-grid">
+            <!-- LEFT COLUMN: ARCHIVE (PAST) -->
+            <div class="column">
+                <div class="col-header">
+                    <h2>// Available</h2>
+                    <span class="count-badge" id="pastCount">0</span>
+                </div>
+                <div id="pastList" class="list-container">
+                    <!-- Past items -->
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: UPCOMING (ACTIVE) -->
+            <div class="column">
+                <div class="col-header">
+                    <h2>// Upcoming</h2>
+                    <span class="count-badge" id="upcomingCount">0</span>
+                </div>
+                <div id="upcomingList" class="list-container">
+                    <!-- Upcoming items -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot } 
+            from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            projectId: "portfolio-9b8a5",
+            appId: "1:181987994223:web:303a755503ecbd5ddcfb9a",
+            databaseURL: "https://portfolio-9b8a5-default-rtdb.firebaseio.com",
+            storageBucket: "portfolio-9b8a5.firebasestorage.app",
+            apiKey: "AIzaSyDCmF8y4DXFqABNOuDtz6ytEUqJJcIFlMs",
+            authDomain: "portfolio-9b8a5.firebaseapp.com",
+            messagingSenderId: "181987994223",
+            measurementId: "G-RR93XNL49Q"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const queueRef = collection(db, "account_queue");
+
+        // --- State ---
+        let items = [];
+        let isPopulating = false; 
+
+        // --- DOM ---
+        const infoInput = document.getElementById('infoInput');
+        const dateInput = document.getElementById('dateInput');
+        const addBtn = document.getElementById('addBtn');
+        const upcomingListEl = document.getElementById('upcomingList');
+        const pastListEl = document.getElementById('pastList');
+        const upcomingCountEl = document.getElementById('upcomingCount');
+        const pastCountEl = document.getElementById('pastCount');
+
+        // --- Helpers ---
+        function isPast(dateString) {
+            if (!dateString) return false;
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return false;
+            d.setHours(0,0,0,0);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            return d <= today;
+        }
+
+        function formatDateDisplay(dateString) {
+            if (!dateString) return '';
+            const options = { day: 'numeric', month: 'short', year: 'numeric' };
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return dateString;
+            return d.toLocaleDateString('en-GB', options);
+        }
+
+        // --- Core Logic ---
+        async function addItem() {
+            const text = infoInput.value.trim();
+            const date = dateInput.value;
+
+            if (!text || !date) {
+                alert("ERR: INPUT_FIELDS_REQUIRED");
+                return;
+            }
+
+            try {
+                await addDoc(queueRef, {
+                    text: text,
+                    date: date,
+                    createdAt: Date.now()
+                });
+                infoInput.value = '';
+                dateInput.value = ''; 
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                alert("Failed to add to database");
+            }
+        }
+
+        window.deleteItem = async function(id) {
+            if(confirm("CONFIRM_DELETION?")) {
+                try {
+                    await deleteDoc(doc(db, "account_queue", id));
+                } catch (e) {
+                    console.error("Error deleting document: ", e);
+                }
+            }
+        }
+
+        window.rescheduleOneWeek = async function(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            const today = new Date();
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+
+            const yyyy = nextWeek.getFullYear();
+            const mm = String(nextWeek.getMonth() + 1).padStart(2, '0');
+            const dd = String(nextWeek.getDate()).padStart(2, '0');
+            const newDateStr = `${yyyy}-${mm}-${dd}`;
+            
+            try {
+                await updateDoc(doc(db, "account_queue", id), {
+                    date: newDateStr
+                });
+            } catch (e) {
+                console.error("Error updating document: ", e);
+            }
+        }
+
+        window.setToday = async function(id) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const newDateStr = `${yyyy}-${mm}-${dd}`;
+            
+            try {
+                await updateDoc(doc(db, "account_queue", id), {
+                    date: newDateStr
+                });
+            } catch (e) {
+                console.error("Error updating document: ", e);
+            }
+        }
+
+        async function populateInitialData() {
+            if (isPopulating) return;
+            isPopulating = true;
+            
+            const initialAccounts = [
+                { text: "yeslichto09@gmail.com", date: "2026-08-02" },
+                { text: "hunterstardeveloper@gmail.com", date: "2026-08-02" },
+                { text: "kyuter789@gmail.com", date: "2026-08-05" },
+                { text: "infonotavailable01@gmail.com", date: "2026-08-05" },
+                { text: "heyitsmedevhun@gmail.com", date: "2026-08-05" },
+                { text: "howlingmoon007", date: "2026-08-06" }
+            ];
+            
+            try {
+                for (const acc of initialAccounts) {
+                    await addDoc(queueRef, {
+                        text: acc.text,
+                        date: acc.date,
+                        createdAt: Date.now()
+                    });
+                }
+                console.log("Initial data populated successfully.");
+            } catch (e) {
+                console.error("Failed to populate initial data", e);
+            }
+        }
+
+        function loadData() {
+            let initialLoad = true;
+            // Subscribe to real-time updates
+            onSnapshot(queueRef, (snapshot) => {
+                items = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    items.push({
+                        id: doc.id,
+                        text: data.text || '',
+                        date: data.date || '',
+                        isPast: isPast(data.date),
+                        createdAt: data.createdAt || 0
+                    });
+                });
+                
+                // Initialization check: if empty, populate with default data
+                if (items.length === 0 && initialLoad) {
+                    populateInitialData();
+                } else {
+                    render();
+                }
+                initialLoad = false;
+            }, (error) => {
+                console.error("Error listening to queue: ", error);
+            });
+        }
+
+        function render() {
+            // Upcoming (Right): Ascending date (soonest first)
+            const upcoming = items.filter(i => !i.isPast).sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            // Archive (Left): Descending date (most recent past first)
+            const past = items.filter(i => i.isPast).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            upcomingCountEl.textContent = upcoming.length;
+            pastCountEl.textContent = past.length;
+
+            renderList(upcoming, upcomingListEl, 'active');
+            renderList(past, pastListEl, 'archive');
+        }
+
+        function renderList(data, container, type) {
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = `<div class="empty-msg">// ${type === 'active' ? 'NO_ACTIVE_DATA' : 'ARCHIVE_EMPTY'}</div>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const el = document.createElement('div');
+                el.className = `item-card ${type}`;
+                el.draggable = true;
+
+                el.addEventListener('dragstart', (e) => {
+                    const dragData = { id: item.id, type: type };
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+                    
+                    // Delay opacity change to not affect the drag ghost image
+                    requestAnimationFrame(() => {
+                        el.style.opacity = '0.5';
+                    });
+                });
+
+                el.addEventListener('dragend', (e) => {
+                    el.style.opacity = '1';
+                });
+
+                let buttonsHtml = `
+                    <button class="btn-action btn-delete" onclick="deleteItem('${item.id}')">Delete</button>
+                `;
+
+                if (type === 'archive') {
+                    buttonsHtml = `
+                        <button class="btn-action btn-reschedule" onclick="rescheduleOneWeek('${item.id}')">+1 WK</button>
+                        <button class="btn-action btn-delete" onclick="deleteItem('${item.id}')">Delete</button>
+                    `;
+                }
+
+                el.innerHTML = `
+                    <div class="item-top">
+                        <div class="item-text">${item.text}</div>
+                        <div class="item-date">${formatDateDisplay(item.date)}</div>
+                    </div>
+                    <div class="item-actions">
+                        ${buttonsHtml}
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+        
+        function setupDragAndDrop() {
+            [pastListEl, upcomingListEl].forEach(container => {
+                container.addEventListener('dragenter', e => {
+                    e.preventDefault(); // Necessary for allowing drop
+                    container.classList.add('drag-over');
+                });
+                
+                container.addEventListener('dragover', e => {
+                    e.preventDefault(); // Necessary for allowing drop
+                    e.dataTransfer.dropEffect = 'move';
+                    container.classList.add('drag-over');
+                });
+                
+                container.addEventListener('dragleave', e => {
+                    if (!container.contains(e.relatedTarget)) {
+                        container.classList.remove('drag-over');
+                    }
+                });
+                
+                container.addEventListener('drop', e => {
+                    e.preventDefault();
+                    container.classList.remove('drag-over');
+                    
+                    try {
+                        const dataStr = e.dataTransfer.getData('text/plain');
+                        if (!dataStr) return;
+                        
+                        const dragData = JSON.parse(dataStr);
+                        
+                        if (container.id === 'upcomingList' && dragData.type === 'archive') {
+                            rescheduleOneWeek(dragData.id);
+                        } else if (container.id === 'pastList' && dragData.type === 'active') {
+                            setToday(dragData.id);
+                        }
+                    } catch (err) {
+                        console.error("Drop error: ", err);
+                    }
+                });
+            });
+        }
+
+        // --- Init ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setupDragAndDrop();
+        });
+
+        addBtn.addEventListener('click', addItem);
+        
+        [infoInput, dateInput].forEach(inp => {
+            inp.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addItem();
+            });
+        });
+    </script>
+</body>
+</html>

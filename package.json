@@ -1,0 +1,25 @@
+{
+  "name": "portfolio-poetic-retro",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Static Hunterstar portfolio site.",
+  "scripts": {
+    "dev": "npx --yes serve -l 3000 .",
+    "start": "npx --yes serve -l 3000 .",
+    "check": "npm run check:js && npm run validate:html && npm run check:spell",
+    "check:js": "node --check js/main.js && node --check js/three-scene.js && node --check js/server-room-scene.js && node --check js/emblem-scene.js && node --check js/firebase-config.js && node --check js/admin.js && node --check functions/index.js",
+    "check:spell": "npx --yes cspell index.html admin.html archives.html eduventure.html README.md js/*.js css/styles.css",
+    "validate:html": "npx --yes html-validate index.html admin.html archives.html eduventure.html",
+    "deploy:functions": "npm --prefix functions install && npx --yes firebase-tools deploy --project portfolio-9b8a5 --only functions --force",
+    "deploy:firebase:rules": "npx --yes firebase-tools deploy --project portfolio-9b8a5 --only firestore:rules,storage",
+    "deploy:firebase": "npm run deploy:firebase:rules && npm run deploy:functions",
+    "deploy:vercel:preview": "vercel",
+    "deploy:vercel:prod": "vercel --prod"
+  },
+  "keywords": [
+    "portfolio",
+    "static-site",
+    "vercel"
+  ],
+  "license": "UNLICENSED"
+}

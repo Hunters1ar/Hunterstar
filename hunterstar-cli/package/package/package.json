@@ -1,0 +1,21 @@
+{
+  "name": "hunterstar",
+  "version": "1.6.7",
+  "description": "Hunterstar Developer CLI",
+  "main": "src/index.js",
+  "bin": {
+    "hunterstar": "bin/hunterstar.js"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=21.0.0"
+  },
+  "author": "Khurshid Khursandov (Hunterstar)",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.21.3"
+  }
+}

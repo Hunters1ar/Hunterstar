@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Player</title>
+    <!-- A real referrer so YouTube validates the embedding origin -->
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <style>
+        :root {
+            --bg-base: #181818;
+            --bg-surface: #202020;
+            --bg-hover: #383838;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --accent: #ff4081;
+        }
+        body { 
+            margin: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            height: 100dvh; /* Fix for mobile browser UI cutting off the bottom */
+            background: var(--bg-base); 
+            color: var(--text-primary);
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column;
+        }
+        * { box-sizing: border-box; }
+        
+        .header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 24px;
+            font-weight: 600;
+            z-index: 10;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .header-filters {
+            display: flex;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        .header-filters input, .header-filters select {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid #333;
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+            font-family: inherit;
+        }
+        .header-filters input:focus, .header-filters select:focus {
+            border-color: var(--accent);
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            margin-right: 15px;
+            padding: 5px;
+            display: none;
+            border-radius: 50%;
+        }
+        .back-btn:hover { background: var(--bg-hover); }
+        .back-btn svg { width: 24px; height: 24px; fill: currentColor; }
+
+        .main-view {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .queue-container {
+            padding: 0 20px 20px;
+        }
+        
+        .queue-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+        .queue-item:hover { background: var(--bg-hover); }
+        .queue-item.active { background: var(--bg-surface); border-left: 4px solid var(--accent); }
+        
+        .queue-item img {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        .queue-item-info {
+            flex: 1;
+            overflow: hidden;
+        }
+        .queue-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .queue-item-source {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .video-container {
+            position: absolute;
+            inset: 0;
+            display: none;
+            background: #000;
+        }
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: none; /* Let API handle clicks if needed, or allow standard UI */
+        }
+
+        /* Bottom Player */
+        .bottom-player {
+            height: 90px;
+            background: var(--bg-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-top: 1px solid #333;
+            z-index: 10;
+        }
+
+        .now-playing {
+            width: 30%;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+        .now-playing img {
+            width: 56px;
+            height: 56px;
+            border-radius: 6px;
+            margin-right: 15px;
+            object-fit: cover;
+        }
+        .now-playing-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .now-playing-title {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .now-playing-source {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .controls {
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .control-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .control-btn:hover { background: var(--bg-hover); }
+        .control-btn svg { width: 24px; height: 24px; fill: currentColor; }
+        .control-btn.active { color: var(--accent); }
+        
+        .play-pause-btn {
+            width: 50px;
+            height: 50px;
+            background: var(--text-primary);
+            color: var(--bg-base);
+        }
+        .play-pause-btn:hover { background: #ddd; transform: scale(1.05); }
+        
+        .extra-controls {
+            width: 30%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Video Mode Toggle */
+        body.video-mode .queue-container,
+        body.video-mode .header-title,
+        body.video-mode .header-filters { display: none; }
+        body.video-mode .video-container { display: block; }
+        body.video-mode .back-btn { display: block; }
+        
+        body.video-mode .video-container iframe { pointer-events: auto; }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            .header-filters {
+                width: 100%;
+            }
+            .header-filters input, .header-filters select {
+                flex: 1;
+                width: 50%;
+            }
+            .bottom-player {
+                height: auto;
+                min-height: 80px;
+                padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+                justify-content: space-between;
+            }
+            .now-playing {
+                width: auto;
+                flex: 1;
+                margin-right: 10px;
+            }
+            .now-playing img {
+                width: 48px;
+                height: 48px;
+                margin-right: 10px;
+            }
+            .now-playing-title {
+                font-size: 13px;
+            }
+            .controls {
+                width: auto;
+                flex: 0 0 auto;
+            }
+            .control-btn {
+                width: 32px;
+                height: 32px;
+            }
+            .control-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+            .play-pause-btn {
+                width: 42px;
+                height: 42px;
+            }
+            .control-buttons {
+                gap: 5px;
+            }
+            .extra-controls {
+                width: auto;
+                flex: 0 0 auto;
+            }
+            
+            .header {
+                padding: 15px;
+                font-size: 20px;
+            }
+            .queue-container {
+                padding: 0 15px 15px;
+            }
+            .queue-item {
+                padding: 10px 8px;
+            }
+            .queue-item img {
+                width: 44px;
+                height: 44px;
+                margin-right: 12px;
+            }
+            .queue-item-title {
+                font-size: 14px;
+                white-space: normal;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+            }
+            .queue-item-source {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            <button class="back-btn" id="backBtn" aria-label="Back to queue">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </button>
+            <span class="header-title">Play queue</span>
+        </div>
+        <div class="header-filters">
+            <input type="text" id="searchInput" placeholder="Search tracks..." aria-label="Search tracks">
+            <select id="sourceSelect" aria-label="Filter by source">
+                <option value="all">All sources</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="main-view">
+        <div class="video-container" id="videoContainer">
+            <div id="ytplayer"></div>
+        </div>
+        <div class="queue-container" id="queueContainer">
+            <!-- Items injected by JS -->
+        </div>
+    </div>
+
+    <div class="bottom-player">
+        <div class="now-playing" id="nowPlaying">
+            <!-- Injected -->
+        </div>
+        
+        <div class="controls">
+            <div class="control-buttons">
+                <button class="control-btn" id="shuffleBtn" title="Shuffle">
+                    <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                </button>
+                <button class="control-btn" id="prevBtn" title="Previous">
+                    <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <button class="control-btn play-pause-btn" id="playBtn" title="Play/Pause">
+                    <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
+                    <svg viewBox="0 0 24 24" id="pauseIcon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                <button class="control-btn" id="nextBtn" title="Next">
+                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="extra-controls">
+            <button class="control-btn" id="expandBtn" title="Now playing (Ctrl+N)">
+                <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h9v6h-9z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        let player = null;
+        let fullQueue = [];
+        let queue = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let isShuffle = false;
+        let shuffledIndices = [];
+        
+        const ytPlayerEl = document.getElementById('ytplayer');
+        const queueContainer = document.getElementById('queueContainer');
+        const nowPlaying = document.getElementById('nowPlaying');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const searchInput = document.getElementById('searchInput');
+        const sourceSelect = document.getElementById('sourceSelect');
+        
+        function loadState() {
+            try {
+                const q = localStorage.getItem('hunterstar_queue');
+                if (q) fullQueue = JSON.parse(q);
+                
+                queue = [...fullQueue];
+                
+                // Clear filter inputs when receiving new queue
+                if (searchInput) searchInput.value = '';
+                
+                // Populate sources dropdown
+                const sources = [...new Set(fullQueue.map(t => t.source || 'Playlist'))];
+                if (sourceSelect) {
+                    sourceSelect.innerHTML = '<option value="all">All sources</option>' + 
+                        sources.map(s => `<option value="${s}">${s}</option>`).join('');
+                    sourceSelect.value = 'all';
+                }
+                
+                const activeId = localStorage.getItem('hunterstar_active_id');
+                if (activeId && queue.length > 0) {
+                    currentIndex = queue.findIndex(t => t.id === activeId);
+                    if (currentIndex === -1) currentIndex = 0;
+                }
+            } catch (e) {
+                console.error('Failed to load queue from localStorage', e);
+            }
+            updateShuffleList();
+        }
+        
+        function applyFilter() {
+            const search = searchInput.value.toLowerCase();
+            const source = sourceSelect.value;
+            
+            queue = fullQueue.filter(t => {
+                const titleMatch = !search || t.title.toLowerCase().includes(search);
+                const sourceMatch = source === 'all' || (t.source || 'Playlist') === source;
+                return titleMatch && sourceMatch;
+            });
+            
+            const activeId = localStorage.getItem('hunterstar_active_id');
+            if (activeId) {
+                currentIndex = queue.findIndex(t => t.id === activeId);
+                // If current song is filtered out, keep it playing but its index is -1
+            }
+            
+            updateShuffleList();
+            renderQueue();
+        }
+        
+        searchInput.addEventListener('input', applyFilter);
+        sourceSelect.addEventListener('change', applyFilter);
+        
+        function updateShuffleList() {
+            shuffledIndices = queue.map((_, i) => i);
+            if (isShuffle) {
+                for (let i = shuffledIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
+                }
+            }
+        }
+        
+        function getNextIndex() {
+            if (isShuffle) {
+                let sIdx = shuffledIndices.indexOf(currentIndex);
+                sIdx = (sIdx + 1) % shuffledIndices.length;
+                return shuffledIndices[sIdx];
+            }
+            return (currentIndex + 1) % queue.length;
+        }
+        
+        function getPrevIndex() {
+            if (isShuffle) {
+                let sIdx = shuffledIndices.indexOf(currentIndex);
+                sIdx = (sIdx - 1 + shuffledIndices.length) % shuffledIndices.length;
+                return shuffledIndices[sIdx];
+            }
+            return (currentIndex - 1 + queue.length) % queue.length;
+        }
+        
+        function renderQueue() {
+            queueContainer.innerHTML = queue.map((t, i) => `
+                <div class="queue-item ${i === currentIndex ? 'active' : ''}" data-index="${i}">
+                    <img src="${t.thumb}" alt="">
+                    <div class="queue-item-info">
+                        <div class="queue-item-title">${t.title}</div>
+                        <div class="queue-item-source">${t.source || 'Playlist'}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.queue-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    currentIndex = parseInt(el.dataset.index, 10);
+                    playCurrent();
+                });
+            });
+        }
+        
+        function renderNowPlaying() {
+            if (!queue.length) return;
+            const t = queue[currentIndex];
+            nowPlaying.innerHTML = `
+                <img src="${t.thumb}" alt="">
+                <div class="now-playing-info">
+                    <div class="now-playing-title">${t.title}</div>
+                    <div class="now-playing-source">${t.source || 'Playlist'}</div>
+                </div>
+            `;
+            document.title = t.title + " - Media Player";
+        }
+        
+        function playCurrent() {
+            if (!queue.length) return;
+            const t = queue[currentIndex];
+            localStorage.setItem('hunterstar_active_id', t.id);
+            renderQueue();
+            renderNowPlaying();
+            
+            if (player && player.loadVideoById) {
+                player.loadVideoById(t.id);
+                isPlaying = true;
+                updatePlayPauseIcon();
+            }
+        }
+        
+        function updatePlayPauseIcon() {
+            if (isPlaying) {
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'block';
+            } else {
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+            }
+        }
+        
+        function onYouTubeIframeAPIReady() {
+            if (!queue.length) return;
+            player = new YT.Player('ytplayer', {
+                height: '100%',
+                width: '100%',
+                videoId: queue[currentIndex]?.id,
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 1,
+                    'rel': 0,
+                    'playsinline': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+        
+        function onPlayerReady(event) {
+            isPlaying = true;
+            updatePlayPauseIcon();
+            event.target.playVideo();
+        }
+        
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                updatePlayPauseIcon();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                updatePlayPauseIcon();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                // Auto next
+                currentIndex = getNextIndex();
+                playCurrent();
+            }
+        }
+        
+        // Listen to BroadcastChannel for new plays from other tabs
+        const bc = new BroadcastChannel('hunterstar_player_channel');
+        bc.onmessage = (event) => {
+            if (event.data.type === 'play') {
+                loadState();
+                renderQueue();
+                renderNowPlaying();
+                if (player && player.loadVideoById) {
+                    player.loadVideoById(event.data.id);
+                    isPlaying = true;
+                    updatePlayPauseIcon();
+                }
+            }
+        };
+
+        // Event Listeners
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (!player) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        });
+        
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            currentIndex = getPrevIndex();
+            playCurrent();
+        });
+        
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentIndex = getNextIndex();
+            playCurrent();
+        });
+        
+        document.getElementById('shuffleBtn').addEventListener('click', (e) => {
+            isShuffle = !isShuffle;
+            e.currentTarget.classList.toggle('active', isShuffle);
+            updateShuffleList();
+        });
+        
+        // Video mode toggling
+        const body = document.body;
+        document.getElementById('expandBtn').addEventListener('click', () => {
+            body.classList.add('video-mode');
+        });
+        document.getElementById('backBtn').addEventListener('click', () => {
+            body.classList.remove('video-mode');
+        });
+        
+        // Hotkey Ctrl+N to toggle video mode
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                body.classList.toggle('video-mode');
+            }
+        });
+
+        // Init
+        loadState();
+        renderQueue();
+        renderNowPlaying();
+    </script>
+</body>
+</html>
