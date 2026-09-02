@@ -193,7 +193,17 @@
     </nav>
 
     <section id="hero" class="hero-section portfolio-hero">
-        <div id="canvas-container" class="canvas-container"></div>
+        <div id="canvas-container" class="canvas-container">
+            <iframe
+                id="heroModelFrame"
+                class="model-iframe"
+                src="https://developer0071.github.io/gaming_desktop_pc-model/?embed=1"
+                title="Gaming Desktop PC 3D model"
+                loading="eager"
+                style="width: 100%; height: 100%; border: none; pointer-events: none; position: absolute; top: 0; left: 0;"
+                allow="autoplay">
+            </iframe>
+        </div>
         <div class="hero-grid-layer" aria-hidden="true"></div>
 
         <div class="content-overlay container">
@@ -352,9 +362,16 @@
                 </header>
             </div>
 
-            <a class="emblem-stage" id="emblemStage" href="me.html" aria-label="Go to about me page">
-                <div class="emblem-canvas" id="emblemCanvas" data-model-src="assets/Hunter3d/hunter3d_opt2.glb"></div>
-                <div class="emblem-status" id="emblemStatus" aria-live="polite">Loading emblem...</div>
+            <a class="emblem-stage is-loaded" id="emblemStage" href="me.html" aria-label="Go to about me page">
+                <iframe
+                    id="emblemFrame"
+                    class="model-iframe emblem-canvas"
+                    src="https://developer0071.github.io/hunterstar3d/?embed=1"
+                    title="Hunterstar Emblem 3D model"
+                    loading="lazy"
+                    style="width: 100%; height: 100%; border: none; pointer-events: none;"
+                    allow="autoplay">
+                </iframe>
             </a>
         </section>
 
@@ -367,9 +384,16 @@
                 </header>
             </div>
 
-            <a class="server-room-stage" id="serverRoomStage" href="/archives" aria-label="Enter Hunterstar archives through the 3D server room">
-                <div class="server-room-canvas" id="serverRoomCanvas" data-model-sources="assets/server/scene.fast.gltf, assets/server/scene.fast.gtlf, assets/server/scene.gltf" data-open-texture-src="assets/server/textures/open-texture.png"></div>
-                <div class="server-room-status" id="serverRoomStatus" aria-live="polite">Loading secure room...</div>
+            <a class="server-room-stage is-loaded" id="serverRoomStage" href="/archives" aria-label="Enter Hunterstar archives through the 3D server room">
+                <iframe
+                    id="serverRoomFrame"
+                    class="model-iframe server-room-canvas"
+                    src="https://developer0071.github.io/server-model/?embed=1"
+                    title="Server Room Archive 3D model"
+                    loading="lazy"
+                    style="width: 100%; height: 100%; border: none; pointer-events: none;"
+                    allow="autoplay">
+                </iframe>
             </a>
         </section>
     </div>
@@ -455,14 +479,31 @@
         </div>
     </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="js/firebase-config.js"></script>
-    <script src="js/three-scene.js"></script>
-    <script src="js/server-room-scene.js"></script>
-    <script src="js/emblem-scene.js"></script>
     <script src="js/main.js"></script>
     <script src="js/chat-widget.js"></script>
+    <script>
+    /* Sync theme to model iframes & handle navigation messages */
+    (function() {
+        'use strict';
+        function syncTheme(theme) {
+            document.querySelectorAll('.model-iframe').forEach(function(f) {
+                try { f.contentWindow.postMessage({ type: 'theme-change', theme: theme }, '*'); } catch(e) {}
+            });
+        }
+        new MutationObserver(function(m) {
+            m.forEach(function(mut) {
+                if (mut.attributeName === 'data-theme') {
+                    syncTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+                }
+            });
+        }).observe(document.documentElement, { attributes: true });
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'navigate' && e.data.url) {
+                window.location.href = e.data.url;
+            }
+        });
+    })();
+    </script>
 </body>
 </html>
