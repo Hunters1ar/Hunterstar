@@ -25,9 +25,13 @@ android/
 *.gltf
 *.bin
 
-# 3D model asset folders
-assets/gaming_desktop_pc for model/
-assets/Hunter3d/
+# 3D model asset folders (now standalone repos)
+assets/eduventure3d/
+assets/gaming_desktop_pc model/
+assets/hunter3dmodel/
+assets/musicbox3d/
+assets/server model/
+assets/tengdosh3d/
 
 # Telegram bot — separate repo & VPS
 YoutubeBot/
