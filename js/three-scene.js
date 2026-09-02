@@ -5,7 +5,7 @@
     const heroSection = document.getElementById('hero');
     if (!container || typeof THREE === 'undefined') return;
 
-    const MODEL_URL = 'assets/gaming_desktop_pc%20for%20model/scene.gltf';
+    const MODEL_URL = 'https://developer0071.github.io/gaming_desktop_pc-model/gaming_desktop_pc%20for%20model/scene.gltf';
     const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const scene = new THREE.Scene();
