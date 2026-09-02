@@ -41,6 +41,14 @@ echo  App  : %PM2_APP%
 echo  API  : %VPS_API_URL%
 echo.
 
+:: ---- Step 0: Git -------------------------------------------
+echo [0/3] Vercel deploy...
+call vercel --prod
+
+if errorlevel 1 ( echo ERROR: Vercel deploy failed. & goto fail )
+
+echo       Vercel OK.
+
 :: ---- Step 1: Git -------------------------------------------
 echo [1/3] Git commit + push...
 git add -A
