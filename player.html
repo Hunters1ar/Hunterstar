@@ -389,27 +389,37 @@
         async function loadState() {
             try {
                 const q = localStorage.getItem('hunterstar_queue');
-                if (q) fullQueue = JSON.parse(q);
-                
-                // If opened directly (e.g. from Telegram WebApp) and queue is empty, fetch from API
-                if (!fullQueue || fullQueue.length === 0) {
+                if (q) {
                     try {
-                        const res = await fetch('https://api.hunterstar.uz/api/playlists');
-                        const data = await res.json();
-                        if (data.ok && data.playlists) {
-                            let tracks = [];
-                            data.playlists.forEach(p => {
-                                const source = p.title || 'Unknown';
-                                p.videos.forEach(v => {
-                                    tracks.push({ ...v, source });
+                        const parsed = JSON.parse(q);
+                        if (Array.isArray(parsed) && parsed.length > 0) fullQueue = parsed;
+                    } catch(e){}
+                }
+                
+                // Always fetch fresh playlists from API so all sources (Uzbek, Russian, Indian, Korean, etc.) are up-to-date
+                try {
+                    const res = await fetch('https://api.hunterstar.uz/api/playlists', { cache: 'no-store' });
+                    const data = await res.json();
+                    if (data && data.playlists) {
+                        let tracks = [];
+                        data.playlists.forEach(p => {
+                            const source = p.title || 'Playlist';
+                            (p.videos || []).forEach(v => {
+                                tracks.push({
+                                    id: v.id,
+                                    title: v.title,
+                                    thumb: v.thumb,
+                                    source: source
                                 });
                             });
+                        });
+                        if (tracks.length > 0) {
                             fullQueue = tracks;
                             localStorage.setItem('hunterstar_queue', JSON.stringify(fullQueue));
                         }
-                    } catch(e) {
-                        console.error('Failed to fetch initial queue', e);
                     }
+                } catch(e) {
+                    console.warn('Could not fetch playlists from API, using cached queue', e);
                 }
                 
                 queue = [...fullQueue];
@@ -418,11 +428,16 @@
                 if (searchInput) searchInput.value = '';
                 
                 // Populate sources dropdown
+                const prevSource = sourceSelect ? sourceSelect.value : 'all';
                 const sources = [...new Set(fullQueue.map(t => t.source || 'Playlist'))];
                 if (sourceSelect) {
                     sourceSelect.innerHTML = '<option value="all">All sources</option>' + 
                         sources.map(s => `<option value="${s}">${s}</option>`).join('');
-                    sourceSelect.value = 'all';
+                    if (sources.includes(prevSource)) {
+                        sourceSelect.value = prevSource;
+                    } else {
+                        sourceSelect.value = 'all';
+                    }
                 }
                 
                 const activeId = localStorage.getItem('hunterstar_active_id');
@@ -431,7 +446,7 @@
                     if (currentIndex === -1) currentIndex = 0;
                 }
             } catch (e) {
-                console.error('Failed to load queue from localStorage', e);
+                console.error('Failed to load queue in player', e);
             }
             updateShuffleList();
         }
@@ -586,19 +601,37 @@
         const bc = new BroadcastChannel('hunterstar_player_channel');
         bc.onmessage = async (event) => {
             if (event.data.type === 'play') {
+                if (event.data.queue && event.data.queue.length > 0) {
+                    fullQueue = event.data.queue;
+                    localStorage.setItem('hunterstar_queue', JSON.stringify(fullQueue));
+                }
                 await loadState();
+                if (event.data.id) {
+                    localStorage.setItem('hunterstar_active_id', event.data.id);
+                    currentIndex = queue.findIndex(t => t.id === event.data.id);
+                    if (currentIndex === -1) currentIndex = 0;
+                }
                 renderQueue();
                 renderNowPlaying();
                 if (player && player.loadVideoById) {
                     player.loadVideoById(event.data.id);
                     isPlaying = true;
                     updatePlayPauseIcon();
-                } else {
-                    // Player might not be initialized yet if opened directly
-                    currentIndex = queue.findIndex(t => t.id === event.data.id) || 0;
-                    if (window.YT && window.YT.Player) {
-                        onYouTubeIframeAPIReady();
+                } else if (window.YT && window.YT.Player && !player) {
+                    onYouTubeIframeAPIReady();
+                }
+            } else if (event.data.type === 'queue_update') {
+                if (event.data.queue && event.data.queue.length > 0) {
+                    fullQueue = event.data.queue;
+                    localStorage.setItem('hunterstar_queue', JSON.stringify(fullQueue));
+                    queue = [...fullQueue];
+                    const sources = [...new Set(fullQueue.map(t => t.source || 'Playlist'))];
+                    if (sourceSelect) {
+                        sourceSelect.innerHTML = '<option value="all">All sources</option>' + 
+                            sources.map(s => `<option value="${s}">${s}</option>`).join('');
+                        sourceSelect.value = 'all';
                     }
+                    renderQueue();
                 }
             }
         };

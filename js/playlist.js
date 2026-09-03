@@ -9,13 +9,13 @@
   var progressInterval = null;
 
   var icon = { 
-    play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>', 
-    pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>', 
-    back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6 5 12l6 6M6 12h13"/></svg>', 
-    next:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 6 6 6-6 6M18 12H5"/></svg>',
-    shuffle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>',
-    expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h9v6h-9z"/></svg>',
-    popout: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>'
+    play:'<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>', 
+    pause:'<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>', 
+    back:'<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M11 6 5 12l6 6M6 12h13"/></svg>', 
+    next:'<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="m13 6 6 6-6 6M18 12H5"/></svg>',
+    shuffle: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>',
+    expand: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h9v6h-9z"/></svg>',
+    popout: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>'
   };
 
   window.onYouTubeIframeAPIReady = function() {
@@ -146,11 +146,14 @@
       
       var pop = document.getElementById("playerPopOut");
       if(pop) pop.onclick=function(){
-        localStorage.setItem("hunterstar_queue", JSON.stringify(tracks));
-        localStorage.setItem("hunterstar_active_id", active.id);
-        window.open("player.html", "HunterstarPlayerWindow", "width=900,height=700,menubar=no,toolbar=no,location=no,status=no");
-        var bc = new BroadcastChannel('hunterstar_player_channel');
-        bc.postMessage({ type: 'play', id: active.id });
+        save("hunterstar_queue", tracks);
+        if(active) save("hunterstar_active_id", active.id);
+        var popWin = window.open("player.html", "HunterstarPlayerWindow", "width=900,height=700,menubar=no,toolbar=no,location=no,status=no");
+        if (popWin) popWin.focus();
+        try {
+          var bc = new BroadcastChannel('hunterstar_player_channel');
+          bc.postMessage({ type: 'play', id: active ? active.id : (tracks[0] ? tracks[0].id : ''), queue: tracks });
+        } catch(e){}
         playing = false; 
         if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
         render();
@@ -190,7 +193,7 @@
   
   function row(t,i){return '<div class="track-row '+(active&&active.id===t.id?'is-active':'')+'" role="listitem" tabindex="0" data-id="'+esc(t.id)+'"><span class="track-index">'+String(i+1).padStart(2,"0")+'</span><img src="'+esc(t.thumb)+'" alt="" loading="lazy"><span class="track-copy"><strong>'+esc(short(t.title))+'</strong><small>'+esc(t.source)+'</small></span><span class="track-status">'+(active&&active.id===t.id&&playing?'<i class="equalizer"><b></b><b></b><b></b></i>':icon.play)+'</span><button class="favorite-btn '+(favorites.indexOf(t.id)>-1?'is-favorite':'')+'" data-id="'+esc(t.id)+'" aria-label="'+(favorites.indexOf(t.id)>-1?'Remove from favorites':'Add to favorites')+'">'+(favorites.indexOf(t.id)>-1?'&#9733;':'&#9734;')+'</button></div>'}
   
-  function player(){return '<section class="sticky-player" aria-label="Audio player"><div class="now-playing"><img src="'+esc(active.thumb)+'" alt=""><div><small>NOW PLAYING</small><strong>'+esc(short(active.title))+'</strong><span>'+esc(active.source)+'</span></div></div><div class="player-progress"><span id="time-current">0:00</span><input type="range" id="playerProgressBar" value="0" min="0" step="1"><span id="time-total">0:00</span></div><div class="player-controls"><button id="playerShuffle" aria-label="Shuffle" style="'+(isShuffle?'color:var(--color-accent-primary);':'')+'">'+icon.shuffle+'</button><button id="playerPrev" aria-label="Previous track">'+icon.back+'</button><button id="playerPlay" class="player-main" aria-label="'+(playing?'Pause':'Play')+'">'+(playing?icon.pause:icon.play)+'</button><button id="playerNext" aria-label="Next track">'+icon.next+'</button></div><div style="display:flex; align-items:center; gap:5px;"><button id="playerExpand" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.7;margin-left:10px;" title="Expand video">'+icon.expand+'</button><button id="playerPopOut" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.7;" title="Pop out player">'+icon.popout+'</button></div></section>'}
+  function player(){return '<section class="sticky-player" aria-label="Audio player"><div class="now-playing"><img src="'+esc(active.thumb)+'" alt=""><div><small>NOW PLAYING</small><strong>'+esc(short(active.title))+'</strong><span>'+esc(active.source)+'</span></div></div><div class="player-progress"><span id="time-current">0:00</span><input type="range" id="playerProgressBar" value="0" min="0" step="1"><span id="time-total">0:00</span></div><div class="player-controls"><button id="playerShuffle" aria-label="Shuffle" title="Shuffle" style="'+(isShuffle?'color:var(--color-accent-primary);border-color:var(--color-accent-primary);':'')+'">'+icon.shuffle+'</button><button id="playerPrev" aria-label="Previous track" title="Previous">'+icon.back+'</button><button id="playerPlay" class="player-main" aria-label="'+(playing?'Pause':'Play')+'" title="'+(playing?'Pause':'Play')+'">'+(playing?icon.pause:icon.play)+'</button><button id="playerNext" aria-label="Next track" title="Next">'+icon.next+'</button><button id="playerExpand" aria-label="Watch video" title="Watch video">'+icon.expand+'</button><button id="playerPopOut" aria-label="Open in player" title="Open in player">'+icon.popout+'</button></div></section>'}
   
-  state("Loading tracks...",false);fetch(API_BASE+"/api/playlists",{cache:"no-store"}).then(function(r){return r.json().then(function(d){if(!r.ok||d.ok===false)throw Error(d.error||"Request failed");return d.playlists||[]})}).then(function(ps){tracks=[];ps.forEach(function(p){(p.videos||[]).forEach(function(v){tracks.push({id:v.id,title:v.title,thumb:v.thumb,source:p.title||"Playlist"})})});if(!tracks.length)state("No videos found in these playlists.",false);else render()}).catch(function(e){state("Couldn't load videos: "+e.message,true)});
+  state("Loading tracks...",false);fetch(API_BASE+"/api/playlists",{cache:"no-store"}).then(function(r){return r.json().then(function(d){if(!r.ok||d.ok===false)throw Error(d.error||"Request failed");return d.playlists||[]})}).then(function(ps){tracks=[];ps.forEach(function(p){(p.videos||[]).forEach(function(v){tracks.push({id:v.id,title:v.title,thumb:v.thumb,source:p.title||"Playlist"})})});if(!tracks.length)state("No videos found in these playlists.",false);else{save("hunterstar_queue",tracks);render();try{var bc=new BroadcastChannel('hunterstar_player_channel');bc.postMessage({type:'queue_update',queue:tracks});}catch(e){}}}).catch(function(e){state("Couldn't load videos: "+e.message,true)});
 })();

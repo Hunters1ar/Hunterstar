@@ -5,7 +5,7 @@
     const heroSection = document.getElementById('hero');
     if (!container || typeof THREE === 'undefined') return;
 
-    const MODEL_URL = 'https://developer0071.github.io/gaming_desktop_pc-model/gaming_desktop_pc%20for%20model/scene.gltf';
+    const MODEL_URL = 'assets/desktop_pc.glb';
     const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const scene = new THREE.Scene();
@@ -464,12 +464,19 @@
         particleGroup.scale.setScalar(layout.wireScale);
     }
 
+    let isHeroVisible = true;
+    if ('IntersectionObserver' in window && heroSection) {
+        const heroObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                isHeroVisible = entry.isIntersecting;
+            });
+        }, { threshold: 0.05 });
+        heroObserver.observe(heroSection);
+    }
+
     function animate() {
         requestAnimationFrame(animate);
-
-        // if (!prefersReducedMotion) {
-        //     state.time += 0.016;
-        // }
+        if (!isHeroVisible) return;
 
         const layout = getLayout();
         state.pointerX += (state.targetPointerX - state.pointerX) * 0.055;

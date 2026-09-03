@@ -357,7 +357,7 @@
                 <iframe
                     id="emblemFrame"
                     class="model-iframe emblem-canvas"
-                    src="https://developer0071.github.io/hunterstar3d/?embed=1"
+                    data-src="https://developer0071.github.io/hunterstar3d/?embed=1"
                     title="Hunterstar Emblem 3D model"
                     loading="lazy"
                     style="width: 100%; height: 100%; border: none; background-color: transparent;"
@@ -380,7 +380,7 @@
                 <iframe
                     id="serverRoomFrame"
                     class="model-iframe server-room-canvas"
-                    src="https://developer0071.github.io/server-model/?embed=1"
+                    data-src="https://developer0071.github.io/server-model/?embed=1"
                     title="Server Room Archive 3D model"
                     loading="lazy"
                     style="width: 100%; height: 100%; border: none; background-color: transparent;"
@@ -419,7 +419,7 @@
                         src="https://hunters1ar.github.io/game/?embed=1&amp;compact=1"
                         data-game-embed-src="https://hunters1ar.github.io/game/?embed=1&amp;compact=1"
                         title="ScriptRunner 3D embedded HTML5 game by Hunterstar"
-                        loading="eager"
+                        loading="lazy"
                         tabindex="0"
                         referrerpolicy="strict-origin-when-cross-origin"
                         allow="fullscreen; autoplay; gamepad; clipboard-write">
@@ -500,6 +500,30 @@
                 window.location.href = e.data.url;
             }
         });
+
+        // Progressive loading: Defer below-the-fold 3D iframes until scrolled near viewport
+        const lazyIframes = document.querySelectorAll('iframe[data-src]');
+        if ('IntersectionObserver' in window) {
+            const iframeObserver = new IntersectionObserver(function(entries, observer) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        const iframe = entry.target;
+                        const dataSrc = iframe.getAttribute('data-src');
+                        if (dataSrc) {
+                            iframe.src = dataSrc;
+                            iframe.removeAttribute('data-src');
+                        }
+                        observer.unobserve(iframe);
+                    }
+                });
+            }, { rootMargin: '400px 0px' });
+            lazyIframes.forEach(function(iframe) { iframeObserver.observe(iframe); });
+        } else {
+            lazyIframes.forEach(function(iframe) {
+                const dataSrc = iframe.getAttribute('data-src');
+                if (dataSrc) iframe.src = dataSrc;
+            });
+        }
     })();
     </script>
 </body>

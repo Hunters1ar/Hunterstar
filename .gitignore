@@ -24,6 +24,7 @@ android/
 *.glb
 *.gltf
 *.bin
+!assets/desktop_pc.glb
 
 # 3D model asset folders (now standalone repos)
 assets/eduventure3d/
