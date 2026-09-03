@@ -3347,6 +3347,302 @@ a:hover { color: var(--color-accent-secondary); }
   background: none;
 }
 
+/* ==========================================================================
+   HUNTERSTAR // CINEMATIC NAME-MORPHING ENGINE STYLES
+   ========================================================================== */
+.name-morph-container {
+  display: inline-block;
+  vertical-align: bottom;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  outline: none;
+  transition: transform 0.2s ease;
+}
+
+.name-morph-container:focus-visible {
+  outline: 2px dashed var(--color-accent-secondary);
+  outline-offset: 6px;
+  border-radius: 4px;
+}
+
+.name-morph-container:hover {
+  filter: drop-shadow(0 0 16px rgba(255, 31, 31, 0.45));
+}
+
+.morph-stage {
+  display: inline-block;
+  position: relative;
+  vertical-align: baseline;
+  white-space: nowrap;
+  transition: width 0.72s cubic-bezier(0.25, 1, 0.5, 1);
+  overflow: visible;
+}
+
+.morph-measure {
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 900;
+  line-height: inherit;
+  user-select: none;
+}
+
+.morph-measure-a {
+  position: relative;
+  display: inline-block;
+}
+
+.morph-measure-b {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-block;
+}
+
+.morph-measure span {
+  display: inline-block;
+}
+
+.morph-track {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  white-space: nowrap;
+}
+
+.morph-char {
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-secondary);
+  text-shadow: 0 0 18px rgba(255, 31, 31, 0.55), 0 0 36px rgba(204, 17, 17, 0.35);
+  will-change: transform, opacity, filter;
+  transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
+}
+
+.morph-char.char-moving {
+  transition: transform 0.72s cubic-bezier(0.25, 1, 0.5, 1);
+  text-shadow: 0 0 24px rgba(255, 60, 60, 0.85), 0 0 45px rgba(255, 31, 31, 0.6);
+}
+
+.morph-char.char-dissolve {
+  opacity: 0 !important;
+  filter: blur(8px) !important;
+  text-shadow: 0 0 28px #ff1f1f;
+  transition: transform 0.45s ease-in, opacity 0.38s ease-out, filter 0.38s ease-out !important;
+}
+
+.morph-char.char-appear {
+  opacity: 1 !important;
+  filter: none !important;
+  animation: charLockIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes charLockIn {
+  0% {
+    filter: brightness(2.2) drop-shadow(0 0 14px #ffffff);
+    opacity: 0.2;
+  }
+  50% {
+    filter: brightness(1.6) drop-shadow(0 0 22px #ff1f1f);
+  }
+  100% {
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* Horizontal Baseline Laser Flare */
+.morph-flare {
+  position: absolute;
+  bottom: 0.02em;
+  left: -12%;
+  width: 124%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 31, 31, 0.5) 20%, #ffffff 50%, rgba(255, 31, 31, 0.85) 80%, transparent 100%);
+  box-shadow: 0 0 12px #ff1f1f, 0 0 26px #ff1f1f, 0 0 4px #ffffff;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: left center;
+  z-index: 3;
+}
+
+.morph-flare.is-active {
+  animation: flareLaserSweep 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes flareLaserSweep {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.05) translateX(-15%);
+  }
+  30% {
+    opacity: 1;
+    transform: scaleX(1) translateX(0);
+  }
+  75% {
+    opacity: 0.85;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1.08) translateX(8%);
+  }
+}
+
+/* Particle Canvas */
+.morph-canvas {
+  position: absolute;
+  top: -65%;
+  left: -30%;
+  width: 160%;
+  height: 230%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Cyber Identity Chip */
+.identity-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: -0.2rem;
+  margin-bottom: var(--space-md);
+  position: relative;
+  z-index: 5;
+}
+
+.identity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.38rem 0.95rem;
+  background: rgba(14, 14, 14, 0.82);
+  border: 1px solid rgba(255, 31, 31, 0.28);
+  border-radius: 9999px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono, 'JetBrains Mono', Consolas, monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+}
+
+.identity-chip:hover {
+  border-color: var(--color-accent-secondary);
+  background: rgba(255, 31, 31, 0.14);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(255, 31, 31, 0.32);
+  transform: translateY(-1px);
+}
+
+.identity-chip:active {
+  transform: translateY(0);
+}
+
+.identity-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent-secondary);
+  box-shadow: 0 0 9px var(--color-accent-secondary);
+  animation: identityPulse 2.2s infinite ease-in-out;
+}
+
+@keyframes identityPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 9px var(--color-accent-secondary);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+    box-shadow: 0 0 4px var(--color-accent-secondary);
+  }
+}
+
+.identity-role {
+  color: var(--color-accent-secondary);
+  font-weight: 800;
+  transition: color 0.3s ease;
+}
+
+.identity-chip.is-realname .identity-role {
+  color: #ff7a45;
+}
+
+.identity-sep {
+  opacity: 0.35;
+  font-weight: 400;
+}
+
+.identity-name {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.identity-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-left: 0.55rem;
+  margin-left: 0.35rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--color-text-tertiary, #888);
+  font-size: 0.66rem;
+  transition: color 0.25s ease;
+}
+
+.identity-action svg {
+  transition: transform 0.35s ease;
+}
+
+.identity-chip:hover .identity-action {
+  color: var(--color-accent-secondary);
+}
+
+.identity-chip:hover .identity-action svg {
+  transform: rotate(180deg);
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .name-morph-container {
+    transition: none;
+  }
+  .morph-char {
+    transition: opacity 0.3s ease !important;
+  }
+  .morph-flare {
+    display: none !important;
+  }
+  .identity-dot {
+    animation: none;
+  }
+}
+
 .portfolio-hero .subtitle {
   max-width: 720px;
   margin-bottom: var(--space-md);
@@ -4890,3 +5186,16 @@ a:hover { color: var(--color-accent-secondary); }
     justify-content: center;
   }
 }
+
+@media (max-width: 520px) {
+  .portfolio-hero .headline {
+    font-size: clamp(2.2rem, 9.5vw, 3.1rem);
+    line-height: 1.05;
+  }
+  .identity-chip {
+    font-size: 0.68rem;
+    padding: 0.32rem 0.75rem;
+    gap: 0.4rem;
+  }
+}
+

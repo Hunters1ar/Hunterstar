@@ -201,8 +201,23 @@
             <span class="terminal-tagline" id="typewriter"></span>
 
             <h1 class="headline">
-                Hi, I'm <span class="headline-accent">Hunterstar</span>
+                Hi, I'm <span class="headline-accent name-morph-container" id="heroNameMorph" role="button" tabindex="0" aria-label="Hunterstar, also known as Khurshid" title="Click to toggle identity">Hunterstar</span>
             </h1>
+
+            <div class="identity-badge-row" aria-hidden="false">
+                <button class="identity-chip" id="identityToggle" type="button" aria-label="Toggle between alias and real name" title="Click to switch identity">
+                    <span class="identity-dot"></span>
+                    <span class="identity-role" id="identityRole">ALIAS</span>
+                    <span class="identity-sep">//</span>
+                    <span class="identity-name" id="identityName">HUNTERSTAR</span>
+                    <span class="identity-action">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"/>
+                        </svg>
+                        <span>SWITCH</span>
+                    </span>
+                </button>
+            </div>
 
             <p class="subtitle">
                 I develop AI systems, backend architectures, user interfaces, and web applications.
@@ -478,6 +493,7 @@
     <script src="js/firebase-config.js"></script>
     <script src="js/three-scene.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/name-morph.js"></script>
     <script src="js/chat-widget.js"></script>
     <script>
     /* Sync theme to model iframes & handle navigation messages */
