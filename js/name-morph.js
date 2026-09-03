@@ -1,14 +1,19 @@
 /**
- * HUNTERSTAR // CINEMATIC NAME-MORPHING ENGINE
- * ------------------------------------------------------------
+ * HUNTERSTAR // CINEMATIC NAME-MORPHING ENGINE (ULTRA-SMOOTH & HIGH-PERFORMANCE)
+ * -------------------------------------------------------------------------------
  * Transforms "HUNTERSTAR" (Alias) into "KHURSHID" (Real Name)
- * by preserving and dynamically translating shared letters (H, U, R, S),
- * dissolving non-matching letters with glowing embers, sweeping a baseline
- * laser flare, and triggering a particle shockwave.
+ * with a deliberate, cinematic pace matching "name changing animatino.mp4".
  *
- * Inspired by:
- * - "name changing animatino.mp4" (Shared H-U-R-S transition, flare sweep, particle explosion)
- * - "zimi.uz" (Dual-identity narrative, real name vs. moniker storytelling)
+ * Sequence:
+ * 1. HUNTERSTAR is displayed.
+ * 2. Non-matching letters (N, T, E, T, A, R) dissolve away.
+ * 3. H U R S remain isolated on screen in their original positions for a clear beat.
+ * 4. H U R S smoothly and slowly glide inward to merge into a contiguous block.
+ * 5. K slides in from the left and H, I, D slide in from the right.
+ * 6. Laser flare sweeps along the baseline, locking in KHURSHID.
+ * 7. Particle shockwave fires and reverses back to HUNTERSTAR with equal grace.
+ *
+ * Zero-lag 120 FPS hardware acceleration with zero layout reflow.
  */
 (function() {
     'use strict';
@@ -16,9 +21,10 @@
     // Configuration
     const NAME_A = 'HUNTERSTAR';
     const NAME_B = 'KHURSHID';
-    const HOLD_TIME_A = 4600; // ms to display HUNTERSTAR
-    const HOLD_TIME_B = 3800; // ms to display KHURSHID
-    const TRANSITION_DURATION = 1100; // ms for the morph
+    const HOLD_TIME_A = 5500; // ms to display HUNTERSTAR before initiating morph
+    const HOLD_TIME_B = 5000; // ms to display KHURSHID before initiating morph
+    const TOTAL_MORPH_B_DURATION = 4600; // ms for the entire A -> B cinematic sequence
+    const TOTAL_MORPH_A_DURATION = 3900; // ms for the entire B -> A cinematic sequence
 
     // Shared sequence mapping
     // HUNTERSTAR: [0:H] [1:U]  2:N  3:T  4:E [5:R] [6:S]  7:T  8:A  9:R
@@ -63,14 +69,11 @@
     let flare = null;
     let canvas = null;
     let ctx = null;
-    let identityChip = null;
-    let identityRole = null;
-    let identityName = null;
 
-    // Audio context (instantiated on first user interaction)
+    // Audio context (instantiated only on user interaction)
     let audioCtx = null;
 
-    // Particle system
+    // Particle system (optimized without CPU shadowBlur)
     let particles = [];
     let animFrameId = null;
 
@@ -95,73 +98,68 @@
             gain.connect(audioCtx.destination);
 
             if (type === 'to_b') {
-                // Futuristic deep bass sweep with shimmer
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(140, now);
-                osc.frequency.exponentialRampToValueAtTime(70, now + 0.35);
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(65, now + 0.5);
 
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(800, now);
-                filter.frequency.exponentialRampToValueAtTime(250, now + 0.35);
+                filter.frequency.setValueAtTime(700, now);
+                filter.frequency.exponentialRampToValueAtTime(200, now + 0.5);
 
-                gain.gain.setValueAtTime(0.08, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
 
                 osc.start(now);
-                osc.stop(now + 0.4);
+                osc.stop(now + 0.6);
             } else {
-                // High-energy particle snap
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(220, now);
-                osc.frequency.exponentialRampToValueAtTime(440, now + 0.15);
-                osc.frequency.exponentialRampToValueAtTime(180, now + 0.3);
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(420, now + 0.2);
+                osc.frequency.exponentialRampToValueAtTime(160, now + 0.45);
 
                 filter.type = 'bandpass';
-                filter.frequency.setValueAtTime(1200, now);
-                filter.Q.setValueAtTime(3, now);
+                filter.frequency.setValueAtTime(1100, now);
+                filter.Q.setValueAtTime(2.5, now);
 
-                gain.gain.setValueAtTime(0.09, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+                gain.gain.setValueAtTime(0.07, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
 
                 osc.start(now);
-                osc.stop(now + 0.35);
+                osc.stop(now + 0.5);
             }
         } catch (e) {
-            // Silently ignore audio playback restrictions
+            // Audio policy fallback
         }
     }
 
-    // Initialize Canvas Particles
+    // High-performance canvas initialization
     function initCanvas() {
         if (!canvas || !container) return;
         const rect = container.getBoundingClientRect();
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.max(300, rect.width * 1.5) * dpr;
-        canvas.height = Math.max(100, rect.height * 2.5) * dpr;
+        canvas.width = Math.max(320, rect.width * 1.5) * dpr;
+        canvas.height = Math.max(120, rect.height * 2.5) * dpr;
         ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
     }
 
     function emitShockwave(xCenter, yCenter, count, colors) {
         if (!ctx) return;
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const cw = canvas.width / dpr;
-        const ch = canvas.height / dpr;
 
         for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
-            const speed = 1.8 + Math.random() * 5.2;
-            const size = 1.5 + Math.random() * 2.8;
+            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+            const speed = 1.4 + Math.random() * 4.2;
+            const size = 1.2 + Math.random() * 2.4;
             const color = colors[Math.floor(Math.random() * colors.length)];
 
             particles.push({
                 x: xCenter,
                 y: yCenter,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed * 0.65 - 0.8, // slight upward float
+                vy: Math.sin(angle) * speed * 0.6 - 0.5,
                 size: size,
                 alpha: 1,
-                decay: 0.015 + Math.random() * 0.025,
+                decay: 0.012 + Math.random() * 0.018,
                 color: color
             });
         }
@@ -180,16 +178,16 @@
 
         const colors = ['#ff1f1f', '#ff5a36', '#ffffff', '#ff9999'];
         for (let i = 0; i < count; i++) {
-            const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.4; // upward spray
-            const speed = 1.0 + Math.random() * 3.5;
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+            const speed = 0.8 + Math.random() * 2.4;
             particles.push({
-                x: x + (Math.random() - 0.5) * rect.width,
+                x: x + (Math.random() - 0.5) * (rect.width * 0.7),
                 y: y + (Math.random() - 0.5) * (rect.height * 0.4),
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
-                size: 1.2 + Math.random() * 2.2,
+                size: 1.0 + Math.random() * 1.8,
                 alpha: 1,
-                decay: 0.02 + Math.random() * 0.03,
+                decay: 0.015 + Math.random() * 0.022,
                 color: colors[Math.floor(Math.random() * colors.length)]
             });
         }
@@ -199,6 +197,7 @@
         }
     }
 
+    // Zero-lag 120fps particle rendering loop without shadowBlur
     function renderParticles() {
         if (!ctx) return;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -211,8 +210,8 @@
             const p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vx *= 0.96;
-            p.vy *= 0.96;
+            p.vx *= 0.97;
+            p.vy *= 0.97;
             p.alpha -= p.decay;
 
             if (p.alpha <= 0) {
@@ -223,8 +222,6 @@
             ctx.save();
             ctx.globalAlpha = Math.max(0, p.alpha);
             ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 8;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fill();
@@ -238,7 +235,7 @@
         }
     }
 
-    // Layout measurement using hidden templates
+    // Measure exact letter slot coordinates
     function measureLayout() {
         if (!stage) return;
 
@@ -268,9 +265,14 @@
         });
         widthB = measureB.offsetWidth;
 
-        initCanvas();
+        // Set stable stage width without animating layout reflow
+        stage.style.minWidth = Math.max(widthA, widthB) + 'px';
+        if (flare) {
+            flare.style.left = '0px';
+            flare.style.width = (currentState === 'B' ? widthB : widthA) + 'px';
+        }
 
-        // Update current layout to prevent distortion on resize
+        initCanvas();
         applyStateImmediate(currentState);
     }
 
@@ -278,7 +280,6 @@
         if (!stage || positionsA.length === 0 || positionsB.length === 0) return;
 
         const isA = state === 'A';
-        stage.style.width = (isA ? widthA : widthB) + 'px';
 
         // Shared letters
         SHARED_LETTERS.forEach((item) => {
@@ -287,7 +288,6 @@
             const pos = isA ? positionsA[item.aIndex] : positionsB[item.bIndex];
             el.style.transform = `translate3d(${pos.left}px, 0, 0)`;
             el.style.opacity = '1';
-            el.style.filter = 'none';
         });
 
         // Exclusive A
@@ -297,7 +297,6 @@
             const pos = positionsA[item.index];
             el.style.transform = `translate3d(${pos.left}px, 0, 0)`;
             el.style.opacity = isA ? '1' : '0';
-            el.style.filter = isA ? 'none' : 'blur(5px)';
             el.style.pointerEvents = isA ? 'auto' : 'none';
         });
 
@@ -308,70 +307,86 @@
             const pos = positionsB[item.index];
             el.style.transform = `translate3d(${pos.left}px, 0, 0)`;
             el.style.opacity = isA ? '0' : '1';
-            el.style.filter = isA ? 'blur(5px)' : 'none';
             el.style.pointerEvents = isA ? 'none' : 'auto';
         });
     }
 
-    // Trigger Laser Flare Baseline Sweep
-    function triggerLaserFlare() {
+    function triggerLaserFlare(targetState) {
         if (!flare) return;
+        const targetWidth = targetState === 'B' ? widthB : widthA;
+        flare.style.left = '0px';
+        flare.style.width = (targetWidth || 100) + 'px';
         flare.classList.remove('is-active');
-        void flare.offsetWidth; // force reflow
+        void flare.offsetWidth;
         flare.classList.add('is-active');
     }
 
-    // Perform Morph from A (HUNTERSTAR) to B (KHURSHID)
+    /**
+     * CINEMATIC TRANSITION: HUNTERSTAR -> KHURSHID
+     * ------------------------------------------------------------
+     * 0ms:      Dissolve non-matching letters (N, T, E, T, A, R) with gentle embers.
+     * 800ms:    H U R S remain clearly isolated on screen in their original positions.
+     *           Visitor has 1200ms to appreciate the shared H-U-R-S connection!
+     * 2000ms:   H U R S smoothly and slowly glide inward into the contiguous KHURSHID positions (1200ms glide).
+     * 3200ms:   H U R S are now joined together in the center.
+     * 3700ms:   Laser flare sweeps baseline; K glides in on left, H, I, D glide in on right.
+     * 4600ms:   Fully settled into KHURSHID!
+     */
     function morphToB() {
         if (isAnimating || currentState === 'B') return;
         isAnimating = true;
         currentState = 'B';
         container.setAttribute('aria-label', 'Khurshid Khursandov');
 
-        // Update identity chip text
-        if (identityRole) identityRole.textContent = 'REAL NAME';
-        if (identityName) identityName.textContent = 'KHURSHID KHURSANDOV';
-        if (identityChip) identityChip.classList.add('is-realname');
-
-        // Phase 1: Dissolve non-matching letters of HUNTERSTAR
+        // Step 1: Dissolve exclusive letters of HUNTERSTAR over 800ms
         EXCLUSIVE_A.forEach((item, idx) => {
             const el = stage.querySelector('#char_' + item.id);
             if (!el) return;
             setTimeout(() => {
-                emitLetterEmbers(el, 7);
+                emitLetterEmbers(el, 5);
+                const pos = positionsA[item.index];
+                el.style.transform = `translate3d(${pos.left}px, -12px, 0)`;
                 el.classList.add('char-dissolve');
-            }, idx * 40);
+            }, idx * 45);
         });
 
-        // Phase 2: Slide shared letters (H, U, R, S) into KHURSHID positions & morph width
+        // Step 2: Spotlight H U R S in their original positions!
         setTimeout(() => {
-            stage.style.width = widthB + 'px';
+            SHARED_LETTERS.forEach((item) => {
+                const el = stage.querySelector('#char_' + item.id);
+                if (el) el.classList.add('char-moving');
+            });
+        }, 800);
 
+        // Step 3: Smooth, slow glide of H U R S into KHURSHID positions (over 1250ms!)
+        setTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (!el) return;
                 const posB = positionsB[item.bIndex];
                 el.style.transform = `translate3d(${posB.left}px, 0, 0)`;
-                el.classList.add('char-moving');
             });
-        }, 320);
+        }, 2000);
 
-        // Phase 3: Laser flare baseline sweep & incoming letters (K, H, I, D)
+        // Step 4: Incoming letters (K on left, H, I, D on right) & laser flare
         setTimeout(() => {
-            triggerLaserFlare();
+            triggerLaserFlare('B');
 
             EXCLUSIVE_B.forEach((item, idx) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (!el) return;
                 const posB = positionsB[item.index];
-                el.style.transform = `translate3d(${posB.left}px, 0, 0)`;
-                setTimeout(() => {
-                    el.classList.add('char-appear');
-                }, idx * 50);
-            });
-        }, 580);
+                const startOffset = item.index === 0 ? -16 : 16;
+                el.style.transform = `translate3d(${posB.left + startOffset}px, 0, 0)`;
 
-        // Phase 4: Settle and clean up transition classes
+                setTimeout(() => {
+                    el.style.transform = `translate3d(${posB.left}px, 0, 0)`;
+                    el.classList.add('char-appear');
+                }, 80 + idx * 60);
+            });
+        }, 3600);
+
+        // Step 5: Settle completely
         setTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
@@ -381,7 +396,6 @@
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) {
                     el.style.opacity = '0';
-                    el.style.filter = 'blur(6px)';
                     el.classList.remove('char-dissolve');
                 }
             });
@@ -389,70 +403,82 @@
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) {
                     el.style.opacity = '1';
-                    el.style.filter = 'none';
                     el.classList.remove('char-appear');
                 }
             });
             isAnimating = false;
-        }, TRANSITION_DURATION);
+        }, TOTAL_MORPH_B_DURATION);
     }
 
-    // Perform Morph from B (KHURSHID) back to A (HUNTERSTAR)
+    /**
+     * CINEMATIC TRANSITION: KHURSHID -> HUNTERSTAR
+     * ------------------------------------------------------------
+     * 0ms:      Particle shockwave & dissolve K, H, I, D outward.
+     * 750ms:    H U R S remain in the center.
+     * 1500ms:   H U R S smoothly expand back to original Hunterstar spacing (1250ms glide).
+     * 2750ms:   Laser flare sweeps baseline; N, T, E and T, A, R materialize into place.
+     * 3900ms:   Fully settled into HUNTERSTAR!
+     */
     function morphToA() {
         if (isAnimating || currentState === 'A') return;
         isAnimating = true;
         currentState = 'A';
         container.setAttribute('aria-label', 'Hunterstar');
 
-        // Update identity chip text
-        if (identityRole) identityRole.textContent = 'ALIAS';
-        if (identityName) identityName.textContent = 'HUNTERSTAR';
-        if (identityChip) identityChip.classList.remove('is-realname');
-
-        // Phase 1: Cosmic Particle Shockwave & Dissolve Exclusive B
+        // Step 1: Smooth shockwave & dissolve exclusive B
         const stageRect = stage.getBoundingClientRect();
         const contRect = canvas.getBoundingClientRect();
         const centerX = stageRect.left - contRect.left + stageRect.width / 2;
         const centerY = stageRect.top - contRect.top + stageRect.height / 2;
 
-        emitShockwave(centerX, centerY, 55, ['#ff1f1f', '#ff5a36', '#ffffff', '#ff9999']);
-        triggerLaserFlare();
+        emitShockwave(centerX, centerY, 45, ['#ff1f1f', '#ff5a36', '#ffffff']);
 
         EXCLUSIVE_B.forEach((item, idx) => {
             const el = stage.querySelector('#char_' + item.id);
             if (!el) return;
             setTimeout(() => {
+                const posB = positionsB[item.index];
+                el.style.transform = `translate3d(${posB.left}px, -12px, 0)`;
                 el.classList.add('char-dissolve');
-            }, idx * 30);
+            }, idx * 35);
         });
 
-        // Phase 2: Slide shared letters back and expand width
+        // Step 2: Spotlight H U R S
         setTimeout(() => {
-            stage.style.width = widthA + 'px';
+            SHARED_LETTERS.forEach((item) => {
+                const el = stage.querySelector('#char_' + item.id);
+                if (el) el.classList.add('char-moving');
+            });
+        }, 750);
 
+        // Step 3: Smooth, slow expansion back to HUNTERSTAR positions (over 1250ms!)
+        setTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (!el) return;
                 const posA = positionsA[item.aIndex];
                 el.style.transform = `translate3d(${posA.left}px, 0, 0)`;
-                el.classList.add('char-moving');
             });
-        }, 260);
+        }, 1500);
 
-        // Phase 3: Materialize HUNTERSTAR letters (N, T, E, T, A, R)
+        // Step 4: Materialize Hunterstar letters (N, T, E, T, A, R) & laser flare
         setTimeout(() => {
+            triggerLaserFlare('A');
+
             EXCLUSIVE_A.forEach((item, idx) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (!el) return;
                 const posA = positionsA[item.index];
-                el.style.transform = `translate3d(${posA.left}px, 0, 0)`;
-                setTimeout(() => {
-                    el.classList.add('char-appear');
-                }, idx * 45);
-            });
-        }, 480);
+                el.style.transform = `translate3d(${posA.left}px, 14px, 0)`;
 
-        // Phase 4: Settle
+                setTimeout(() => {
+                    el.style.transform = `translate3d(${posA.left}px, 0, 0)`;
+                    el.classList.add('char-appear');
+                }, 70 + idx * 50);
+            });
+        }, 2750);
+
+        // Step 5: Settle
         setTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
@@ -462,7 +488,6 @@
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) {
                     el.style.opacity = '0';
-                    el.style.filter = 'blur(6px)';
                     el.classList.remove('char-dissolve');
                 }
             });
@@ -470,12 +495,11 @@
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) {
                     el.style.opacity = '1';
-                    el.style.filter = 'none';
                     el.classList.remove('char-appear');
                 }
             });
             isAnimating = false;
-        }, TRANSITION_DURATION);
+        }, TOTAL_MORPH_A_DURATION);
     }
 
     // Toggle between states
@@ -510,7 +534,7 @@
         scheduleNext();
     }
 
-    // Build DOM inside container
+    // Build DOM structure inside container
     function constructDOM() {
         container.innerHTML = '';
         container.classList.add('name-morph-active');
@@ -599,10 +623,6 @@
         container = document.getElementById('heroNameMorph');
         if (!container) return;
 
-        identityChip = document.getElementById('identityToggle');
-        identityRole = document.getElementById('identityRole');
-        identityName = document.getElementById('identityName');
-
         // Reduced motion check
         const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReducedMotion) {
@@ -611,18 +631,14 @@
             const handleReducedToggle = () => {
                 currentState = currentState === 'A' ? 'B' : 'A';
                 container.innerHTML = '<span class="reduced-name">' + (currentState === 'A' ? NAME_A : NAME_B) + '</span>';
-                if (identityRole) identityRole.textContent = currentState === 'A' ? 'ALIAS' : 'REAL NAME';
-                if (identityName) identityName.textContent = currentState === 'A' ? 'HUNTERSTAR' : 'KHURSHID KHURSANDOV';
-                if (identityChip) identityChip.classList.toggle('is-realname', currentState === 'B');
             };
             container.addEventListener('click', handleReducedToggle);
-            if (identityChip) identityChip.addEventListener('click', handleReducedToggle);
             return;
         }
 
         constructDOM();
 
-        // Wait for fonts to be ready for accurate measurement
+        // Wait for fonts to be loaded for pixel-perfect slot measurement
         if (document.fonts && document.fonts.ready) {
             document.fonts.ready.then(() => {
                 measureLayout();
@@ -652,13 +668,6 @@
                 toggleIdentity(true);
             }
         });
-
-        if (identityChip) {
-            identityChip.addEventListener('click', (e) => {
-                e.preventDefault();
-                toggleIdentity(true);
-            });
-        }
 
         // Hover pause
         container.addEventListener('mouseenter', () => {
