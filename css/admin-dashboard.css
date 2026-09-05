@@ -14,12 +14,12 @@
     --cr-border: rgba(255, 255, 255, 0.08);
     --cr-border-subtle: rgba(255, 255, 255, 0.04);
     --cr-border-hover: rgba(255, 255, 255, 0.16);
-    --cr-border-accent: rgba(225, 59, 43, 0.45);
+    --cr-border-accent: rgba(255, 59, 48, 0.55);
     
-    --cr-accent: #e13b2b;
-    --cr-accent-glow: rgba(225, 59, 43, 0.3);
-    --cr-accent-hover: #ff4a3a;
-    --cr-accent-subtle: rgba(225, 59, 43, 0.1);
+    --cr-accent: #ff3b30;
+    --cr-accent-glow: rgba(255, 59, 48, 0.45);
+    --cr-accent-hover: #ff5247;
+    --cr-accent-subtle: rgba(255, 59, 48, 0.12);
     
     --cr-text-primary: #f5f5f7;
     --cr-text-secondary: #a3a6b6;
@@ -1441,86 +1441,863 @@ body.admin-page-body {
     color: var(--cr-text-primary);
 }
 
-/* --------------------------------------------------------------------------
-   Auth View (Centered Gate)
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   COMMAND CENTER AUTH VIEW // HUNTERSTAR SECURITY C2 GATEWAY
+   Option A: Tactical Operations Center with Live HUD & Telemetry
+   ========================================================================== */
 .cr-auth-screen {
     min-height: 100vh;
+    width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-color: #06070a;
+    color: var(--cr-text-primary);
+    overflow-x: hidden;
+    overflow-y: auto;
+    font-family: var(--cr-font-sans);
+}
+
+/* --------------------------------------------------------------------------
+   Atmospheric Layers: Cyber Grid, Scanlines, Ambient Spotlight
+   -------------------------------------------------------------------------- */
+.cr-cmd-bg-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.cr-cmd-grid-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background-image: 
+        linear-gradient(to right, rgba(255, 59, 48, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 59, 48, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    animation: crGridMove 60s linear infinite;
+}
+
+@keyframes crGridMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 48px 48px; }
+}
+
+.cr-cmd-scanlines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.28) 0px,
+        rgba(0, 0, 0, 0.28) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    opacity: 0.75;
+}
+
+.cr-cmd-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+    background: radial-gradient(circle at 50% 35%, rgba(255, 59, 48, 0.09) 0%, rgba(6, 7, 10, 0.95) 75%);
+}
+
+/* --------------------------------------------------------------------------
+   Tactical Top Command Bar
+   -------------------------------------------------------------------------- */
+.cr-cmd-topbar {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 32px;
+    border-bottom: 1px solid rgba(255, 59, 48, 0.22);
+    background: rgba(8, 9, 13, 0.85);
+    backdrop-filter: blur(14px);
+    font-family: var(--cr-font-mono);
+    font-size: 0.76rem;
+    letter-spacing: 0.06em;
+}
+
+.cr-cmd-brand-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cr-live-beacon {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--cr-accent);
+    box-shadow: 0 0 10px var(--cr-accent), 0 0 20px var(--cr-accent);
+    animation: crBeaconPulse 2s ease-in-out infinite;
+}
+
+@keyframes crBeaconPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.35); opacity: 0.45; }
+}
+
+.cr-cmd-title-main {
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.14em;
+}
+
+.cr-cmd-title-sub {
+    color: var(--cr-accent);
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.cr-cmd-meta-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: var(--cr-text-muted);
+}
+
+.cr-cmd-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cr-cmd-meta-item span {
+    color: var(--cr-text-secondary);
+}
+
+.cr-cmd-badges-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cr-tactical-badge {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--cr-text-secondary);
+}
+
+.cr-tactical-badge.badge-secure {
+    border-color: rgba(255, 59, 48, 0.45);
+    background: rgba(255, 59, 48, 0.08);
+    color: #ff5247;
+    box-shadow: 0 0 12px rgba(255, 59, 48, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   Main Command Center Body & Layout
+   -------------------------------------------------------------------------- */
+.cr-cmd-body {
+    position: relative;
+    z-index: 10;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    background-color: var(--cr-bg);
+    padding: 32px 24px 48px;
+    width: 100%;
 }
 
-.cr-auth-card {
+.cr-cmd-layout {
+    display: grid;
+    grid-template-columns: 290px minmax(440px, 520px) 290px;
+    gap: 28px;
+    align-items: center;
+    max-width: 1220px;
     width: 100%;
-    max-width: 440px;
-    background-color: var(--cr-surface-1);
-    border: 1px solid var(--cr-border);
-    border-radius: var(--cr-radius-xl);
-    padding: 36px 32px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(225, 59, 43, 0.08);
+    margin: 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   Tactical Flanking Panels (Left Systems & Right Threat Matrix)
+   -------------------------------------------------------------------------- */
+.cr-hud-panel {
+    background: rgba(12, 13, 18, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-top: 1px solid rgba(255, 59, 48, 0.35);
+    border-radius: var(--cr-radius-md);
+    padding: 20px 18px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(255, 59, 48, 0.04);
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
+}
+
+.cr-hud-corner-tl, .cr-hud-corner-tr, .cr-hud-corner-bl, .cr-hud-corner-br {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-color: var(--cr-accent);
+    pointer-events: none;
+}
+.cr-hud-corner-tl { top: -1px; left: -1px; border-top: 2px solid var(--cr-accent); border-left: 2px solid var(--cr-accent); }
+.cr-hud-corner-tr { top: -1px; right: -1px; border-top: 2px solid var(--cr-accent); border-right: 2px solid var(--cr-accent); }
+.cr-hud-corner-bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--cr-accent); border-left: 2px solid var(--cr-accent); }
+.cr-hud-corner-br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cr-accent); border-right: 2px solid var(--cr-accent); }
+
+.cr-hud-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-family: var(--cr-font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--cr-text-muted);
+}
+
+.cr-hud-header-title {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.cr-hud-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--cr-font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--cr-success);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 6px 10px;
+    border-radius: 3px;
+}
+
+.cr-hud-status-indicator .status-block {
+    display: inline-block;
+    width: 6px;
+    height: 10px;
+    background-color: var(--cr-success);
+    box-shadow: 0 0 8px var(--cr-success);
+    animation: crStatusBlink 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes crStatusBlink {
+    0% { opacity: 0.35; }
+    100% { opacity: 1; }
+}
+
+.cr-hud-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.cr-hud-stat-box {
+    background: rgba(18, 20, 28, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 10px 12px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cr-hud-stat-label {
+    font-family: var(--cr-font-mono);
+    font-size: 0.64rem;
+    color: var(--cr-text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.cr-hud-stat-value {
+    font-family: var(--cr-font-mono);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+}
+
+.cr-hud-stat-value span {
+    font-size: 0.72rem;
+    color: var(--cr-accent);
+    margin-left: 3px;
+}
+
+.cr-hud-specs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-family: var(--cr-font-mono);
+    font-size: 0.68rem;
+    color: var(--cr-text-muted);
+}
+
+.cr-hud-spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cr-hud-spec-row span:last-child {
+    color: var(--cr-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Threat Matrix Panel (Right Flank)
+   -------------------------------------------------------------------------- */
+.cr-threat-matrix-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cr-threat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(18, 20, 28, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    font-family: var(--cr-font-mono);
+    font-size: 0.74rem;
+    transition: var(--cr-transition);
     position: relative;
     overflow: hidden;
 }
 
-.cr-auth-card::before {
+.cr-threat-item.is-scanning {
+    border-color: rgba(255, 59, 48, 0.35);
+    background: rgba(255, 59, 48, 0.07);
+}
+
+.cr-threat-item.is-scanning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background-color: var(--cr-accent);
+    box-shadow: 0 0 8px var(--cr-accent);
+}
+
+.cr-threat-sector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.cr-threat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--cr-success);
+    box-shadow: 0 0 6px var(--cr-success);
+}
+
+.cr-threat-status-tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--cr-success);
+}
+
+.cr-threat-item.is-scanning .cr-threat-status-tag {
+    color: #ff5247;
+}
+
+.cr-threat-telemetry-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px dashed rgba(255, 59, 48, 0.25);
+    border-radius: 4px;
+    font-family: var(--cr-font-mono);
+    font-size: 0.68rem;
+}
+
+/* --------------------------------------------------------------------------
+   Center Tactical Console & Login Gateway
+   -------------------------------------------------------------------------- */
+.cr-cmd-card {
+    background: rgba(14, 15, 21, 0.88);
+    border: 1px solid rgba(255, 59, 48, 0.38);
+    border-radius: var(--cr-radius-xl);
+    padding: 36px 36px 32px;
+    box-shadow: 
+        0 24px 80px rgba(0, 0, 0, 0.9), 
+        0 0 45px rgba(255, 59, 48, 0.14),
+        inset 0 0 30px rgba(255, 59, 48, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(16px);
+}
+
+.cr-cmd-card::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--cr-accent), transparent);
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ff3b30, rgba(255, 255, 255, 0.8), #ff3b30, transparent);
+    box-shadow: 0 0 10px #ff3b30;
 }
 
-.cr-auth-header {
+/* --------------------------------------------------------------------------
+   Enlarged Animated Logo Rig (120s, -80s, 40s, 4s pulse, 6s scanner)
+   -------------------------------------------------------------------------- */
+.cr-logo-rig {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    margin: 4px auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Center Emblem Pulse (4s) */
+.cr-logo-emblem-wrap {
+    position: relative;
+    z-index: 5;
+    width: 156px;
+    height: 156px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: crEmblemPulse 4s ease-in-out infinite;
+}
+
+@keyframes crEmblemPulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 16px rgba(255, 59, 48, 0.65)) drop-shadow(0 0 32px rgba(255, 59, 48, 0.25));
+    }
+    50% {
+        transform: scale(1.035);
+        filter: drop-shadow(0 0 26px rgba(255, 59, 48, 0.95)) drop-shadow(0 0 50px rgba(255, 59, 48, 0.45));
+    }
+}
+
+.cr-brand-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Orbital Rings SVG Layer */
+.cr-orbital-rings-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+}
+
+/* Ring 1: 120s rotation */
+.cr-orbit-ring-1 {
+    transform-origin: 125px 125px;
+    animation: crRotateCW 120s linear infinite;
+}
+
+/* Ring 2: -80s counter-rotation */
+.cr-orbit-ring-2 {
+    transform-origin: 125px 125px;
+    animation: crRotateCCW 80s linear infinite;
+}
+
+/* Crosshair Ring: 40s rotation */
+.cr-crosshair-ring {
+    transform-origin: 125px 125px;
+    animation: crRotateCW 40s linear infinite;
+}
+
+@keyframes crRotateCW {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes crRotateCCW {
+    0% { transform: rotate(360deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* Laser Scanner Sweep: 6s */
+.cr-scanner-line {
+    position: absolute;
+    left: 15%;
+    right: 15%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ff3b30, #ffffff, #ff3b30, transparent);
+    box-shadow: 0 0 12px #ff3b30, 0 0 24px #ff3b30;
+    pointer-events: none;
+    z-index: 6;
+    animation: crLaserScan 6s ease-in-out infinite;
+    opacity: 0.85;
+}
+
+@keyframes crLaserScan {
+    0%, 100% {
+        top: 22%;
+        opacity: 0.2;
+    }
+    50% {
+        top: 78%;
+        opacity: 0.95;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Auth Title & Tactical Subtitle
+   -------------------------------------------------------------------------- */
+.cr-cmd-title-block {
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
-.cr-auth-title {
-    font-family: var(--cr-font-serif);
-    font-size: 1.8rem;
-    color: var(--cr-text-primary);
+.cr-cmd-title {
+    font-family: var(--cr-font-mono);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #ffffff;
+    text-transform: uppercase;
     margin: 0;
+    text-shadow: 0 0 15px rgba(255, 59, 48, 0.4);
 }
 
-.cr-auth-title span {
+.cr-cmd-subtitle {
+    font-family: var(--cr-font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
     color: var(--cr-accent);
-    font-style: italic;
+    text-transform: uppercase;
+    margin: 0;
+    opacity: 0.9;
 }
 
-.cr-auth-sub {
-    font-size: 0.82rem;
+/* --------------------------------------------------------------------------
+   Tactical Input Fields & Cyber Button
+   -------------------------------------------------------------------------- */
+.cr-cmd-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 4px;
+}
+
+.cr-cmd-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cr-cmd-label {
+    font-family: var(--cr-font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--cr-text-secondary);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cr-cmd-label span {
+    color: var(--cr-accent);
+}
+
+.cr-cmd-input-wrap {
+    position: relative;
+}
+
+.cr-cmd-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(8, 9, 13, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: var(--cr-font-mono);
+    font-size: 0.92rem;
+    transition: var(--cr-transition);
+    outline: none;
+}
+
+.cr-cmd-input:focus {
+    border-color: #ff3b30;
+    box-shadow: 0 0 16px rgba(255, 59, 48, 0.35), inset 0 0 8px rgba(255, 59, 48, 0.12);
+    background: rgba(14, 16, 22, 0.95);
+}
+
+.cr-cmd-input::placeholder {
+    color: var(--cr-text-disabled);
+    font-size: 0.85rem;
+}
+
+/* Tactical Access Button [ ACCESS CONTROL ROOM ] */
+.cr-cmd-btn-access {
+    width: 100%;
+    padding: 14px 20px;
+    margin-top: 8px;
+    background: linear-gradient(135deg, #ff3b30 0%, #d42218 100%);
+    border: 1px solid #ff5247;
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: var(--cr-font-mono);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 24px rgba(255, 59, 48, 0.45);
+    transition: var(--cr-transition);
+    position: relative;
+    overflow: hidden;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.cr-cmd-btn-access::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transition: left 0.6s ease;
+}
+
+.cr-cmd-btn-access:hover:not(:disabled)::before {
+    left: 100%;
+}
+
+.cr-cmd-btn-access:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff5247 0%, #e6281e 100%);
+    box-shadow: 0 0 35px rgba(255, 59, 48, 0.75);
+    transform: translateY(-1px);
+}
+
+.cr-cmd-btn-access:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.cr-cmd-btn-access:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Card Footer Security Marks */
+.cr-cmd-footer-marks {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-family: var(--cr-font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
     color: var(--cr-text-muted);
+    text-transform: uppercase;
 }
 
+.cr-cmd-footer-marks span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cr-cmd-footer-marks .mark-dot {
+    width: 4px;
+    height: 4px;
+    background-color: var(--cr-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--cr-accent);
+}
+
+/* --------------------------------------------------------------------------
+   2FA Auth Screen Elements
+   -------------------------------------------------------------------------- */
 .cr-2fa-qr {
     display: block;
     margin: 12px auto;
     border-radius: var(--cr-radius-md);
-    background: #fff;
+    background: #ffffff;
     padding: 8px;
     max-width: 160px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
 }
 
 .cr-manual-key {
     font-family: var(--cr-font-mono);
     font-size: 0.8rem;
     padding: 6px 10px;
-    background-color: var(--cr-surface-2);
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 4px;
     color: var(--cr-accent);
     text-align: center;
     word-break: break-all;
+    margin-top: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Cinematic Vault Unlock Transition Overlay
+   -------------------------------------------------------------------------- */
+.cr-vault-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10000;
+    display: flex;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.cr-vault-overlay.is-active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.cr-vault-shutter-l, .cr-vault-shutter-r {
+    flex: 1;
+    height: 100%;
+    background: #08090d;
+    position: relative;
+    transition: transform 0.75s cubic-bezier(0.77, 0, 0.175, 1);
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+.cr-vault-shutter-l {
+    border-right: 2px solid #ff3b30;
+    transform: translateX(0);
+}
+
+.cr-vault-shutter-r {
+    border-left: 2px solid #ff3b30;
+    transform: translateX(0);
+}
+
+.cr-vault-overlay.is-opening .cr-vault-shutter-l {
+    transform: translateX(-100%);
+    border-color: #00ff66;
+}
+
+.cr-vault-overlay.is-opening .cr-vault-shutter-r {
+    transform: translateX(100%);
+    border-color: #00ff66;
+}
+
+.cr-vault-center-seal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 105;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    transition: opacity 0.4s ease;
+}
+
+.cr-vault-overlay.is-opening .cr-vault-center-seal {
+    opacity: 0;
+}
+
+.cr-vault-seal-text {
+    font-family: var(--cr-font-mono);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: #00ff66;
+    text-shadow: 0 0 15px #00ff66;
+    text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Breakpoints for Command Center
+   -------------------------------------------------------------------------- */
+@media (max-width: 1080px) {
+    .cr-cmd-layout {
+        grid-template-columns: 1fr;
+        max-width: 520px;
+    }
+    
+    .cr-cmd-panel-left, .cr-cmd-panel-right {
+        order: 2;
+    }
+    
+    .cr-cmd-center-console {
+        order: 1;
+    }
+    
+    .cr-cmd-topbar {
+        padding: 10px 16px;
+    }
+    
+    .cr-cmd-meta-group {
+        display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .cr-cmd-card {
+        padding: 26px 20px;
+    }
+    
+    .cr-logo-rig {
+        width: 190px;
+        height: 190px;
+    }
+    
+    .cr-logo-emblem-wrap {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .cr-cmd-title {
+        font-size: 1.15rem;
+    }
+    
+    .cr-cmd-topbar {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
 }
 
 /* --------------------------------------------------------------------------

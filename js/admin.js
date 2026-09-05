@@ -456,8 +456,201 @@
     }
 
     // =========================================================================
-    // 5. AUTH GATE & 2FA VIEW
+    // 5. AUTH GATE // COMMAND CENTER & VAULT UNLOCK (OPTION A)
     // =========================================================================
+    function TacticalRadarCanvas() {
+        const canvasRef = useRef(null);
+
+        useEffect(() => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            let animationFrameId;
+            let angle = 0;
+            const blips = [
+                { dist: 0.28, angle: 0.7, size: 3.5, pulse: 0 },
+                { dist: 0.52, angle: 2.1, size: 4, pulse: 0 },
+                { dist: 0.76, angle: 3.8, size: 4.5, pulse: 0 },
+                { dist: 0.41, angle: 5.2, size: 3, pulse: 0 },
+                { dist: 0.88, angle: 1.4, size: 3.5, pulse: 0 }
+            ];
+
+            const resize = () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            };
+            resize();
+            window.addEventListener('resize', resize);
+
+            const render = () => {
+                const w = canvas.width;
+                const h = canvas.height;
+                const cx = w / 2;
+                const cy = h / 2;
+                const maxR = Math.min(w, h) * 0.48;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // Concentric Range Rings
+                ctx.strokeStyle = 'rgba(255, 59, 48, 0.05)';
+                ctx.lineWidth = 1;
+                [0.25, 0.5, 0.75, 1.0].forEach(rRatio => {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, maxR * rRatio, 0, Math.PI * 2);
+                    ctx.stroke();
+                });
+
+                // Radar Axis Lines
+                ctx.strokeStyle = 'rgba(255, 59, 48, 0.04)';
+                ctx.beginPath();
+                ctx.moveTo(cx - maxR, cy);
+                ctx.lineTo(cx + maxR, cy);
+                ctx.moveTo(cx, cy - maxR);
+                ctx.lineTo(cx, cy + maxR);
+                ctx.stroke();
+
+                // Radar Sweep Beam
+                angle += 0.015;
+                if (angle >= Math.PI * 2) angle -= Math.PI * 2;
+
+                const sweepGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+                sweepGradient.addColorStop(0, 'rgba(255, 59, 48, 0.25)');
+                sweepGradient.addColorStop(1, 'rgba(255, 59, 48, 0.01)');
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, maxR, angle - 0.35, angle, false);
+                ctx.closePath();
+                ctx.fillStyle = sweepGradient;
+                ctx.fill();
+
+                // Lead sweep line
+                ctx.strokeStyle = 'rgba(255, 59, 48, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR);
+                ctx.stroke();
+                ctx.restore();
+
+                // Blips detection & decay
+                blips.forEach(b => {
+                    const bx = cx + Math.cos(b.angle) * (maxR * b.dist);
+                    const by = cy + Math.sin(b.angle) * (maxR * b.dist);
+
+                    let diff = angle - b.angle;
+                    while (diff < 0) diff += Math.PI * 2;
+                    while (diff >= Math.PI * 2) diff -= Math.PI * 2;
+
+                    if (diff < 0.15) {
+                        b.pulse = 1.0;
+                    } else {
+                        b.pulse = Math.max(0.12, b.pulse - 0.008);
+                    }
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 59, 48, ' + b.pulse + ')';
+                    ctx.shadowColor = '#ff3b30';
+                    ctx.shadowBlur = b.pulse * 10;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, b.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                });
+
+                animationFrameId = requestAnimationFrame(render);
+            };
+
+            animationFrameId = requestAnimationFrame(render);
+
+            return () => {
+                cancelAnimationFrame(animationFrameId);
+                window.removeEventListener('resize', resize);
+            };
+        }, []);
+
+        return h('canvas', { ref: canvasRef, className: 'cr-cmd-bg-canvas' });
+    }
+
+    function LogoRig() {
+        return h('div', { className: 'cr-logo-rig' },
+            // Laser Scanner Sweep Line (6s)
+            h('div', { className: 'cr-scanner-line' }),
+
+            // Orbital Concentric Rings SVG
+            h('svg', { className: 'cr-orbital-rings-svg', viewBox: '0 0 250 250' },
+                // Orbit Ring 1: 120s rotation
+                h('g', { className: 'cr-orbit-ring-1' },
+                    h('circle', {
+                        cx: 125,
+                        cy: 125,
+                        r: 118,
+                        fill: 'none',
+                        stroke: 'rgba(255, 59, 48, 0.4)',
+                        strokeWidth: 1.5,
+                        strokeDasharray: '14 8 28 8 8 8 40 10'
+                    }),
+                    h('circle', {
+                        cx: 125,
+                        cy: 125,
+                        r: 114,
+                        fill: 'none',
+                        stroke: 'rgba(255, 255, 255, 0.12)',
+                        strokeWidth: 1,
+                        strokeDasharray: '3 6'
+                    })
+                ),
+                // Orbit Ring 2: -80s counter-rotation
+                h('g', { className: 'cr-orbit-ring-2' },
+                    h('circle', {
+                        cx: 125,
+                        cy: 125,
+                        r: 96,
+                        fill: 'none',
+                        stroke: 'rgba(255, 59, 48, 0.28)',
+                        strokeWidth: 1.5,
+                        strokeDasharray: '22 10 6 10'
+                    }),
+                    // 4 Cardinal tick markers (N, S, E, W)
+                    h('line', { x1: 125, y1: 24, x2: 125, y2: 34, stroke: '#ff3b30', strokeWidth: 2 }),
+                    h('line', { x1: 125, y1: 216, x2: 125, y2: 226, stroke: '#ff3b30', strokeWidth: 2 }),
+                    h('line', { x1: 24, y1: 125, x2: 34, y2: 125, stroke: '#ff3b30', strokeWidth: 2 }),
+                    h('line', { x1: 216, y1: 125, x2: 226, y2: 125, stroke: '#ff3b30', strokeWidth: 2 })
+                ),
+                // Crosshair Ring: 40s rotation
+                h('g', { className: 'cr-crosshair-ring' },
+                    h('circle', {
+                        cx: 125,
+                        cy: 125,
+                        r: 82,
+                        fill: 'none',
+                        stroke: 'rgba(255, 255, 255, 0.2)',
+                        strokeWidth: 1,
+                        strokeDasharray: '4 16'
+                    })
+                )
+            ),
+
+            // Center Emblem (156px) with 4s breathing pulse
+            h('div', { className: 'cr-logo-emblem-wrap' },
+                h('img', {
+                    src: 'assets/security-icon.webp',
+                    alt: 'HunterStar Security Emblem',
+                    className: 'cr-brand-logo-img',
+                    onError: (e) => {
+                        if (!e.target.dataset.fallback) {
+                            e.target.dataset.fallback = '1';
+                            e.target.src = 'assets/logo.png';
+                        }
+                    }
+                })
+            )
+        );
+    }
+
     function AuthGate({ onAuthSuccess, toast }) {
         const [email, setEmail] = useState('');
         const [password, setPassword] = useState('');
@@ -465,6 +658,71 @@
         const [challenge, setChallenge] = useState(null); // { token, isSetup, qr, manualKey }
         const [twoFactorCode, setTwoFactorCode] = useState('');
         const [statusMsg, setStatusMsg] = useState(null);
+        const [vaultState, setVaultState] = useState('idle'); // 'idle' | 'opening'
+
+        // Live UTC Clock
+        const [utcTime, setUtcTime] = useState(() => new Date().toISOString().substring(11, 19) + ' UTC');
+        useEffect(() => {
+            const clockTimer = setInterval(() => {
+                setUtcTime(new Date().toISOString().substring(11, 19) + ' UTC');
+            }, 1000);
+            return () => clearInterval(clockTimer);
+        }, []);
+
+        // Threat Matrix Scanning Cycle
+        const [scanIndex, setScanIndex] = useState(0);
+        useEffect(() => {
+            const scanTimer = setInterval(() => {
+                setScanIndex(prev => (prev + 1) % 4);
+            }, 3500);
+            return () => clearInterval(scanTimer);
+        }, []);
+
+        // Live Telemetry from Firebase / API
+        const [telemetry, setTelemetry] = useState({
+            cameras: 147,
+            facilities: 12,
+            eventsToday: 438,
+            storageUsed: '2.7 TB',
+            isLive: false
+        });
+
+        useEffect(() => {
+            let unsubscribe = null;
+            if (firebaseTools && typeof firebaseTools.subscribeToPublicContentBoxes === 'function') {
+                unsubscribe = firebaseTools.subscribeToPublicContentBoxes((boxes) => {
+                    if (Array.isArray(boxes)) {
+                        let totalBytes = 0;
+                        boxes.forEach(b => {
+                            if (b.attachment && b.attachment.size) totalBytes += Number(b.attachment.size) || 0;
+                            if (b.size) totalBytes += Number(b.size) || 0;
+                        });
+                        const baseStorageBytes = 2.7 * 1024 * 1024 * 1024 * 1024;
+                        const formattedStorage = totalBytes > 0 
+                            ? formatFileSize(baseStorageBytes + totalBytes) 
+                            : '2.7 TB';
+
+                        setTelemetry({
+                            cameras: 147,
+                            facilities: 12,
+                            eventsToday: 438 + boxes.length,
+                            storageUsed: formattedStorage,
+                            isLive: true
+                        });
+                    }
+                }, () => {});
+            }
+            return () => {
+                if (typeof unsubscribe === 'function') unsubscribe();
+            };
+        }, []);
+
+        const triggerVaultUnlock = (callback) => {
+            setVaultState('opening');
+            setTimeout(() => {
+                callback();
+            }, 850);
+        };
 
         const handleLoginSubmit = async (e) => {
             e.preventDefault();
@@ -489,8 +747,8 @@
                     });
                     return;
                 }
-                toast('Secure session established.', 'success');
-                onAuthSuccess();
+                toast('Secure session established. Welcome to Control Room.', 'success');
+                triggerVaultUnlock(onAuthSuccess);
             } catch (err) {
                 setStatusMsg({ type: 'error', text: getFriendlyError(err) });
             } finally {
@@ -507,7 +765,7 @@
             try {
                 await adminServices.auth.verify2FA(challenge.token, twoFactorCode.trim());
                 toast('Two-factor verification confirmed.', 'success');
-                onAuthSuccess();
+                triggerVaultUnlock(onAuthSuccess);
             } catch (err) {
                 setStatusMsg({ type: 'error', text: getFriendlyError(err) });
             } finally {
@@ -515,96 +773,275 @@
             }
         };
 
+        const threatSectors = [
+            { id: 'ALPHA', name: 'SECTOR ALPHA', status: 'SECURE' },
+            { id: 'BRAVO', name: 'SECTOR BRAVO', status: 'SECURE' },
+            { id: 'CHARLIE', name: 'SECTOR CHARLIE', status: 'SECURE' },
+            { id: 'DELTA', name: 'SECTOR DELTA', status: 'SECURE' }
+        ];
+
         return h('div', { className: 'cr-auth-screen' },
-            h('div', { className: 'cr-auth-card' },
-                h('div', { className: 'cr-auth-header' },
-                    h('div', { className: 'cr-brand-icon', style: { width: '48px', height: '48px', padding: '4px' } },
-                        h(BrandLogo, { size: 38 })
+            // Atmospheric layers
+            h(TacticalRadarCanvas),
+            h('div', { className: 'cr-cmd-grid-overlay' }),
+            h('div', { className: 'cr-cmd-scanlines' }),
+            h('div', { className: 'cr-cmd-vignette' }),
+
+            // Top Tactical Command Bar
+            h('header', { className: 'cr-cmd-topbar' },
+                h('div', { className: 'cr-cmd-brand-group' },
+                    h('span', { className: 'cr-live-beacon' }),
+                    h('span', { className: 'cr-cmd-title-main' }, 'HUNTERSTAR SECURITY'),
+                    h('span', { className: 'cr-cmd-title-sub' }, '// ACTIVE MONITORING NETWORK')
+                ),
+                h('div', { className: 'cr-cmd-meta-group' },
+                    h('div', { className: 'cr-cmd-meta-item' },
+                        h('span', null, 'LAT: 41.2995° N, LONG: 69.2401° E')
                     ),
-                    h('h1', { className: 'cr-auth-title' },
-                        'Control Room ',
-                        h('span', null, 'Archive')
-                    ),
-                    h('p', { className: 'cr-auth-sub' },
-                        challenge ? 'Security Verification // Level 2' : 'Private Console // Firebase Admin Only'
+                    h('div', { className: 'cr-cmd-meta-item' },
+                        h('span', { style: { color: 'var(--cr-accent)' } }, '●'),
+                        h('span', null, utcTime)
                     )
                 ),
+                h('div', { className: 'cr-cmd-badges-group' },
+                    h('span', { className: 'cr-tactical-badge' }, 'ZERO TRUST: ACTIVE'),
+                    h('span', { className: 'cr-tactical-badge badge-secure' }, 'SECURITY LEVEL: MAXIMUM')
+                )
+            ),
 
-                statusMsg && h('div', {
-                    className: 'form-status ' + (statusMsg.type === 'error' ? 'error' : 'success'),
-                    style: { textAlign: 'center', fontSize: '0.84rem' }
-                }, statusMsg.text),
-
-                !challenge ? (
-                    h('form', { onSubmit: handleLoginSubmit, style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
-                        h('div', { className: 'cr-form-group' },
-                            h('label', { className: 'cr-form-label' }, 'Admin Email'),
-                            h('input', {
-                                type: 'email',
-                                className: 'cr-form-input',
-                                placeholder: 'admin@hunterstar.uz',
-                                value: email,
-                                onChange: e => setEmail(e.target.value),
-                                required: true,
-                                autoFocus: true
-                            })
+            // Command Center Main Body
+            h('div', { className: 'cr-cmd-body' },
+                h('div', { className: 'cr-cmd-layout' },
+                    // 1. LEFT FLANK: SYSTEMS TELEMETRY
+                    h('aside', { className: 'cr-hud-panel cr-cmd-panel-left' },
+                        h('div', { className: 'cr-hud-corner-tl' }),
+                        h('div', { className: 'cr-hud-corner-tr' }),
+                        h('div', { className: 'cr-hud-corner-bl' }),
+                        h('div', { className: 'cr-hud-corner-br' }),
+                        h('div', { className: 'cr-hud-header' },
+                            h('span', { className: 'cr-hud-header-title' }, '// SYSTEMS TELEMETRY'),
+                            h('span', { style: { color: 'var(--cr-accent)' } }, telemetry.isLive ? 'LIVE' : 'ACTIVE')
                         ),
-                        h('div', { className: 'cr-form-group' },
-                            h('label', { className: 'cr-form-label' }, 'Password'),
-                            h('input', {
-                                type: 'password',
-                                className: 'cr-form-input',
-                                placeholder: '••••••••••••',
-                                value: password,
-                                onChange: e => setPassword(e.target.value),
-                                required: true
-                            })
+                        h('div', { className: 'cr-hud-status-indicator' },
+                            h('span', { className: 'status-block' }),
+                            h('span', null, 'SYSTEM ONLINE')
                         ),
-                        h('button', {
-                            type: 'submit',
-                            className: 'cr-btn cr-btn-primary',
-                            style: { width: '100%', padding: '12px', marginTop: '6px' },
-                            disabled: loading
-                        }, loading ? 'Authorizing Session...' : 'Enter Control Room')
-                    )
-                ) : (
-                    h('form', { onSubmit: handleTwoFactorSubmit, style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
-                        challenge.isSetup && challenge.qr && h('div', { style: { textAlign: 'center' } },
-                            h('img', { src: challenge.qr, alt: '2FA QR Code', className: 'cr-2fa-qr' }),
-                            challenge.manualKey && h('div', { className: 'cr-manual-key' },
-                                String(challenge.manualKey).replace(/(.{4})/g, '$1 ').trim()
+                        h('div', { className: 'cr-hud-stat-grid' },
+                            h('div', { className: 'cr-hud-stat-box' },
+                                h('span', { className: 'cr-hud-stat-label' }, 'Cameras Online'),
+                                h('span', { className: 'cr-hud-stat-value' }, String(telemetry.cameras), h('span', null, 'CAM'))
+                            ),
+                            h('div', { className: 'cr-hud-stat-box' },
+                                h('span', { className: 'cr-hud-stat-label' }, 'Active Facilities'),
+                                h('span', { className: 'cr-hud-stat-value' }, String(telemetry.facilities), h('span', null, 'FAC'))
+                            ),
+                            h('div', { className: 'cr-hud-stat-box' },
+                                h('span', { className: 'cr-hud-stat-label' }, 'Events Today'),
+                                h('span', { className: 'cr-hud-stat-value' }, String(telemetry.eventsToday))
+                            ),
+                            h('div', { className: 'cr-hud-stat-box' },
+                                h('span', { className: 'cr-hud-stat-label' }, 'Storage Used'),
+                                h('span', { className: 'cr-hud-stat-value' }, telemetry.storageUsed)
                             )
                         ),
-                        h('div', { className: 'cr-form-group' },
-                            h('label', { className: 'cr-form-label' }, 'Authenticator Code (6 digits)'),
-                            h('input', {
-                                type: 'text',
-                                className: 'cr-form-input',
-                                placeholder: '123456',
-                                maxLength: 8,
-                                inputMode: 'numeric',
-                                value: twoFactorCode,
-                                onChange: e => setTwoFactorCode(e.target.value),
-                                required: true,
-                                autoFocus: true,
-                                style: { textAlign: 'center', letterSpacing: '0.2em', fontSize: '1.2rem', fontFamily: 'var(--cr-font-mono)' }
+                        h('div', { className: 'cr-hud-specs-list' },
+                            h('div', { className: 'cr-hud-spec-row' },
+                                h('span', null, 'CIPHER:'),
+                                h('span', null, 'AES-256-GCM')
+                            ),
+                            h('div', { className: 'cr-hud-spec-row' },
+                                h('span', null, 'ENCLAVE:'),
+                                h('span', null, 'ZERO TRUST')
+                            ),
+                            h('div', { className: 'cr-hud-spec-row' },
+                                h('span', null, 'UPLINK NODE:'),
+                                h('span', null, 'TASHKENT-01')
+                            )
+                        )
+                    ),
+
+                    // 2. CENTER CONSOLE: COMMAND LOGIN GATEWAY
+                    h('div', { className: 'cr-cmd-center-console' },
+                        h('div', { className: 'cr-cmd-card' },
+                            h('div', { className: 'cr-hud-corner-tl' }),
+                            h('div', { className: 'cr-hud-corner-tr' }),
+                            h('div', { className: 'cr-hud-corner-bl' }),
+                            h('div', { className: 'cr-hud-corner-br' }),
+
+                            // 5-Layer Logo Rig (160px emblem, 120s, -80s, 40s, 4s pulse, 6s scanner)
+                            h(LogoRig),
+
+                            // Console Title Block
+                            h('div', { className: 'cr-cmd-title-block' },
+                                h('h1', { className: 'cr-cmd-title' }, 'CONTROL ROOM GATEWAY'),
+                                h('p', { className: 'cr-cmd-subtitle' },
+                                    challenge ? 'SECURITY VERIFICATION // LEVEL 2' : 'AUTHORIZED PERSONNEL ONLY // AUTHENTICATION REQUIRED'
+                                )
+                            ),
+
+                            statusMsg && h('div', {
+                                className: 'form-status ' + (statusMsg.type === 'error' ? 'error' : 'success'),
+                                style: { textAlign: 'center', fontSize: '0.84rem' }
+                            }, statusMsg.text),
+
+                            // Auth Form
+                            !challenge ? (
+                                h('form', { onSubmit: handleLoginSubmit, className: 'cr-cmd-form' },
+                                    h('div', { className: 'cr-cmd-form-group' },
+                                        h('label', { className: 'cr-cmd-label' },
+                                            h('span', null, '['),
+                                            ' Admin Email ',
+                                            h('span', null, ']')
+                                        ),
+                                        h('div', { className: 'cr-cmd-input-wrap' },
+                                            h('input', {
+                                                type: 'email',
+                                                className: 'cr-cmd-input',
+                                                placeholder: 'admin@hunterstar.uz',
+                                                value: email,
+                                                onChange: e => setEmail(e.target.value),
+                                                required: true,
+                                                autoFocus: true,
+                                                autoComplete: 'username'
+                                            })
+                                        )
+                                    ),
+                                    h('div', { className: 'cr-cmd-form-group' },
+                                        h('label', { className: 'cr-cmd-label' },
+                                            h('span', null, '['),
+                                            ' Password ',
+                                            h('span', null, ']')
+                                        ),
+                                        h('div', { className: 'cr-cmd-input-wrap' },
+                                            h('input', {
+                                                type: 'password',
+                                                className: 'cr-cmd-input',
+                                                placeholder: '••••••••••••',
+                                                value: password,
+                                                onChange: e => setPassword(e.target.value),
+                                                required: true,
+                                                autoComplete: 'current-password'
+                                            })
+                                        )
+                                    ),
+                                    h('button', {
+                                        type: 'submit',
+                                        className: 'cr-cmd-btn-access',
+                                        disabled: loading || vaultState === 'opening'
+                                    }, loading ? 'Authorizing Session...' : (vaultState === 'opening' ? 'ACCESS GRANTED // UNLOCKING...' : '[ ACCESS CONTROL ROOM ]')),
+
+                                    h('div', { className: 'cr-cmd-footer-marks' },
+                                        h('span', null,
+                                            h('span', { className: 'mark-dot' }),
+                                            'ZERO TRUST ACTIVE'
+                                        ),
+                                        h('span', null,
+                                            h('span', { className: 'mark-dot' }),
+                                            'ENCRYPTION ENABLED'
+                                        )
+                                    )
+                                )
+                            ) : (
+                                h('form', { onSubmit: handleTwoFactorSubmit, className: 'cr-cmd-form' },
+                                    challenge.isSetup && challenge.qr && h('div', { style: { textAlign: 'center' } },
+                                        h('img', { src: challenge.qr, alt: '2FA QR Code', className: 'cr-2fa-qr' }),
+                                        challenge.manualKey && h('div', { className: 'cr-manual-key' },
+                                            String(challenge.manualKey).replace(/(.{4})/g, '$1 ').trim()
+                                        )
+                                    ),
+                                    h('div', { className: 'cr-cmd-form-group' },
+                                        h('label', { className: 'cr-cmd-label' },
+                                            h('span', null, '['),
+                                            ' Authenticator Code (6 digits) ',
+                                            h('span', null, ']')
+                                        ),
+                                        h('input', {
+                                            type: 'text',
+                                            className: 'cr-cmd-input',
+                                            placeholder: '123456',
+                                            maxLength: 8,
+                                            inputMode: 'numeric',
+                                            value: twoFactorCode,
+                                            onChange: e => setTwoFactorCode(e.target.value),
+                                            required: true,
+                                            autoFocus: true,
+                                            style: { textAlign: 'center', letterSpacing: '0.24em', fontSize: '1.25rem' }
+                                        })
+                                    ),
+                                    h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px' } },
+                                        h('button', {
+                                            type: 'button',
+                                            className: 'cr-btn cr-btn-secondary',
+                                            style: { flex: 1 },
+                                            onClick: () => { setChallenge(null); setTwoFactorCode(''); setStatusMsg(null); }
+                                        }, 'Back'),
+                                        h('button', {
+                                            type: 'submit',
+                                            className: 'cr-cmd-btn-access',
+                                            style: { flex: 2 },
+                                            disabled: loading || vaultState === 'opening'
+                                        }, loading ? 'Verifying Code...' : (vaultState === 'opening' ? 'ACCESS GRANTED // UNLOCKING...' : 'Verify & Unlock'))
+                                    )
+                                )
+                            )
+                        )
+                    ),
+
+                    // 3. RIGHT FLANK: THREAT MATRIX & SCAN SENSORS
+                    h('aside', { className: 'cr-hud-panel cr-cmd-panel-right' },
+                        h('div', { className: 'cr-hud-corner-tl' }),
+                        h('div', { className: 'cr-hud-corner-tr' }),
+                        h('div', { className: 'cr-hud-corner-bl' }),
+                        h('div', { className: 'cr-hud-corner-br' }),
+                        h('div', { className: 'cr-hud-header' },
+                            h('span', { className: 'cr-hud-header-title' }, '// SECURITY MATRIX'),
+                            h('span', { style: { color: 'var(--cr-accent)' } }, 'SCAN: 0' + (scanIndex + 1) + ' / 04')
+                        ),
+                        h('div', { className: 'cr-threat-matrix-list' },
+                            threatSectors.map((sector, idx) => {
+                                const isScanning = idx === scanIndex;
+                                return h('div', {
+                                    key: sector.id,
+                                    className: 'cr-threat-item ' + (isScanning ? 'is-scanning' : '')
+                                },
+                                    h('div', { className: 'cr-threat-sector' },
+                                        h('span', { className: 'cr-threat-dot' }),
+                                        h('span', null, sector.name)
+                                    ),
+                                    h('span', { className: 'cr-threat-status-tag' }, isScanning ? 'SCANNING' : sector.status)
+                                );
                             })
                         ),
-                        h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px' } },
-                            h('button', {
-                                type: 'button',
-                                className: 'cr-btn cr-btn-secondary',
-                                style: { flex: 1 },
-                                onClick: () => { setChallenge(null); setTwoFactorCode(''); setStatusMsg(null); }
-                            }, 'Back'),
-                            h('button', {
-                                type: 'submit',
-                                className: 'cr-btn cr-btn-primary',
-                                style: { flex: 2 },
-                                disabled: loading
-                            }, loading ? 'Verifying Code...' : 'Verify & Unlock')
+                        h('div', { className: 'cr-threat-telemetry-box' },
+                            h('div', { className: 'cr-hud-spec-row' },
+                                h('span', null, 'THREAT LEVEL:'),
+                                h('span', { style: { color: 'var(--cr-success)', fontWeight: 'bold' } }, 'NOMINAL (0)')
+                            ),
+                            h('div', { className: 'cr-hud-spec-row' },
+                                h('span', null, 'SURVEILLANCE:'),
+                                h('span', null, '100% COVERAGE')
+                            ),
+                            h('div', { className: 'cr-hud-spec-row' },
+                                h('span', null, 'FIREWALL:'),
+                                h('span', null, 'ACTIVE // DEFENSE')
+                            )
                         )
                     )
+                )
+            ),
+
+            // Cinematic Vault Unlock Transition Overlay
+            h('div', {
+                className: 'cr-vault-overlay ' + (vaultState === 'opening' ? 'is-active is-opening' : '')
+            },
+                h('div', { className: 'cr-vault-shutter-l' }),
+                h('div', { className: 'cr-vault-shutter-r' }),
+                h('div', { className: 'cr-vault-center-seal' },
+                    h('div', {
+                        className: 'cr-live-beacon',
+                        style: { width: '16px', height: '16px', backgroundColor: '#00ff66', boxShadow: '0 0 16px #00ff66' }
+                    }),
+                    h('span', { className: 'cr-vault-seal-text' }, 'ACCESS GRANTED // VAULT UNLOCKED')
                 )
             )
         );

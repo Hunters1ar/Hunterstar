@@ -114,7 +114,8 @@ if ($privateStaticFiles.Count -gt 0) {
 
 $adminBrandAssets = @(
     'assets/logo.png',
-    'assets/hunterrealpic.png'
+    'assets/hunterrealpic.png',
+    'assets/security-icon.webp'
 ) | Where-Object { Test-Path -LiteralPath $_ }
 
 if ($adminBrandAssets.Count -gt 0) {

@@ -192,6 +192,10 @@ if [ -f "$ADMIN_SITE_SOURCE/admin.html" ]; then
         cp "$ADMIN_SITE_SOURCE/assets/hunterrealpic.png" "$ADMIN_DIR/assets/hunterrealpic.png"
     fi
 
+    if [ -f "$ADMIN_SITE_SOURCE/assets/security-icon.webp" ]; then
+        cp "$ADMIN_SITE_SOURCE/assets/security-icon.webp" "$ADMIN_DIR/assets/security-icon.webp"
+    fi
+
     find "$ADMIN_DIR" -type d -exec chmod 755 {} \;
     find "$ADMIN_DIR" -type f -exec chmod 644 {} \;
     echo "OK Admin static files installed"
