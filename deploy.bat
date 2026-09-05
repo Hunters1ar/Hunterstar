@@ -77,7 +77,7 @@ scp %SSH_OPTS% "%PROJECT_ROOT%\js\firebase-config.js" "%VPS_HOST%:%VPS_ADMIN_DIR
 scp %SSH_OPTS% "%PROJECT_ROOT%\favicon.ico" "%PROJECT_ROOT%\favicon-96x96.png" "%PROJECT_ROOT%\favicon.svg" "%PROJECT_ROOT%\apple-touch-icon.png" "%PROJECT_ROOT%\site.webmanifest" "%PROJECT_ROOT%\web-app-manifest-192x192.png" "%PROJECT_ROOT%\web-app-manifest-512x512.png" "%PROJECT_ROOT%\hunterstar.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/"
 if errorlevel 1 ( echo ERROR: SCP favicons and manifests failed. & goto fail )
 scp %SSH_OPTS% "%PROJECT_ROOT%\assets\logo.png" "%PROJECT_ROOT%\assets\hunterrealpic.png" "%PROJECT_ROOT%\assets\security-icon.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/assets/"
-if errorlevel 1 ( echo ERROR: SCP assets (logo, hunterrealpic, security-icon) failed. & goto fail )
+if errorlevel 1 ( echo ERROR: SCP assets failed. & goto fail )
 echo       Upload OK.
 
 :: ---- Step 3: Restart PM2 ------------------------------------
