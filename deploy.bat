@@ -17,10 +17,9 @@ cd /d "%~dp0"
 set "PROJECT_ROOT=%CD%"
 
 :: ---- Config ------------------------------------------------
-set "VPS_USER=root"
-set "VPS_IP=134.209.75.49"
-set "VPS_HOST=%VPS_USER%@%VPS_IP%"
+set "VPS_HOST=hunterstar"
 set "VPS_API_DIR=/opt/portfolio-api"
+set "VPS_ADMIN_DIR=/var/www/admin-hunterstar"
 set "PM2_APP=portfolio-api"
 set "VPS_API_URL=https://api.hunterstar.uz"
 set "SSH_OPTS=-o ConnectTimeout=20 -o ServerAliveInterval=15 -o StrictHostKeyChecking=no"
@@ -63,11 +62,17 @@ git push
 if errorlevel 1 ( echo ERROR: git push failed. & goto fail )
 echo       Git OK.
 
-:: ---- Step 2: SCP server.js to VPS --------------------------
+:: ---- Step 2: SCP server.js and admin assets to VPS ---------
 echo.
-echo [2/3] Uploading api/server.js to VPS...
+echo [2/3] Uploading api/server.js and admin assets to %VPS_HOST%...
 scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%VPS_HOST%:%VPS_API_DIR%/server.js"
-if errorlevel 1 ( echo ERROR: SCP upload failed. & goto fail )
+if errorlevel 1 ( echo ERROR: SCP server.js upload failed. & goto fail )
+scp %SSH_OPTS% "%PROJECT_ROOT%\admin.html" "%VPS_HOST%:%VPS_ADMIN_DIR%/admin.html"
+if errorlevel 1 ( echo ERROR: SCP admin.html upload failed. & goto fail )
+scp %SSH_OPTS% "%PROJECT_ROOT%\css\admin-dashboard.css" "%VPS_HOST%:%VPS_ADMIN_DIR%/css/admin-dashboard.css"
+scp %SSH_OPTS% "%PROJECT_ROOT%\css\styles.css" "%VPS_HOST%:%VPS_ADMIN_DIR%/css/styles.css"
+scp %SSH_OPTS% "%PROJECT_ROOT%\js\admin.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/admin.js"
+scp %SSH_OPTS% "%PROJECT_ROOT%\js\firebase-config.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/firebase-config.js"
 echo       Upload OK.
 
 :: ---- Step 3: Restart PM2 ------------------------------------

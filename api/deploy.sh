@@ -166,6 +166,10 @@ if [ -f "$ADMIN_SITE_SOURCE/admin.html" ]; then
         cp "$ADMIN_SITE_SOURCE/css/styles.css" "$ADMIN_DIR/css/styles.css"
     fi
 
+    if [ -f "$ADMIN_SITE_SOURCE/css/admin-dashboard.css" ]; then
+        cp "$ADMIN_SITE_SOURCE/css/admin-dashboard.css" "$ADMIN_DIR/css/admin-dashboard.css"
+    fi
+
     if [ -f "$ADMIN_SITE_SOURCE/js/firebase-config.js" ]; then
         cp "$ADMIN_SITE_SOURCE/js/firebase-config.js" "$ADMIN_DIR/js/firebase-config.js"
     fi

@@ -22,7 +22,7 @@ if ([string]::IsNullOrWhiteSpace($projectRoot)) {
 
 $vpsHost = $env:VPS_HOST
 if ([string]::IsNullOrWhiteSpace($vpsHost)) {
-    $vpsHost = 'root@api.hunterstar.uz'
+    $vpsHost = 'hunterstar'
 }
 
 $vpsApiUrl = $env:VPS_API_URL
@@ -94,7 +94,7 @@ Invoke-Step { & scp @sshOptions admin.html ($vpsHost + ':' + $remoteDir + '/site
 if (Test-Path -LiteralPath 'private') {
     Invoke-Step { & scp @sshOptions private/index.html private/book.html ($vpsHost + ':' + $remoteDir + '/site/private/') } 'SCP private HTML upload failed'
 }
-Invoke-Step { & scp @sshOptions css/styles.css ($vpsHost + ':' + $remoteDir + '/site/css/') } 'SCP admin CSS upload failed'
+Invoke-Step { & scp @sshOptions css/styles.css css/admin-dashboard.css ($vpsHost + ':' + $remoteDir + '/site/css/') } 'SCP admin CSS upload failed'
 Invoke-Step { & scp @sshOptions js/admin.js js/firebase-config.js ($vpsHost + ':' + $remoteDir + '/site/js/') } 'SCP admin JS upload failed'
 
 $privateStaticFiles = @(

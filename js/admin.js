@@ -1,454 +1,34 @@
+/**
+ * HUNTERSTAR CONTROL ROOM // REACT DASHBOARD
+ * Architecture:
+ * 1. Services Layer (adminServices: auth, submissions, content, playlists)
+ * 2. Custom Hooks (useAdminSession, useSubmissions, useContentBoxes, usePlaylists, useKeyboardShortcuts)
+ * 3. Shared UI Components (Icon, ToastContainer, ConfirmModal, CommandPalette, EmptyState, Spinner)
+ * 4. Workspaces (SubmissionsWorkspace, ContentWorkspace, PlaylistsWorkspace)
+ * 5. App Shell & Root Bootstrap
+ */
 
-
-(function() {
+(function () {
     'use strict';
 
+    if (!window.React || !window.ReactDOM) {
+        console.error('React or ReactDOM failed to load from CDN.');
+        return;
+    }
+
+    const { useState, useEffect, useRef, useMemo, useCallback } = window.React;
+    const h = window.React.createElement;
     const firebaseTools = window.firebaseConfig;
-    const emptyQrImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-    const adminIdleTimeoutMs = firebaseTools && typeof firebaseTools.getAdminIdleTimeoutMs === 'function'
-        ? firebaseTools.getAdminIdleTimeoutMs()
-        : 5 * 60 * 1000;
-    const adminSessionTouchThrottleMs = 60 * 1000;
-    const adminActivityThrottleMs = 1000;
 
-    const authCard = document.getElementById('adminAuthCard');
-    const dashboard = document.getElementById('adminDashboard');
-    const loginForm = document.getElementById('adminLoginForm');
-    const loginButton = document.getElementById('adminLoginBtn');
-    const twoFactorPanel = document.getElementById('adminTwoFactorPanel');
-    const twoFactorForm = document.getElementById('adminTwoFactorForm');
-    const twoFactorButton = document.getElementById('adminTwoFactorBtn');
-    const twoFactorCodeInput = document.getElementById('adminTwoFactorCode');
-    const twoFactorSetup = document.getElementById('adminTwoFactorSetup');
-    const twoFactorQr = document.getElementById('adminTwoFactorQr');
-    const twoFactorManualKey = document.getElementById('adminTwoFactorManualKey');
-    const twoFactorEyebrow = document.getElementById('adminTwoFactorEyebrow');
-    const twoFactorTitle = document.getElementById('adminTwoFactorTitle');
-    const twoFactorCopy = document.getElementById('adminTwoFactorCopy');
-    const logoutButton = document.getElementById('adminLogoutBtn');
-    const authStatus = document.getElementById('adminAuthStatus');
-    const sessionUser = document.getElementById('adminSessionUser');
-    const searchInput = document.getElementById('adminSearch');
-    const listStatus = document.getElementById('adminListStatus');
-    const submissionList = document.getElementById('adminSubmissionList');
-    const emptyState = document.getElementById('adminEmptyState');
-    const detailCard = document.getElementById('adminDetailCard');
-    const detailSubject = document.getElementById('adminDetailSubject');
-    const detailName = document.getElementById('adminDetailName');
-    const detailReadBadge = document.getElementById('adminDetailReadBadge');
-    const detailEmail = document.getElementById('adminDetailEmail');
-    const detailDate = document.getElementById('adminDetailDate');
-    const detailMessage = document.getElementById('adminDetailMessage');
-    const toggleReadButton = document.getElementById('adminToggleReadBtn');
-    const deleteButton = document.getElementById('adminDeleteBtn');
-    const totalCount = document.getElementById('adminTotalCount');
-    const unreadCount = document.getElementById('adminUnreadCount');
-    const readCount = document.getElementById('adminReadCount');
-
-    const resourceForm = document.getElementById('adminResourceForm');
-    const resourceFormTitle = document.getElementById('adminResourceFormTitle');
-    const resourceTitleInput = document.getElementById('resourceTitle');
-    const resourceSummaryInput = document.getElementById('resourceSummary');
-    const resourceNotesInput = document.getElementById('resourceNotes');
-    const resourceNotesToolbar = document.getElementById('resourceNotesToolbar');
-    const resourceLinksInput = document.getElementById('resourceLinks');
-    const resourceFilesInput = document.getElementById('resourceFiles');
-    const resourceFileDropTarget = document.querySelector('.admin-file-picker-target');
-    const resourceUploadProgress = document.getElementById('adminUploadProgress');
-    const resourceUploadProgressText = document.getElementById('adminUploadProgressText');
-    const resourceUploadProgressMeta = document.getElementById('adminUploadProgressMeta');
-    const resourceUploadProgressBar = document.getElementById('adminUploadProgressBar');
-    const resourceFilePreviewList = document.getElementById('adminResourceFilePreviewList');
-    const resourceFilePreviewStatus = document.getElementById('adminResourceFilePreviewStatus');
-    const resourceOrderInput = document.getElementById('resourceOrder');
-    const resourcePublishedInput = document.getElementById('resourcePublished');
-    const resourceSaveButton = document.getElementById('adminResourceSaveBtn');
-    const resourceResetButton = document.getElementById('adminResourceResetBtn');
-    const resourceDeleteButton = document.getElementById('adminResourceDeleteBtn');
-    const resourceStatus = document.getElementById('adminResourceStatus');
-    const resourceList = document.getElementById('adminResourceList');
-    const resourceListStatus = document.getElementById('adminResourceListStatus');
-    const resourceTotalCount = document.getElementById('adminBoxTotalCount');
-    const resourcePublishedCount = document.getElementById('adminBoxPublishedCount');
-
-    const playlistForm = document.getElementById('adminPlaylistForm');
-    const playlistInput = document.getElementById('playlistInput');
-    const playlistAddButton = document.getElementById('adminPlaylistAddBtn');
-    const playlistStatus = document.getElementById('adminPlaylistStatus');
-    const playlistList = document.getElementById('adminPlaylistList');
-    const playlistListStatus = document.getElementById('adminPlaylistListStatus');
-    const playlistCount = document.getElementById('adminPlaylistCount');
-    let playlistAddInFlight = false;
-
-    const state = {
-        submissions: [],
-        filteredSubmissions: [],
-        selectedId: null,
-        loading: false,
-        unsubscribe: null,
-        boxes: [],
-        selectedBoxId: null,
-        boxesLoading: false,
-        unsubscribeBoxes: null,
-        resourceDraftAttachments: [],
-        resourceRemovedAttachments: [],
-        resourcePendingFiles: [],
-        twoFactorChallenge: null,
-        idleLockTimer: null,
-        lastLocalActivityAt: 0,
-        lastSessionTouchAt: 0,
-        lockingForInactivity: false
-    };
-
-    function setStatus(element, message, type) {
-        if (!element) return;
-
-        if (!message) {
-            element.textContent = '';
-            element.className = 'form-status hidden';
-            return;
-        }
-
-        element.textContent = message;
-        element.className = 'form-status ' + type;
-    }
-
-    function setListStatus(message, isError) {
-        if (!listStatus) return;
-
-        listStatus.textContent = message;
-        listStatus.style.color = isError ? '#f18f86' : '';
-    }
-
-    function setResourceListStatus(message, isError) {
-        if (!resourceListStatus) return;
-
-        resourceListStatus.textContent = message;
-        resourceListStatus.style.color = isError ? '#f18f86' : '';
-    }
-
-    function setLoginLoading(loading) {
-        if (!loginButton) return;
-
-        loginButton.disabled = loading;
-        loginButton.textContent = loading ? 'Authorizing...' : 'Enter Control Room';
-    }
-
-    function setTwoFactorLoading(loading) {
-        if (!twoFactorButton) return;
-
-        twoFactorButton.disabled = loading;
-        twoFactorButton.textContent = loading ? 'Verifying...' : 'Verify Code';
-    }
-
-    function resetTwoFactorFlow() {
-        state.twoFactorChallenge = null;
-
-        if (twoFactorPanel) twoFactorPanel.classList.add('hidden');
-        if (twoFactorSetup) twoFactorSetup.classList.add('hidden');
-        if (twoFactorQr) twoFactorQr.src = emptyQrImage;
-        if (twoFactorManualKey) twoFactorManualKey.textContent = '';
-        if (twoFactorForm) twoFactorForm.reset();
-        setTwoFactorLoading(false);
-    }
-
-    function clearAdminIdleTimer() {
-        if (state.idleLockTimer) {
-            clearTimeout(state.idleLockTimer);
-            state.idleLockTimer = null;
-        }
-    }
-
-    function scheduleAdminIdleLock() {
-        clearAdminIdleTimer();
-
-        if (!firebaseTools || typeof firebaseTools.getCurrentAdminUser !== 'function' || !firebaseTools.getCurrentAdminUser()) {
-            return;
-        }
-
-        state.idleLockTimer = setTimeout(lockAdminForInactivity, adminIdleTimeoutMs);
-    }
-
-    async function touchAdminSessionIfNeeded(force) {
-        if (!firebaseTools || typeof firebaseTools.touchAdminSession !== 'function') return;
-        if (typeof firebaseTools.getCurrentAdminUser !== 'function' || !firebaseTools.getCurrentAdminUser()) return;
-
-        const now = Date.now();
-        if (!force && now - state.lastSessionTouchAt < adminSessionTouchThrottleMs) return;
-
-        state.lastSessionTouchAt = now;
-        await firebaseTools.touchAdminSession();
-    }
-
-    function handleAdminActivity() {
-        if (!firebaseTools || typeof firebaseTools.getCurrentAdminUser !== 'function' || !firebaseTools.getCurrentAdminUser()) {
-            return;
-        }
-
-        const now = Date.now();
-        if (now - state.lastLocalActivityAt < adminActivityThrottleMs) return;
-
-        state.lastLocalActivityAt = now;
-        scheduleAdminIdleLock();
-        touchAdminSessionIfNeeded(false).catch(() => {});
-    }
-
-    async function lockAdminForInactivity() {
-        if (state.lockingForInactivity) return;
-        if (!firebaseTools || typeof firebaseTools.expireAdminSession !== 'function') return;
-        if (typeof firebaseTools.getCurrentAdminUser !== 'function' || !firebaseTools.getCurrentAdminUser()) return;
-
-        state.lockingForInactivity = true;
-        clearAdminIdleTimer();
-
-        try {
-            await firebaseTools.expireAdminSession();
-            setStatus(authStatus, 'Session locked after 5 minutes inactive. Sign in and enter your authenticator code again.', 'error');
-        } finally {
-            state.lockingForInactivity = false;
-        }
-    }
-
-    function showTwoFactorChallenge(result) {
-        const isSetup = Boolean(result.twoFactorSetupRequired);
-        state.twoFactorChallenge = {
-            token: result.challengeToken,
-            isSetup
-        };
-
-        if (twoFactorEyebrow) {
-            twoFactorEyebrow.textContent = isSetup ? 'Authenticator Setup' : 'Authenticator Check';
-        }
-
-        if (twoFactorTitle) {
-            twoFactorTitle.textContent = isSetup ? 'Scan QR Code' : 'Enter Authenticator Code';
-        }
-
-        if (twoFactorCopy) {
-            twoFactorCopy.textContent = isSetup
-                ? 'Scan the QR code with Google Authenticator, Microsoft Authenticator, 1Password, or a compatible app, then enter the current code.'
-                : 'Open your authenticator app and enter the current 6-digit code.';
-        }
-
-        if (twoFactorSetup) {
-            twoFactorSetup.classList.toggle('hidden', !isSetup);
-        }
-
-        if (twoFactorQr && result.qrCodeDataUrl) {
-            twoFactorQr.src = result.qrCodeDataUrl;
-        }
-
-        if (twoFactorManualKey) {
-            twoFactorManualKey.textContent = result.manualKey
-                ? String(result.manualKey).replace(/(.{4})/g, '$1 ').trim()
-                : '';
-        }
-
-        if (twoFactorPanel) {
-            twoFactorPanel.classList.remove('hidden');
-        }
-
-        if (twoFactorCodeInput) {
-            twoFactorCodeInput.value = '';
-            twoFactorCodeInput.focus();
-        }
-    }
-
-    function setResourceSaving(loading) {
-        if (!resourceSaveButton) return;
-
-        resourceSaveButton.disabled = loading;
-        const isUploading = loading && state.resourcePendingFiles.length > 0;
-        resourceSaveButton.textContent = loading
-            ? (isUploading ? 'Uploading...' : 'Saving...')
-            : (state.selectedBoxId ? 'Update Box' : 'Save Box');
-
-        if (resourceDeleteButton) {
-            resourceDeleteButton.disabled = loading || !state.selectedBoxId;
-        }
-
-        if (resourceFilesInput) {
-            resourceFilesInput.disabled = loading;
-        }
-
-        if (resourceFileDropTarget) {
-            resourceFileDropTarget.classList.toggle('is-disabled', loading);
-        }
-    }
-
-    const noteInlineFormats = {
-        bold: {
-            prefix: '**',
-            suffix: '**',
-            placeholder: 'bold text'
-        },
-        italic: {
-            prefix: '*',
-            suffix: '*',
-            placeholder: 'italic text'
-        },
-        underline: {
-            prefix: '__',
-            suffix: '__',
-            placeholder: 'underlined text'
-        },
-        strike: {
-            prefix: '~~',
-            suffix: '~~',
-            placeholder: 'struck text'
-        },
-        inlineCode: {
-            prefix: '`',
-            suffix: '`',
-            placeholder: 'code'
-        }
-    };
-
-    function emitNotesInputChange() {
-        if (!resourceNotesInput) return;
-
-        resourceNotesInput.dispatchEvent(new Event('input', {
-            bubbles: true
-        }));
-    }
-
-    function replaceNotesSelection(replacement, selectedStart, selectedEnd) {
-        if (!resourceNotesInput) return;
-
-        const value = resourceNotesInput.value;
-        const start = resourceNotesInput.selectionStart || 0;
-        const end = resourceNotesInput.selectionEnd || start;
-
-        resourceNotesInput.value = value.slice(0, start) + replacement + value.slice(end);
-        resourceNotesInput.focus();
-        resourceNotesInput.setSelectionRange(start + selectedStart, start + selectedEnd);
-        emitNotesInputChange();
-    }
-
-    function wrapNotesSelection(prefix, suffix, placeholder) {
-        if (!resourceNotesInput) return;
-
-        const start = resourceNotesInput.selectionStart || 0;
-        const end = resourceNotesInput.selectionEnd || start;
-        const selectedText = resourceNotesInput.value.slice(start, end) || placeholder;
-        const replacement = prefix + selectedText + suffix;
-
-        replaceNotesSelection(replacement, prefix.length, prefix.length + selectedText.length);
-    }
-
-    function wrapNotesCodeBlock() {
-        if (!resourceNotesInput) return;
-
-        const start = resourceNotesInput.selectionStart || 0;
-        const end = resourceNotesInput.selectionEnd || start;
-        const selectedText = resourceNotesInput.value.slice(start, end) || 'command';
-
-        wrapNotesSelection('```', '```', selectedText);
-    }
-
-    function toggleNotesLinePrefix(prefix, placeholder) {
-        if (!resourceNotesInput) return;
-
-        const value = resourceNotesInput.value;
-        const start = resourceNotesInput.selectionStart || 0;
-        const end = resourceNotesInput.selectionEnd || start;
-
-        if (start === end) {
-            const replacement = prefix + placeholder;
-            replaceNotesSelection(replacement, prefix.length, replacement.length);
-            return;
-        }
-
-        const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
-        const nextLineBreak = value.indexOf('\n', end);
-        const lineEnd = nextLineBreak === -1 ? value.length : nextLineBreak;
-        const selectedLines = value.slice(lineStart, lineEnd).split('\n');
-        const meaningfulLines = selectedLines.filter((line) => line.trim());
-        const shouldRemovePrefix = meaningfulLines.length > 0 && meaningfulLines.every((line) => line.trimStart().startsWith(prefix));
-
-        const formattedLines = selectedLines.map((line) => {
-            if (!line.trim()) return line;
-
-            const indentation = line.match(/^\s*/)[0];
-            const content = line.slice(indentation.length);
-
-            if (shouldRemovePrefix) {
-                return indentation + content.replace(prefix, '');
-            }
-
-            return indentation + prefix + content;
-        });
-
-        const replacement = formattedLines.join('\n');
-        resourceNotesInput.value = value.slice(0, lineStart) + replacement + value.slice(lineEnd);
-        resourceNotesInput.focus();
-        resourceNotesInput.setSelectionRange(lineStart, lineStart + replacement.length);
-        emitNotesInputChange();
-    }
-
-    function applyNotesFormat(format) {
-        const inlineFormat = noteInlineFormats[format];
-
-        if (inlineFormat) {
-            wrapNotesSelection(inlineFormat.prefix, inlineFormat.suffix, inlineFormat.placeholder);
-            return;
-        }
-
-        if (format === 'codeBlock') {
-            wrapNotesCodeBlock();
-            return;
-        }
-
-        if (format === 'quote') {
-            toggleNotesLinePrefix('> ', 'quote');
-            return;
-        }
-
-        if (format === 'list') {
-            toggleNotesLinePrefix('- ', 'item');
-        }
-    }
-
-    function handleNotesToolbarClick(event) {
-        const button = event.target.closest('[data-format]');
-        if (!button || !resourceNotesToolbar || !resourceNotesToolbar.contains(button)) return;
-
-        applyNotesFormat(button.dataset.format);
-    }
-
-    function handleNotesKeyboardShortcuts(event) {
-        if (!resourceNotesInput || !(event.ctrlKey || event.metaKey)) return;
-
-        const key = event.key.toLowerCase();
-
-        if (event.shiftKey && key === 'm') {
-            event.preventDefault();
-            applyNotesFormat('codeBlock');
-            return;
-        }
-
-        if (event.shiftKey) return;
-
-        const shortcutFormats = {
-            b: 'bold',
-            i: 'italic',
-            u: 'underline'
-        };
-
-        if (!shortcutFormats[key]) return;
-
-        event.preventDefault();
-        applyNotesFormat(shortcutFormats[key]);
-    }
-
+    // =========================================================================
+    // 1. SERVICES LAYER
+    // =========================================================================
     function getFriendlyError(error) {
-        if (!error) {
-            return 'Something went wrong.';
-        }
-
-        switch (error.code) {
+        if (!error) return 'Something went wrong.';
+        const code = error.code || '';
+        switch (code) {
             case 'auth/operation-not-allowed':
-                return 'Email/Password sign-in is disabled in Firebase. Enable it in Authentication > Sign-in method.';
+                return 'Email/Password sign-in is disabled in Firebase.';
             case 'auth/invalid-login-credentials':
             case 'auth/wrong-password':
             case 'auth/user-not-found':
@@ -458,1289 +38,1748 @@
                 return 'Too many attempts. Wait a moment and try again.';
             case 'permission-denied':
             case 'PERMISSION_DENIED':
-            case 'permission_denied':
-                return 'Your Firestore rules are blocking this action.';
+                return 'Firestore permission denied.';
             case 'storage/unauthorized':
-                return 'Your Storage rules are blocking this upload.';
+                return 'Storage upload unauthorized.';
             case 'storage/quota-exceeded':
-                return 'Firebase Storage quota was exceeded.';
-            case 'storage/canceled':
-                return 'The upload was canceled.';
+                return 'Storage quota exceeded.';
             default:
-                return error.message || 'Something went wrong.';
+                return error.message || String(error) || 'Unexpected system error.';
         }
     }
 
-    function getSelectedSubmission() {
-        return state.submissions.find((submission) => submission.id === state.selectedId) || null;
-    }
-
-    function getSelectedBox() {
-        return state.boxes.find((box) => box.id === state.selectedBoxId) || null;
-    }
-
-    function updateStats() {
-        const unread = state.submissions.filter((submission) => !submission.read).length;
-
-        if (totalCount) totalCount.textContent = String(state.submissions.length);
-        if (unreadCount) unreadCount.textContent = String(unread);
-        if (readCount) readCount.textContent = String(state.submissions.length - unread);
-    }
-
-    function updateResourceStats() {
-        const publishedBoxes = state.boxes.filter((box) => box.published).length;
-        if (resourceTotalCount) resourceTotalCount.textContent = String(state.boxes.length);
-        if (resourcePublishedCount) resourcePublishedCount.textContent = String(publishedBoxes);
-    }
-
-    function formatFileSize(size) {
-        const bytes = Number(size) || 0;
-        if (bytes < 1024) return bytes + ' B';
-
+    function formatFileSize(bytes) {
+        const size = Number(bytes) || 0;
+        if (size < 1024) return size + ' B';
         const units = ['KB', 'MB', 'GB'];
-        let value = bytes / 1024;
-        let unitIndex = 0;
-
-        while (value >= 1024 && unitIndex < units.length - 1) {
-            value /= 1024;
-            unitIndex += 1;
+        let val = size / 1024;
+        let u = 0;
+        while (val >= 1024 && u < units.length - 1) {
+            val /= 1024;
+            u++;
         }
-
-        return value.toFixed(value >= 10 ? 1 : 2) + ' ' + units[unitIndex];
+        return val.toFixed(val >= 10 ? 1 : 2) + ' ' + units[u];
     }
 
-    function resetResourceUploadProgress() {
-        if (resourceUploadProgress) {
-            resourceUploadProgress.classList.add('hidden');
-            resourceUploadProgress.classList.remove('is-complete', 'is-error');
-        }
-
-        if (resourceUploadProgressText) {
-            resourceUploadProgressText.textContent = 'Waiting for upload...';
-        }
-
-        if (resourceUploadProgressMeta) {
-            resourceUploadProgressMeta.textContent = '0%';
-        }
-
-        if (resourceUploadProgressBar) {
-            resourceUploadProgressBar.value = 0;
-            resourceUploadProgressBar.textContent = '0%';
-        }
-    }
-
-    function updateResourceUploadProgress(progress) {
-        if (!resourceUploadProgress || !progress) return;
-
-        const percent = Math.max(0, Math.min(100, Number(progress.percent) || 0));
-        const fileIndex = Number(progress.fileIndex) || 0;
-        const fileCount = Math.max(1, Number(progress.fileCount) || 1);
-        const uploadedLabel = formatFileSize(progress.bytesTransferred);
-        const totalLabel = formatFileSize(progress.totalBytes);
-        const stateLabel = progress.state === 'success' && percent >= 100 ? 'Upload complete' : 'Uploading';
-
-        resourceUploadProgress.classList.remove('hidden', 'is-error');
-        resourceUploadProgress.classList.toggle('is-complete', percent >= 100);
-
-        if (resourceUploadProgressText) {
-            resourceUploadProgressText.textContent = stateLabel + ' file ' + (fileIndex + 1) + ' of ' + fileCount + ': ' + (progress.fileName || 'archive file');
-        }
-
-        if (resourceUploadProgressMeta) {
-            resourceUploadProgressMeta.textContent = percent + '% - ' + uploadedLabel + ' / ' + totalLabel;
-        }
-
-        if (resourceUploadProgressBar) {
-            resourceUploadProgressBar.value = percent;
-            resourceUploadProgressBar.textContent = percent + '%';
-        }
-    }
-
-    function markResourceUploadError() {
-        if (resourceUploadProgress) {
-            resourceUploadProgress.classList.remove('hidden');
-            resourceUploadProgress.classList.add('is-error');
-        }
-    }
-
-    function getAttachmentKind(contentType, fileName) {
+    function getFileKind(contentType, fileName) {
         if (firebaseTools && typeof firebaseTools.getAttachmentKind === 'function') {
             return firebaseTools.getAttachmentKind(contentType, fileName);
         }
-
         const type = String(contentType || '').toLowerCase();
         const name = String(fileName || '').toLowerCase();
-
         if (type.startsWith('image/')) return 'image';
         if (type.startsWith('video/')) return 'video';
         if (type.startsWith('audio/')) return 'audio';
         if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
-        if (type.startsWith('text/')) return 'text';
+        if (type.startsWith('text/') || /\.(txt|md|json|csv)$/.test(name)) return 'text';
         if (/\.(zip|rar|7z|tar|gz)$/.test(name)) return 'archive';
-        if (/\.(exe|msi|msix|msp|appx|appxbundle|bat|cmd|com|scr|ps1|psm1|vbs|vbe|wsf|wsh|jar|apk|dmg|pkg|deb|rpm)$/.test(name)) return 'program';
-
+        if (/\.(exe|msi|bat|cmd|ps1|apk|dmg|deb|rpm)$/.test(name)) return 'program';
         return 'file';
     }
 
-    function createPendingFileEntry(file) {
-        const kind = getAttachmentKind(file.type, file.name);
-        const previewUrl = ['image', 'video', 'audio', 'pdf'].includes(kind)
-            ? URL.createObjectURL(file)
-            : '';
+    const adminServices = {
+        auth: {
+            signIn: async (email, password) => {
+                if (!firebaseTools || !firebaseTools.signInAdmin) throw new Error('Auth service uninitialized.');
+                return await firebaseTools.signInAdmin(email, password);
+            },
+            verify2FA: async (token, code) => {
+                if (!firebaseTools || !firebaseTools.verifyAdminTwoFactor) throw new Error('2FA service unavailable.');
+                return await firebaseTools.verifyAdminTwoFactor(token, code);
+            },
+            signOut: async () => {
+                if (!firebaseTools || !firebaseTools.signOutAdmin) return;
+                await firebaseTools.signOutAdmin();
+            },
+            touchSession: async () => {
+                if (firebaseTools && typeof firebaseTools.touchAdminSession === 'function') {
+                    await firebaseTools.touchAdminSession();
+                }
+            },
+            expireSession: async () => {
+                if (firebaseTools && typeof firebaseTools.expireAdminSession === 'function') {
+                    await firebaseTools.expireAdminSession();
+                }
+            },
+            onAuthStateChanged: (callback) => {
+                if (firebaseTools && firebaseTools.onAdminAuthStateChanged) {
+                    return firebaseTools.onAdminAuthStateChanged(callback);
+                }
+                return () => {};
+            },
+            getCurrentUser: () => {
+                return (firebaseTools && firebaseTools.getCurrentAdminUser) ? firebaseTools.getCurrentAdminUser() : null;
+            },
+            getIdleTimeoutMs: () => {
+                return (firebaseTools && firebaseTools.getAdminIdleTimeoutMs) ? firebaseTools.getAdminIdleTimeoutMs() : 5 * 60 * 1000;
+            }
+        },
 
-        return {
-            id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9),
-            file,
-            name: file.name,
-            contentType: file.type || 'application/octet-stream',
-            size: file.size,
-            kind,
-            url: previewUrl,
-            previewUrl
+        submissions: {
+            subscribe: (onData, onError) => {
+                if (!firebaseTools || !firebaseTools.subscribeToSubmissions) {
+                    onError && onError(new Error('Submissions service unavailable.'));
+                    return () => {};
+                }
+                return firebaseTools.subscribeToSubmissions(onData, onError);
+            },
+            markRead: async (id, read, collectionName) => {
+                if (!firebaseTools || !firebaseTools.updateSubmissionReadState) return;
+                await firebaseTools.updateSubmissionReadState(id, read, collectionName);
+            },
+            delete: async (id, collectionName) => {
+                if (!firebaseTools || !firebaseTools.deleteSubmission) return;
+                await firebaseTools.deleteSubmission(id, collectionName);
+            }
+        },
+
+        content: {
+            subscribe: (onData, onError) => {
+                if (!firebaseTools || !firebaseTools.subscribeToContentBoxes) {
+                    onError && onError(new Error('Content boxes service unavailable.'));
+                    return () => {};
+                }
+                return firebaseTools.subscribeToContentBoxes(onData, onError);
+            },
+            saveBox: async (payload) => {
+                if (!firebaseTools || !firebaseTools.saveContentBox) throw new Error('Content save service unavailable.');
+                return await firebaseTools.saveContentBox(payload);
+            },
+            deleteBox: async (id) => {
+                if (!firebaseTools || !firebaseTools.deleteContentBox) throw new Error('Content delete service unavailable.');
+                await firebaseTools.deleteContentBox(id);
+            }
+        },
+
+        playlists: {
+            list: async () => {
+                if (!firebaseTools || !firebaseTools.listAdminPlaylists) return [];
+                return await firebaseTools.listAdminPlaylists();
+            },
+            add: async (urlOrId) => {
+                if (!firebaseTools || !firebaseTools.addAdminPlaylist) throw new Error('Playlist add service unavailable.');
+                return await firebaseTools.addAdminPlaylist(urlOrId);
+            },
+            delete: async (id) => {
+                if (!firebaseTools || !firebaseTools.deleteAdminPlaylist) throw new Error('Playlist delete service unavailable.');
+                await firebaseTools.deleteAdminPlaylist(id);
+            }
+        }
+    };
+
+    // =========================================================================
+    // 2. ICONS HELPER
+    // =========================================================================
+    function Icon({ name, size = 18, className = '' }) {
+        const props = {
+            viewBox: '0 0 24 24',
+            width: size,
+            height: size,
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '2',
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            className
         };
-    }
 
-    function revokePendingFilePreviews(files) {
-        files.forEach((entry) => {
-            if (entry && entry.previewUrl) {
-                URL.revokeObjectURL(entry.previewUrl);
-            }
-        });
-    }
-
-    function getAttachmentPreviewLabel(attachment) {
-        const name = attachment.name || 'Archive file';
-        const extensionMatch = name.match(/\.([a-z0-9]{1,8})$/i);
-        if (extensionMatch) return extensionMatch[1].toUpperCase();
-        return (attachment.kind || 'FILE').toUpperCase();
-    }
-
-    function createMetaText(submission) {
-        return submission.createdAtLabel || 'Pending server timestamp';
-    }
-
-    function createPreviewText(message) {
-        if (!message) return 'No message content.';
-        return message.length > 120 ? message.slice(0, 117) + '...' : message;
-    }
-
-    function ensureValidSelection() {
-        if (!state.filteredSubmissions.length) {
-            state.selectedId = null;
-            return;
-        }
-
-        const selectedVisible = state.filteredSubmissions.some((submission) => submission.id === state.selectedId);
-        if (!selectedVisible) {
-            state.selectedId = state.filteredSubmissions[0].id;
-        }
-    }
-
-    function formatLinksForTextarea(links) {
-        if (!Array.isArray(links) || !links.length) return '';
-        return links.map((link) => {
-            const label = (link.label || '').trim();
-            const url = (link.url || '').trim();
-            return label && label !== url ? label + ' | ' + url : url;
-        }).join('\n');
-    }
-
-    function parseLinksInput(rawValue) {
-        if (!rawValue) return [];
-
-        return rawValue
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean)
-            .map((line) => {
-                const parts = line.split('|').map((part) => part.trim()).filter(Boolean);
-                let label = '';
-                let url = '';
-
-                if (parts.length >= 2) {
-                    label = parts[0];
-                    url = parts.slice(1).join(' | ');
-                } else {
-                    url = line;
-                }
-
-                const normalizedUrl = normalizeUrl(url);
-                return {
-                    label: label || normalizedUrl,
-                    url: normalizedUrl
-                };
-            });
-    }
-
-    function normalizeUrl(value) {
-        const trimmed = String(value || '').trim();
-        if (!trimmed) {
-            throw new Error('One of the links is empty.');
-        }
-
-        const hasProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed);
-        const candidate = hasProtocol ? trimmed : 'https://' + trimmed;
-        const parsed = new URL(candidate);
-
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-            throw new Error('Only http and https links are allowed in the public boxes.');
-        }
-
-        return parsed.toString();
-    }
-
-    function createAttachmentPreview(attachment, options) {
-        const previewOptions = options || {};
-        const item = document.createElement('article');
-        item.className = 'admin-attachment-item';
-
-        const media = document.createElement('div');
-        media.className = 'admin-attachment-preview';
-
-        const kind = attachment.kind || getAttachmentKind(attachment.contentType, attachment.name);
-        const url = attachment.url || '';
-
-        if (kind === 'image' && url) {
-            const image = document.createElement('img');
-            image.src = url;
-            image.alt = attachment.name || 'Archive image';
-            image.loading = 'lazy';
-            media.appendChild(image);
-        } else if (kind === 'video' && url) {
-            const video = document.createElement('video');
-            video.src = url;
-            video.controls = true;
-            video.preload = 'metadata';
-            video.muted = true;
-            media.appendChild(video);
-        } else if (kind === 'audio' && url) {
-            const audio = document.createElement('audio');
-            audio.src = url;
-            audio.controls = true;
-            audio.preload = 'metadata';
-            media.appendChild(audio);
-        } else if (kind === 'pdf' && url) {
-            const frame = document.createElement('iframe');
-            frame.src = url;
-            frame.title = attachment.name || 'Archive PDF preview';
-            frame.loading = 'lazy';
-            media.appendChild(frame);
-        } else {
-            const fallback = document.createElement('span');
-            fallback.className = 'admin-attachment-fallback';
-            fallback.textContent = getAttachmentPreviewLabel(attachment);
-            media.appendChild(fallback);
-        }
-
-        const body = document.createElement('div');
-        body.className = 'admin-attachment-body';
-
-        const name = document.createElement('h4');
-        name.className = 'admin-attachment-name';
-        name.textContent = attachment.name || 'Archive file';
-
-        const meta = document.createElement('p');
-        meta.className = 'admin-attachment-meta';
-        meta.textContent = [
-            formatFileSize(attachment.size),
-            attachment.contentType || 'application/octet-stream'
-        ].filter(Boolean).join(' - ');
-
-        const actions = document.createElement('div');
-        actions.className = 'admin-attachment-actions';
-
-        if (url && !previewOptions.pending) {
-            const openLink = document.createElement('a');
-            openLink.className = 'resource-link admin-attachment-link';
-            openLink.href = url;
-            openLink.target = '_blank';
-            openLink.rel = 'noopener noreferrer';
-            if (kind === 'program') {
-                openLink.download = attachment.name || 'archive-file';
-            }
-            openLink.textContent = kind === 'program' ? 'Download' : 'Open';
-            actions.appendChild(openLink);
-        }
-
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.className = 'admin-danger-button admin-attachment-remove';
-        removeButton.textContent = previewOptions.pending ? 'Remove Upload' : 'Remove File';
-        removeButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            previewOptions.onRemove?.(attachment);
-        });
-        actions.appendChild(removeButton);
-
-        body.appendChild(name);
-        body.appendChild(meta);
-        body.appendChild(actions);
-
-        item.appendChild(media);
-        item.appendChild(body);
-        return item;
-    }
-
-    function renderResourceFilePreviews() {
-        if (!resourceFilePreviewList) return;
-
-        resourceFilePreviewList.innerHTML = '';
-
-        const existingAttachments = state.resourceDraftAttachments;
-        const pendingFiles = state.resourcePendingFiles;
-        const totalFiles = existingAttachments.length + pendingFiles.length;
-
-        if (resourceFilePreviewStatus) {
-            resourceFilePreviewStatus.textContent = totalFiles
-                ? totalFiles + (totalFiles === 1 ? ' file attached.' : ' files attached.')
-                : 'No files attached yet.';
-        }
-
-        existingAttachments.forEach((attachment) => {
-            const item = createAttachmentPreview(attachment, {
-                onRemove: () => {
-                    state.resourceDraftAttachments = state.resourceDraftAttachments.filter((entry) => entry.id !== attachment.id);
-                    state.resourceRemovedAttachments.push(attachment);
-                    renderResourceFilePreviews();
-                }
-            });
-
-            resourceFilePreviewList.appendChild(item);
-        });
-
-        pendingFiles.forEach((entry) => {
-            const item = createAttachmentPreview(entry, {
-                pending: true,
-                onRemove: () => {
-                    state.resourcePendingFiles = state.resourcePendingFiles.filter((pending) => pending.id !== entry.id);
-                    revokePendingFilePreviews([entry]);
-                    renderResourceFilePreviews();
-                    setResourceSaving(false);
-                }
-            });
-
-            resourceFilePreviewList.appendChild(item);
-        });
-
-        if (!totalFiles) {
-            const empty = document.createElement('div');
-            empty.className = 'admin-attachment-empty';
-            empty.textContent = 'Attach an image, video, PDF, audio clip, archive, or document.';
-            resourceFilePreviewList.appendChild(empty);
-        }
-    }
-
-    function resetResourceForm(keepStatus) {
-        state.selectedBoxId = null;
-        state.resourceDraftAttachments = [];
-        state.resourceRemovedAttachments = [];
-        revokePendingFilePreviews(state.resourcePendingFiles);
-        state.resourcePendingFiles = [];
-
-        if (resourceForm) {
-            resourceForm.reset();
-        }
-
-        if (resourceFilesInput) resourceFilesInput.value = '';
-        if (resourceOrderInput) resourceOrderInput.value = '0';
-        if (resourcePublishedInput) resourcePublishedInput.checked = true;
-        if (resourceFormTitle) resourceFormTitle.textContent = 'Create New Box';
-        if (resourceSaveButton) resourceSaveButton.textContent = 'Save Box';
-        if (resourceDeleteButton) {
-            resourceDeleteButton.classList.add('hidden');
-            resourceDeleteButton.disabled = true;
-        }
-
-        if (!keepStatus) {
-            setStatus(resourceStatus, '', 'hidden');
-        }
-
-        resetResourceUploadProgress();
-        renderResourceList();
-        renderResourceFilePreviews();
-    }
-
-    function fillResourceForm(box) {
-        if (!box) {
-            resetResourceForm(true);
-            return;
-        }
-
-        state.selectedBoxId = box.id;
-        state.resourceDraftAttachments = Array.isArray(box.attachments) ? box.attachments.slice() : [];
-        state.resourceRemovedAttachments = [];
-        revokePendingFilePreviews(state.resourcePendingFiles);
-        state.resourcePendingFiles = [];
-
-        if (resourceTitleInput) resourceTitleInput.value = box.title || '';
-        if (resourceSummaryInput) resourceSummaryInput.value = box.summary || '';
-        if (resourceNotesInput) resourceNotesInput.value = box.notes || '';
-        if (resourceLinksInput) resourceLinksInput.value = formatLinksForTextarea(box.links);
-        if (resourceFilesInput) resourceFilesInput.value = '';
-        if (resourceOrderInput) resourceOrderInput.value = String(Number.isFinite(Number(box.order)) ? Number(box.order) : 0);
-        if (resourcePublishedInput) resourcePublishedInput.checked = Boolean(box.published);
-        if (resourceFormTitle) resourceFormTitle.textContent = 'Edit Box';
-        if (resourceSaveButton) resourceSaveButton.textContent = 'Update Box';
-        if (resourceDeleteButton) {
-            resourceDeleteButton.classList.remove('hidden');
-            resourceDeleteButton.disabled = false;
-        }
-
-        resetResourceUploadProgress();
-        renderResourceList();
-        renderResourceFilePreviews();
-    }
-
-    function renderList() {
-        if (!submissionList) return;
-
-        submissionList.innerHTML = '';
-
-        if (!state.filteredSubmissions.length) {
-            return;
-        }
-
-        state.filteredSubmissions.forEach((submission) => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'admin-submission-item';
-
-            if (submission.id === state.selectedId) {
-                item.classList.add('is-active');
-            }
-
-            if (!submission.read) {
-                item.classList.add('is-unread');
-            }
-
-            item.dataset.id = submission.id;
-
-            const head = document.createElement('div');
-            head.className = 'admin-submission-head';
-
-            const name = document.createElement('h4');
-            name.className = 'admin-submission-name';
-            name.textContent = submission.name || 'Unknown sender';
-
-            const date = document.createElement('span');
-            date.className = 'admin-submission-date';
-            date.textContent = createMetaText(submission);
-
-            head.appendChild(name);
-            head.appendChild(date);
-
-            const subject = document.createElement('p');
-            subject.className = 'admin-submission-subject';
-            subject.textContent = submission.subject || 'No subject';
-
-            const preview = document.createElement('p');
-            preview.className = 'admin-submission-preview';
-            preview.textContent = createPreviewText(submission.message);
-
-            item.appendChild(head);
-            item.appendChild(subject);
-            item.appendChild(preview);
-
-            item.addEventListener('click', () => {
-                state.selectedId = submission.id;
-                renderList();
-                renderDetail();
-            });
-
-            submissionList.appendChild(item);
-        });
-    }
-
-    function renderDetail() {
-        const selected = getSelectedSubmission();
-
-        if (!selected) {
-            if (emptyState) emptyState.classList.remove('hidden');
-            if (detailCard) detailCard.classList.add('hidden');
-            if (toggleReadButton) toggleReadButton.disabled = true;
-            if (deleteButton) deleteButton.disabled = true;
-            return;
-        }
-
-        if (emptyState) emptyState.classList.add('hidden');
-        if (detailCard) detailCard.classList.remove('hidden');
-
-        if (detailSubject) detailSubject.textContent = selected.subject || 'No subject';
-        if (detailName) detailName.textContent = selected.name || 'Unknown sender';
-
-        if (detailReadBadge) {
-            detailReadBadge.textContent = selected.read ? 'Read' : 'Unread';
-            detailReadBadge.classList.toggle('is-unread', !selected.read);
-        }
-
-        if (detailEmail) {
-            detailEmail.textContent = selected.email || 'No email';
-            detailEmail.href = selected.email ? 'mailto:' + selected.email : '#';
-        }
-
-        if (detailDate) detailDate.textContent = createMetaText(selected);
-        if (detailMessage) detailMessage.textContent = selected.message || 'No message content.';
-        if (toggleReadButton) {
-            toggleReadButton.disabled = false;
-            toggleReadButton.textContent = selected.read ? 'Mark as Unread' : 'Mark as Read';
-        }
-        if (deleteButton) deleteButton.disabled = false;
-    }
-
-    function renderListStatus() {
-        if (state.loading) {
-            setListStatus('Syncing secure archive...', false);
-            return;
-        }
-
-        if (!state.filteredSubmissions.length) {
-            const hasSearch = Boolean(searchInput && searchInput.value.trim());
-            setListStatus(hasSearch ? 'No matching submissions found.' : 'No submissions found in this archive yet.', false);
-            return;
-        }
-
-        const suffix = state.filteredSubmissions.length === 1 ? 'entry loaded' : 'entries loaded';
-        setListStatus(state.filteredSubmissions.length + ' ' + suffix, false);
-    }
-
-    function renderResourceList() {
-        if (!resourceList) return;
-
-        resourceList.innerHTML = '';
-
-        if (state.boxesLoading) {
-            setResourceListStatus('Syncing homepage boxes...', false);
-            return;
-        }
-
-        if (!state.boxes.length) {
-            setResourceListStatus('No public boxes created yet.', false);
-            return;
-        }
-
-        setResourceListStatus(state.boxes.length + (state.boxes.length === 1 ? ' box loaded.' : ' boxes loaded.'), false);
-
-        state.boxes.forEach((box) => {
-            const item = document.createElement('article');
-            item.className = 'admin-resource-item';
-            if (box.id === state.selectedBoxId) {
-                item.classList.add('is-active');
-            }
-
-            const top = document.createElement('div');
-            top.className = 'admin-resource-item-top';
-
-            const headingGroup = document.createElement('div');
-
-            const title = document.createElement('h4');
-            title.className = 'admin-resource-title';
-            title.textContent = box.title || 'Untitled Box';
-
-            const meta = document.createElement('p');
-            meta.className = 'admin-resource-meta';
-            const attachmentCount = Array.isArray(box.attachments) ? box.attachments.length : 0;
-            meta.textContent = [
-                'Order ' + (Number.isFinite(Number(box.order)) ? Number(box.order) : 0),
-                box.published ? 'Published' : 'Draft',
-                attachmentCount + (attachmentCount === 1 ? ' file' : ' files')
-            ].join(' - ');
-
-            headingGroup.appendChild(title);
-            headingGroup.appendChild(meta);
-
-            const editButton = document.createElement('button');
-            editButton.type = 'button';
-            editButton.className = 'cta-button admin-mini-button';
-            editButton.textContent = 'Edit';
-            editButton.addEventListener('click', () => fillResourceForm(box));
-
-            top.appendChild(headingGroup);
-            top.appendChild(editButton);
-
-            const summary = document.createElement('p');
-            summary.className = 'admin-resource-summary';
-            summary.textContent = box.summary || (box.notes ? box.notes.slice(0, 120) + (box.notes.length > 120 ? '...' : '') : 'No summary yet.');
-
-            const previewAttachments = Array.isArray(box.attachments) ? box.attachments.slice(0, 3) : [];
-            const attachmentStrip = document.createElement('div');
-            attachmentStrip.className = 'admin-resource-attachment-strip';
-
-            previewAttachments.forEach((attachment) => {
-                const chip = document.createElement('span');
-                chip.className = 'admin-resource-file-chip';
-                chip.textContent = getAttachmentPreviewLabel(attachment);
-                attachmentStrip.appendChild(chip);
-            });
-
-            const footer = document.createElement('div');
-            footer.className = 'admin-resource-footer';
-            footer.textContent = box.updatedAtLabel || 'Pending update timestamp';
-
-            item.appendChild(top);
-            item.appendChild(summary);
-            if (attachmentStrip.childElementCount) {
-                item.appendChild(attachmentStrip);
-            }
-            item.appendChild(footer);
-
-            item.addEventListener('click', (event) => {
-                if (event.target === editButton) return;
-                fillResourceForm(box);
-            });
-
-            resourceList.appendChild(item);
-        });
-    }
-
-    function applyFilter() {
-        const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
-
-        state.filteredSubmissions = state.submissions.filter((submission) => {
-            if (!query) return true;
-
-            const haystack = [
-                submission.name,
-                submission.email,
-                submission.subject,
-                submission.message
-            ].join(' ').toLowerCase();
-
-            return haystack.includes(query);
-        });
-
-        ensureValidSelection();
-        renderListStatus();
-        renderList();
-        renderDetail();
-    }
-
-    function stopSubmissionSubscription() {
-        if (typeof state.unsubscribe === 'function') {
-            state.unsubscribe();
-        }
-
-        state.unsubscribe = null;
-    }
-
-    function stopBoxSubscription() {
-        if (typeof state.unsubscribeBoxes === 'function') {
-            state.unsubscribeBoxes();
-        }
-
-        state.unsubscribeBoxes = null;
-    }
-
-    function startSubmissionSubscription() {
-        if (!firebaseTools) return;
-
-        stopSubmissionSubscription();
-        state.loading = true;
-        state.submissions = [];
-        state.filteredSubmissions = [];
-        state.selectedId = null;
-
-        updateStats();
-        renderListStatus();
-        renderList();
-        renderDetail();
-
-        state.unsubscribe = firebaseTools.subscribeToSubmissions((submissions) => {
-            state.loading = false;
-            state.submissions = submissions;
-
-            if (!state.selectedId && submissions.length) {
-                state.selectedId = submissions[0].id;
-            }
-
-            if (state.selectedId && !submissions.some((submission) => submission.id === state.selectedId)) {
-                state.selectedId = submissions.length ? submissions[0].id : null;
-            }
-
-            updateStats();
-            applyFilter();
-        }, (error) => {
-            state.loading = false;
-            setStatus(authStatus, getFriendlyError(error), 'error');
-            setListStatus('Signed in, but the archive is blocked by your Firestore rules.', true);
-            renderDetail();
-        });
-    }
-
-    function startBoxSubscription() {
-        if (!firebaseTools || !firebaseTools.subscribeToContentBoxes) return;
-
-        stopBoxSubscription();
-        state.boxesLoading = true;
-        state.boxes = [];
-        updateResourceStats();
-        renderResourceList();
-
-        state.unsubscribeBoxes = firebaseTools.subscribeToContentBoxes((boxes) => {
-            state.boxesLoading = false;
-            state.boxes = boxes;
-
-            const selectedBoxStillExists = state.selectedBoxId && boxes.some((box) => box.id === state.selectedBoxId);
-            if (state.selectedBoxId && !selectedBoxStillExists) {
-                resetResourceForm(true);
-            }
-
-            if (state.selectedBoxId && selectedBoxStillExists && !state.resourcePendingFiles.length && !state.resourceRemovedAttachments.length) {
-                const selectedBox = boxes.find((box) => box.id === state.selectedBoxId);
-                state.resourceDraftAttachments = selectedBox && Array.isArray(selectedBox.attachments) ? selectedBox.attachments.slice() : [];
-                renderResourceFilePreviews();
-            }
-
-            updateResourceStats();
-            renderResourceList();
-        }, (error) => {
-            state.boxesLoading = false;
-            setStatus(resourceStatus, getFriendlyError(error), 'error');
-            setResourceListStatus('Signed in, but your rules are blocking the public boxes collection.', true);
-            renderResourceList();
-        });
-    }
-
-    async function handleLoginSubmit(event) {
-        event.preventDefault();
-
-        if (!firebaseTools) {
-            setStatus(authStatus, 'Firebase helper is missing on this page.', 'error');
-            return;
-        }
-
-        if (!firebaseTools.isInitialized()) {
-            setStatus(authStatus, 'Firestore is not configured yet.', 'error');
-            return;
-        }
-
-        if (!firebaseTools.isAuthAvailable()) {
-            setStatus(authStatus, 'Firebase Auth is missing on this page.', 'error');
-            return;
-        }
-
-        const email = document.getElementById('adminEmail').value.trim();
-        const password = document.getElementById('adminPassword').value;
-
-        setLoginLoading(true);
-        setStatus(authStatus, '', 'hidden');
-
-        try {
-            const result = await firebaseTools.signInAdmin(email, password);
-            loginForm.reset();
-
-            if (result && (result.twoFactorRequired || result.twoFactorSetupRequired)) {
-                showTwoFactorChallenge(result);
-                setStatus(
-                    authStatus,
-                    result.twoFactorSetupRequired
-                        ? 'Scan the QR code and confirm the first authenticator code.'
-                        : 'Password accepted. Enter your authenticator code to finish signing in.',
-                    'success'
+        switch (name) {
+            case 'inbox':
+                return h('svg', props,
+                    h('polyline', { points: '22 12 16 12 14 15 10 15 8 12 2 12' }),
+                    h('path', { d: 'M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z' })
                 );
+            case 'layers':
+            case 'boxes':
+                return h('svg', props,
+                    h('polygon', { points: '12 2 2 7 12 12 22 7 12 2' }),
+                    h('polyline', { points: '2 17 12 22 22 17' }),
+                    h('polyline', { points: '2 12 12 17 22 12' })
+                );
+            case 'youtube':
+            case 'play':
+                return h('svg', props,
+                    h('path', { d: 'M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z' }),
+                    h('polygon', { points: '9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02', fill: 'currentColor' })
+                );
+            case 'search':
+                return h('svg', props,
+                    h('circle', { cx: '11', cy: '11', r: '8' }),
+                    h('line', { x1: '21', y1: '21', x2: '16.65', y2: '16.65' })
+                );
+            case 'lock':
+                return h('svg', props,
+                    h('rect', { x: '3', y: '11', width: '18', height: '11', rx: '2', ry: '2' }),
+                    h('path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' })
+                );
+            case 'trash':
+                return h('svg', props,
+                    h('polyline', { points: '3 6 5 6 21 6' }),
+                    h('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' })
+                );
+            case 'plus':
+                return h('svg', props,
+                    h('line', { x1: '12', y1: '5', x2: '12', y2: '19' }),
+                    h('line', { x1: '5', y1: '12', x2: '19', y2: '12' })
+                );
+            case 'refresh':
+                return h('svg', props,
+                    h('polyline', { points: '23 4 23 10 17 10' }),
+                    h('polyline', { points: '1 20 1 14 7 14' }),
+                    h('path', { d: 'M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15' })
+                );
+            case 'chevron-left':
+                return h('svg', props, h('polyline', { points: '15 18 9 12 15 6' }));
+            case 'chevron-right':
+                return h('svg', props, h('polyline', { points: '9 18 15 12 9 6' }));
+            case 'external-link':
+                return h('svg', props,
+                    h('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }),
+                    h('polyline', { points: '15 3 21 3 21 9' }),
+                    h('line', { x1: '10', y1: '14', x2: '21', y2: '3' })
+                );
+            case 'download':
+                return h('svg', props,
+                    h('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+                    h('polyline', { points: '7 10 12 15 17 10' }),
+                    h('line', { x1: '12', y1: '15', x2: '12', y2: '3' })
+                );
+            case 'x':
+                return h('svg', props,
+                    h('line', { x1: '18', y1: '6', x2: '6', y2: '18' }),
+                    h('line', { x1: '6', y1: '6', x2: '18', y2: '18' })
+                );
+            case 'command':
+                return h('svg', props,
+                    h('path', { d: 'M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z' })
+                );
+            case 'menu':
+                return h('svg', props,
+                    h('line', { x1: '3', y1: '12', x2: '21', y2: '12' }),
+                    h('line', { x1: '3', y1: '6', x2: '21', y2: '6' }),
+                    h('line', { x1: '3', y1: '18', x2: '21', y2: '18' })
+                );
+            case 'check':
+                return h('svg', props, h('polyline', { points: '20 6 9 17 4 12' }));
+            default:
+                return h('svg', props, h('circle', { cx: '12', cy: '12', r: '10' }));
+        }
+    }
+
+    // =========================================================================
+    // 3. TOAST & MODAL NOTIFICATION SYSTEM
+    // =========================================================================
+    function ToastContainer({ toasts, onDismiss }) {
+        if (!toasts.length) return null;
+        return h('div', { className: 'cr-toast-container' },
+            toasts.map(t => h('div', {
+                key: t.id,
+                className: 'cr-toast is-' + (t.type || 'info'),
+                onClick: () => onDismiss(t.id)
+            },
+                h(Icon, { name: t.type === 'error' ? 'x' : (t.type === 'success' ? 'check' : 'command'), size: 16 }),
+                h('span', null, t.message)
+            ))
+        );
+    }
+
+    function ConfirmModal({ config, onClose }) {
+        if (!config) return null;
+        return h('div', { className: 'cr-modal-backdrop', onClick: onClose },
+            h('div', { className: 'cr-modal-box', onClick: e => e.stopPropagation() },
+                h('div', { className: 'cr-panel-title-group' },
+                    h('span', { className: 'cr-panel-eyebrow' }, config.eyebrow || 'CONFIRM ACTION'),
+                    h('h3', { className: 'cr-panel-title' }, config.title || 'Are you sure?')
+                ),
+                h('p', { style: { color: 'var(--cr-text-secondary)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 } },
+                    config.message
+                ),
+                h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' } },
+                    h('button', {
+                        type: 'button',
+                        className: 'cr-btn cr-btn-secondary',
+                        onClick: onClose
+                    }, 'Cancel'),
+                    h('button', {
+                        type: 'button',
+                        className: 'cr-btn ' + (config.isDanger ? 'cr-btn-danger' : 'cr-btn-primary'),
+                        onClick: () => {
+                            config.onConfirm && config.onConfirm();
+                            onClose();
+                        }
+                    }, config.confirmLabel || 'Proceed')
+                )
+            )
+        );
+    }
+
+    // =========================================================================
+    // 4. COMMAND PALETTE (CTRL + K)
+    // =========================================================================
+    function CommandPalette({ isOpen, onClose, onSelectAction }) {
+        const [query, setQuery] = useState('');
+        const [selectedIndex, setSelectedIndex] = useState(0);
+        const inputRef = useRef(null);
+
+        const actions = useMemo(() => [
+            { id: 'tab-submissions', label: 'Open Submissions (Inbox)', shortcut: '1', run: () => onSelectAction('submissions') },
+            { id: 'tab-content', label: 'Open Content Boxes & Notes', shortcut: '2', run: () => onSelectAction('content') },
+            { id: 'tab-playlists', label: 'Open YouTube Playlists', shortcut: '3', run: () => onSelectAction('playlists') },
+            { id: 'action-new-box', label: 'Create New Content Box', shortcut: 'N', run: () => onSelectAction('new-box') },
+            { id: 'action-refresh', label: 'Refresh All Data', shortcut: 'R', run: () => onSelectAction('refresh') },
+            { id: 'action-lock', label: 'Lock Control Room Session', shortcut: 'L', run: () => onSelectAction('lock') }
+        ], [onSelectAction]);
+
+        const filtered = useMemo(() => {
+            const q = query.trim().toLowerCase();
+            if (!q) return actions;
+            return actions.filter(a => a.label.toLowerCase().includes(q));
+        }, [actions, query]);
+
+        useEffect(() => {
+            if (isOpen) {
+                setQuery('');
+                setSelectedIndex(0);
+                setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+            }
+        }, [isOpen]);
+
+        useEffect(() => {
+            setSelectedIndex(0);
+        }, [query]);
+
+        if (!isOpen) return null;
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSelectedIndex(i => (i + 1) % (filtered.length || 1));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSelectedIndex(i => (i - 1 + filtered.length) % (filtered.length || 1));
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (filtered[selectedIndex]) {
+                    filtered[selectedIndex].run();
+                    onClose();
+                }
+            } else if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        return h('div', { className: 'cr-modal-backdrop', onClick: onClose },
+            h('div', { className: 'cr-modal-box cr-cmd-palette', onClick: e => e.stopPropagation() },
+                h('div', { style: { display: 'flex', alignItems: 'center', padding: '0 16px' } },
+                    h(Icon, { name: 'search', size: 18, className: 'cr-search-icon-palette' }),
+                    h('input', {
+                        ref: inputRef,
+                        type: 'text',
+                        className: 'cr-cmd-input',
+                        placeholder: 'Search Control Room commands... (Type 1, 2, 3, N, R, L)',
+                        value: query,
+                        onChange: e => setQuery(e.target.value),
+                        onKeyDown: handleKeyDown
+                    })
+                ),
+                h('div', { className: 'cr-cmd-list' },
+                    filtered.length === 0
+                        ? h('div', { style: { padding: '16px', color: 'var(--cr-text-muted)', textAlign: 'center', fontSize: '0.84rem' } }, 'No matching command found.')
+                        : filtered.map((item, idx) => h('button', {
+                            key: item.id,
+                            type: 'button',
+                            className: 'cr-cmd-item ' + (idx === selectedIndex ? 'is-selected' : ''),
+                            onClick: () => { item.run(); onClose(); }
+                        },
+                            h('span', null, item.label),
+                            h('span', { className: 'cr-kbd-shortcut' }, item.shortcut)
+                        ))
+                )
+            )
+        );
+    }
+
+    // =========================================================================
+    // 5. AUTH GATE & 2FA VIEW
+    // =========================================================================
+    function AuthGate({ onAuthSuccess, toast }) {
+        const [email, setEmail] = useState('');
+        const [password, setPassword] = useState('');
+        const [loading, setLoading] = useState(false);
+        const [challenge, setChallenge] = useState(null); // { token, isSetup, qr, manualKey }
+        const [twoFactorCode, setTwoFactorCode] = useState('');
+        const [statusMsg, setStatusMsg] = useState(null);
+
+        const handleLoginSubmit = async (e) => {
+            e.preventDefault();
+            if (!email.trim() || !password) return;
+            setLoading(true);
+            setStatusMsg(null);
+
+            try {
+                const res = await adminServices.auth.signIn(email.trim(), password);
+                if (res && (res.twoFactorRequired || res.twoFactorSetupRequired)) {
+                    setChallenge({
+                        token: res.challengeToken,
+                        isSetup: Boolean(res.twoFactorSetupRequired),
+                        qr: res.qrCodeDataUrl,
+                        manualKey: res.manualKey
+                    });
+                    setStatusMsg({
+                        type: 'info',
+                        text: res.twoFactorSetupRequired
+                            ? 'Scan the QR code with your Authenticator app and enter the 6-digit code.'
+                            : 'Enter the 6-digit authenticator code from your app.'
+                    });
+                    return;
+                }
+                toast('Secure session established.', 'success');
+                onAuthSuccess();
+            } catch (err) {
+                setStatusMsg({ type: 'error', text: getFriendlyError(err) });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleTwoFactorSubmit = async (e) => {
+            e.preventDefault();
+            if (!twoFactorCode.trim() || !challenge) return;
+            setLoading(true);
+            setStatusMsg(null);
+
+            try {
+                await adminServices.auth.verify2FA(challenge.token, twoFactorCode.trim());
+                toast('Two-factor verification confirmed.', 'success');
+                onAuthSuccess();
+            } catch (err) {
+                setStatusMsg({ type: 'error', text: getFriendlyError(err) });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        return h('div', { className: 'cr-auth-screen' },
+            h('div', { className: 'cr-auth-card' },
+                h('div', { className: 'cr-auth-header' },
+                    h('div', { className: 'cr-brand-icon', style: { width: '44px', height: '44px' } },
+                        h(Icon, { name: 'lock', size: 22 })
+                    ),
+                    h('h1', { className: 'cr-auth-title' },
+                        'Control Room ',
+                        h('span', null, 'Archive')
+                    ),
+                    h('p', { className: 'cr-auth-sub' },
+                        challenge ? 'Security Verification // Level 2' : 'Private Console // Firebase Admin Only'
+                    )
+                ),
+
+                statusMsg && h('div', {
+                    className: 'form-status ' + (statusMsg.type === 'error' ? 'error' : 'success'),
+                    style: { textAlign: 'center', fontSize: '0.84rem' }
+                }, statusMsg.text),
+
+                !challenge ? (
+                    h('form', { onSubmit: handleLoginSubmit, style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+                        h('div', { className: 'cr-form-group' },
+                            h('label', { className: 'cr-form-label' }, 'Admin Email'),
+                            h('input', {
+                                type: 'email',
+                                className: 'cr-form-input',
+                                placeholder: 'admin@hunterstar.uz',
+                                value: email,
+                                onChange: e => setEmail(e.target.value),
+                                required: true,
+                                autoFocus: true
+                            })
+                        ),
+                        h('div', { className: 'cr-form-group' },
+                            h('label', { className: 'cr-form-label' }, 'Password'),
+                            h('input', {
+                                type: 'password',
+                                className: 'cr-form-input',
+                                placeholder: '••••••••••••',
+                                value: password,
+                                onChange: e => setPassword(e.target.value),
+                                required: true
+                            })
+                        ),
+                        h('button', {
+                            type: 'submit',
+                            className: 'cr-btn cr-btn-primary',
+                            style: { width: '100%', padding: '12px', marginTop: '6px' },
+                            disabled: loading
+                        }, loading ? 'Authorizing Session...' : 'Enter Control Room')
+                    )
+                ) : (
+                    h('form', { onSubmit: handleTwoFactorSubmit, style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+                        challenge.isSetup && challenge.qr && h('div', { style: { textAlign: 'center' } },
+                            h('img', { src: challenge.qr, alt: '2FA QR Code', className: 'cr-2fa-qr' }),
+                            challenge.manualKey && h('div', { className: 'cr-manual-key' },
+                                String(challenge.manualKey).replace(/(.{4})/g, '$1 ').trim()
+                            )
+                        ),
+                        h('div', { className: 'cr-form-group' },
+                            h('label', { className: 'cr-form-label' }, 'Authenticator Code (6 digits)'),
+                            h('input', {
+                                type: 'text',
+                                className: 'cr-form-input',
+                                placeholder: '123456',
+                                maxLength: 8,
+                                inputMode: 'numeric',
+                                value: twoFactorCode,
+                                onChange: e => setTwoFactorCode(e.target.value),
+                                required: true,
+                                autoFocus: true,
+                                style: { textAlign: 'center', letterSpacing: '0.2em', fontSize: '1.2rem', fontFamily: 'var(--cr-font-mono)' }
+                            })
+                        ),
+                        h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px' } },
+                            h('button', {
+                                type: 'button',
+                                className: 'cr-btn cr-btn-secondary',
+                                style: { flex: 1 },
+                                onClick: () => { setChallenge(null); setTwoFactorCode(''); setStatusMsg(null); }
+                            }, 'Back'),
+                            h('button', {
+                                type: 'submit',
+                                className: 'cr-btn cr-btn-primary',
+                                style: { flex: 2 },
+                                disabled: loading
+                            }, loading ? 'Verifying Code...' : 'Verify & Unlock')
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    // =========================================================================
+    // 6. WORKSPACE 1: SUBMISSIONS (INCOMING MESSAGES)
+    // Interaction pattern: List -> Select -> Inspector
+    // =========================================================================
+    function SubmissionsWorkspace({ submissions, loading, error, toast, onConfirm }) {
+        const [filter, setFilter] = useState('all'); // all, unread, read
+        const [search, setSearch] = useState('');
+        const [selectedId, setSelectedId] = useState(null);
+        const [actionLoading, setActionLoading] = useState(false);
+
+        const filtered = useMemo(() => {
+            return (submissions || []).filter(item => {
+                if (filter === 'unread' && item.read) return false;
+                if (filter === 'read' && !item.read) return false;
+                if (search.trim()) {
+                    const q = search.trim().toLowerCase();
+                    const text = `${item.name || ''} ${item.email || ''} ${item.subject || ''} ${item.message || ''}`.toLowerCase();
+                    if (!text.includes(q)) return false;
+                }
+                return true;
+            });
+        }, [submissions, filter, search]);
+
+        // Auto-select first if none selected
+        useEffect(() => {
+            if (filtered.length && (!selectedId || !filtered.some(s => s.id === selectedId))) {
+                setSelectedId(filtered[0].id);
+            } else if (!filtered.length) {
+                setSelectedId(null);
+            }
+        }, [filtered, selectedId]);
+
+        const selected = useMemo(() => {
+            return (submissions || []).find(s => s.id === selectedId) || null;
+        }, [submissions, selectedId]);
+
+        const handleToggleRead = async () => {
+            if (!selected || actionLoading) return;
+            setActionLoading(true);
+            const nextState = !selected.read;
+            try {
+                await adminServices.submissions.markRead(selected.id, nextState, selected.collectionName);
+                toast(`Marked as ${nextState ? 'Read' : 'Unread'}.`, 'success');
+            } catch (err) {
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setActionLoading(false);
+            }
+        };
+
+        const handleDelete = () => {
+            if (!selected || actionLoading) return;
+            onConfirm({
+                eyebrow: 'DELETING SUBMISSION',
+                title: 'Delete Message Permanently?',
+                message: `Are you sure you want to delete message from "${selected.name || 'Unknown'}"? This action cannot be undone.`,
+                confirmLabel: 'Delete Message',
+                isDanger: true,
+                onConfirm: async () => {
+                    setActionLoading(true);
+                    try {
+                        await adminServices.submissions.delete(selected.id, selected.collectionName);
+                        toast('Submission removed from archive.', 'success');
+                        setSelectedId(null);
+                    } catch (err) {
+                        toast(getFriendlyError(err), 'error');
+                    } finally {
+                        setActionLoading(false);
+                    }
+                }
+            });
+        };
+
+        return h('div', { className: 'cr-split-layout' },
+            // Left Panel: Message Feed List
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, 'ARCHIVE FEED'),
+                        h('h2', { className: 'cr-panel-title' }, 'Messages')
+                    ),
+                    h('span', { className: 'cr-badge cr-badge-accent' }, `${filtered.length} LOADED`)
+                ),
+                h('div', { className: 'cr-panel-body' },
+                    h('div', { className: 'cr-search-bar' },
+                        h('span', { className: 'cr-search-icon' }, h(Icon, { name: 'search', size: 16 })),
+                        h('input', {
+                            type: 'search',
+                            className: 'cr-search-input',
+                            placeholder: 'Search name, email, subject...',
+                            value: search,
+                            onChange: e => setSearch(e.target.value)
+                        })
+                    ),
+                    h('div', { className: 'cr-filter-tabs' },
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-filter-btn ' + (filter === 'all' ? 'is-active' : ''),
+                            onClick: () => setFilter('all')
+                        }, `All (${submissions.length})`),
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-filter-btn ' + (filter === 'unread' ? 'is-active' : ''),
+                            onClick: () => setFilter('unread')
+                        }, `Unread (${submissions.filter(s => !s.read).length})`),
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-filter-btn ' + (filter === 'read' ? 'is-active' : ''),
+                            onClick: () => setFilter('read')
+                        }, `Read (${submissions.filter(s => s.read).length})`)
+                    ),
+
+                    loading && h('div', { className: 'cr-state-box' },
+                        h('div', { className: 'cr-spinner' }),
+                        h('span', { className: 'cr-state-desc' }, 'Loading live submissions from Firestore...')
+                    ),
+
+                    !loading && error && h('div', { className: 'cr-state-box' },
+                        h('span', { style: { color: 'var(--cr-danger)' } }, error)
+                    ),
+
+                    !loading && !error && filtered.length === 0 && h('div', { className: 'cr-state-box' },
+                        h(Icon, { name: 'inbox', size: 32 }),
+                        h('span', { className: 'cr-state-title' }, 'No messages found'),
+                        h('span', { className: 'cr-state-desc' }, search ? 'Try adjusting your search query.' : 'New submissions will appear here in real time.')
+                    ),
+
+                    !loading && h('div', { className: 'cr-feed-list' },
+                        filtered.map(item => h('div', {
+                            key: item.id,
+                            className: 'cr-feed-card ' + (!item.read ? 'is-unread ' : '') + (item.id === selectedId ? 'is-active' : ''),
+                            onClick: () => setSelectedId(item.id)
+                        },
+                            h('div', { className: 'cr-feed-head' },
+                                h('span', { className: 'cr-feed-name' }, item.name || 'Anonymous'),
+                                h('span', { className: 'cr-feed-date' }, item.createdAtLabel || '')
+                            ),
+                            h('div', { className: 'cr-feed-subject' }, item.subject || 'No Subject'),
+                            h('div', { className: 'cr-feed-snippet' }, item.message || '')
+                        ))
+                    )
+                )
+            ),
+
+            // Right Panel: Message Inspector
+            h('div', { className: 'cr-panel' },
+                selected ? (
+                    h('div', { className: 'cr-inspector' },
+                        h('div', { className: 'cr-panel-header' },
+                            h('div', { className: 'cr-panel-title-group' },
+                                h('span', { className: 'cr-panel-eyebrow' }, selected.subject || 'INCOMING TRANSMISSION'),
+                                h('h2', { className: 'cr-panel-title' }, selected.name || 'Unknown Sender')
+                            ),
+                            h('span', {
+                                className: 'cr-badge ' + (!selected.read ? 'cr-badge-accent' : 'cr-badge-success')
+                            }, !selected.read ? 'Unread' : 'Handled')
+                        ),
+                        h('div', { className: 'cr-panel-body' },
+                            h('div', { className: 'cr-inspector-meta' },
+                                h('div', { className: 'cr-meta-item' },
+                                    h('span', { className: 'cr-meta-label' }, 'Email Address'),
+                                    h('span', { className: 'cr-meta-value' },
+                                        selected.email
+                                            ? h('a', { href: `mailto:${selected.email}` }, selected.email)
+                                            : 'None provided'
+                                    )
+                                ),
+                                h('div', { className: 'cr-meta-item' },
+                                    h('span', { className: 'cr-meta-label' }, 'Received Timestamp'),
+                                    h('span', { className: 'cr-meta-value' }, selected.createdAtLabel || 'Just now')
+                                )
+                            ),
+                            h('div', { className: 'cr-inspector-message-box' },
+                                h('p', { className: 'cr-message-text' }, selected.message || '')
+                            ),
+                            h('div', { className: 'cr-inspector-actions' },
+                                h('button', {
+                                    type: 'button',
+                                    className: 'cr-btn ' + (!selected.read ? 'cr-btn-primary' : 'cr-btn-secondary'),
+                                    onClick: handleToggleRead,
+                                    disabled: actionLoading
+                                },
+                                    h(Icon, { name: 'check', size: 16 }),
+                                    selected.read ? 'Mark as Unread' : 'Mark as Handled (Read)'
+                                ),
+                                h('button', {
+                                    type: 'button',
+                                    className: 'cr-btn cr-btn-danger',
+                                    onClick: handleDelete,
+                                    disabled: actionLoading
+                                },
+                                    h(Icon, { name: 'trash', size: 16 }),
+                                    'Delete Message'
+                                )
+                            )
+                        )
+                    )
+                ) : (
+                    h('div', { className: 'cr-state-box' },
+                        h(Icon, { name: 'inbox', size: 40 }),
+                        h('span', { className: 'cr-state-title' }, 'Select a submission to inspect'),
+                        h('span', { className: 'cr-state-desc' }, 'Choose an incoming message from the feed on the left to review its content, verify contact info, or mark as handled.')
+                    )
+                )
+            )
+        );
+    }
+
+    // =========================================================================
+    // 7. WORKSPACE 2: CONTENT BOXES & NOTES
+    // Interaction pattern: Library (Left) -> Editor (Right)
+    // =========================================================================
+    function ContentWorkspace({ boxes, loading, error, toast, onConfirm }) {
+        const [selectedBoxId, setSelectedBoxId] = useState(null);
+        const [search, setSearch] = useState('');
+        
+        // Form state
+        const [title, setTitle] = useState('');
+        const [summary, setSummary] = useState('');
+        const [notes, setNotes] = useState('');
+        const [linksText, setLinksText] = useState('');
+        const [order, setOrder] = useState(0);
+        const [published, setPublished] = useState(true);
+        const [existingAttachments, setExistingAttachments] = useState([]);
+        const [removedAttachments, setRemovedAttachments] = useState([]);
+        const [pendingFiles, setPendingFiles] = useState([]); // [{ id, file, name, size, kind }]
+        const [uploadProgress, setUploadProgress] = useState(null); // { percent, meta }
+        const [saving, setSaving] = useState(false);
+        const notesRef = useRef(null);
+        const fileInputRef = useRef(null);
+
+        const filteredBoxes = useMemo(() => {
+            return (boxes || []).filter(b => {
+                if (!search.trim()) return true;
+                const q = search.trim().toLowerCase();
+                return (b.title || '').toLowerCase().includes(q) || (b.summary || '').toLowerCase().includes(q);
+            });
+        }, [boxes, search]);
+
+        const selectedBox = useMemo(() => {
+            return (boxes || []).find(b => b.id === selectedBoxId) || null;
+        }, [boxes, selectedBoxId]);
+
+        // When a box is selected in the library, populate editor
+        const handleSelectBox = (box) => {
+            if (!box) {
+                handleNewBox();
                 return;
             }
+            setSelectedBoxId(box.id);
+            setTitle(box.title || '');
+            setSummary(box.summary || '');
+            setNotes(box.notes || '');
+            setLinksText(
+                Array.isArray(box.links)
+                    ? box.links.map(l => (l.label && l.label !== l.url ? `${l.label} | ${l.url}` : l.url)).join('\n')
+                    : ''
+            );
+            setOrder(Number.isFinite(Number(box.order)) ? Number(box.order) : 0);
+            setPublished(Boolean(box.published));
+            setExistingAttachments(Array.isArray(box.attachments) ? box.attachments.slice() : []);
+            setRemovedAttachments([]);
+            setPendingFiles([]);
+            setUploadProgress(null);
+        };
 
-            resetTwoFactorFlow();
-            setStatus(authStatus, 'Secure session established.', 'success');
-        } catch (error) {
-            setStatus(authStatus, getFriendlyError(error), 'error');
-        } finally {
-            setLoginLoading(false);
-        }
-    }
+        const handleNewBox = () => {
+            setSelectedBoxId(null);
+            setTitle('');
+            setSummary('');
+            setNotes('');
+            setLinksText('');
+            setOrder(0);
+            setPublished(true);
+            setExistingAttachments([]);
+            setRemovedAttachments([]);
+            setPendingFiles([]);
+            setUploadProgress(null);
+        };
 
-    async function handleTwoFactorSubmit(event) {
-        event.preventDefault();
+        // Text formatting helpers operating safely on plain-text selection
+        const applyFormat = (prefix, suffix = prefix, placeholder = 'text') => {
+            const textarea = notesRef.current;
+            if (!textarea) return;
+            const start = textarea.selectionStart || 0;
+            const end = textarea.selectionEnd || start;
+            const val = textarea.value;
+            const selectedText = val.slice(start, end) || placeholder;
+            const replacement = prefix + selectedText + suffix;
 
-        if (!firebaseTools || typeof firebaseTools.verifyAdminTwoFactor !== 'function') {
-            setStatus(authStatus, '2FA helper is missing on this page.', 'error');
-            return;
-        }
+            const nextVal = val.slice(0, start) + replacement + val.slice(end);
+            setNotes(nextVal);
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length);
+            }, 0);
+        };
 
-        if (!state.twoFactorChallenge || !state.twoFactorChallenge.token) {
-            setStatus(authStatus, 'Sign in again to start a new 2FA challenge.', 'error');
-            return;
-        }
+        const handleAddFiles = (files) => {
+            const newEntries = Array.from(files || []).map(f => ({
+                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                file: f,
+                name: f.name,
+                size: f.size,
+                kind: getFileKind(f.type, f.name)
+            }));
+            setPendingFiles(prev => [...prev, ...newEntries]);
+        };
 
-        const code = twoFactorCodeInput ? twoFactorCodeInput.value : '';
-
-        setTwoFactorLoading(true);
-        setStatus(authStatus, '', 'hidden');
-
-        try {
-            await firebaseTools.verifyAdminTwoFactor(state.twoFactorChallenge.token, code);
-            loginForm.reset();
-            resetTwoFactorFlow();
-            setStatus(authStatus, 'Secure session established.', 'success');
-        } catch (error) {
-            if (twoFactorCodeInput) {
-                twoFactorCodeInput.select();
+        const handleSave = async (e) => {
+            e.preventDefault();
+            if (!title.trim()) {
+                toast('Box title is required.', 'error');
+                return;
             }
-            setStatus(authStatus, getFriendlyError(error), 'error');
-        } finally {
-            setTwoFactorLoading(false);
-        }
+            setSaving(true);
+            setUploadProgress(null);
+
+            try {
+                // Parse links
+                const parsedLinks = linksText.split('\n')
+                    .map(line => line.trim())
+                    .filter(Boolean)
+                    .map(line => {
+                        const parts = line.split('|').map(p => p.trim());
+                        if (parts.length >= 2) {
+                            return { label: parts[0], url: parts.slice(1).join(' | ') };
+                        }
+                        return { label: line, url: line };
+                    });
+
+                const payload = {
+                    id: selectedBoxId,
+                    title: title.trim(),
+                    summary: summary.trim(),
+                    notes: notes.trim(),
+                    links: parsedLinks,
+                    attachments: existingAttachments,
+                    removedAttachments: removedAttachments,
+                    files: pendingFiles.map(p => p.file),
+                    order: Number(order) || 0,
+                    published: Boolean(published),
+                    onUploadProgress: (prog) => {
+                        setUploadProgress({
+                            percent: prog.percent || 0,
+                            meta: `${prog.percent}% • ${prog.fileName || 'uploading'}`
+                        });
+                    }
+                };
+
+                const savedId = await adminServices.content.saveBox(payload);
+                toast(selectedBoxId ? 'Box updated successfully.' : 'New box created.', 'success');
+                setSelectedBoxId(savedId);
+                setPendingFiles([]);
+                setRemovedAttachments([]);
+                setUploadProgress(null);
+            } catch (err) {
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        const handleDeleteBox = () => {
+            if (!selectedBoxId || saving) return;
+            onConfirm({
+                eyebrow: 'DELETE CONTENT BOX',
+                title: 'Delete Box Permanently?',
+                message: `Are you sure you want to delete "${title || 'Untitled Box'}"? Any uploaded attachments will also be cleaned up.`,
+                confirmLabel: 'Delete Box',
+                isDanger: true,
+                onConfirm: async () => {
+                    setSaving(true);
+                    try {
+                        await adminServices.content.deleteBox(selectedBoxId);
+                        toast('Content box deleted.', 'success');
+                        handleNewBox();
+                    } catch (err) {
+                        toast(getFriendlyError(err), 'error');
+                    } finally {
+                        setSaving(false);
+                    }
+                }
+            });
+        };
+
+        return h('div', { className: 'cr-split-layout' },
+            // Left Panel: Library List
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, 'PUBLISHED LIBRARY'),
+                        h('h2', { className: 'cr-panel-title' }, 'Content Boxes')
+                    ),
+                    h('button', {
+                        type: 'button',
+                        className: 'cr-btn cr-btn-primary',
+                        onClick: handleNewBox
+                    },
+                        h(Icon, { name: 'plus', size: 14 }),
+                        'New Box'
+                    )
+                ),
+                h('div', { className: 'cr-panel-body' },
+                    h('div', { className: 'cr-search-bar' },
+                        h('span', { className: 'cr-search-icon' }, h(Icon, { name: 'search', size: 16 })),
+                        h('input', {
+                            type: 'search',
+                            className: 'cr-search-input',
+                            placeholder: 'Search boxes by title or summary...',
+                            value: search,
+                            onChange: e => setSearch(e.target.value)
+                        })
+                    ),
+
+                    loading && h('div', { className: 'cr-state-box' },
+                        h('div', { className: 'cr-spinner' }),
+                        h('span', { className: 'cr-state-desc' }, 'Loading content library...')
+                    ),
+
+                    !loading && error && h('div', { className: 'cr-state-box' },
+                        h('span', { style: { color: 'var(--cr-danger)' } }, error)
+                    ),
+
+                    !loading && !error && filteredBoxes.length === 0 && h('div', { className: 'cr-state-box' },
+                        h(Icon, { name: 'layers', size: 32 }),
+                        h('span', { className: 'cr-state-title' }, 'No content boxes'),
+                        h('span', { className: 'cr-state-desc' }, 'Click "+ New Box" to author your first command card.')
+                    ),
+
+                    !loading && h('div', { className: 'cr-feed-list' },
+                        filteredBoxes.map(b => h('div', {
+                            key: b.id,
+                            className: 'cr-box-item ' + (b.id === selectedBoxId ? 'is-selected' : ''),
+                            onClick: () => handleSelectBox(b)
+                        },
+                            h('div', { className: 'cr-box-top' },
+                                h('span', { className: 'cr-box-title' }, b.title || 'Untitled Box'),
+                                h('span', {
+                                    className: 'cr-badge ' + (b.published ? 'cr-badge-success' : 'cr-badge-muted')
+                                }, b.published ? 'Published' : 'Draft')
+                            ),
+                            b.summary && h('div', { className: 'cr-feed-snippet', style: { paddingLeft: 0 } }, b.summary),
+                            h('div', { className: 'cr-box-meta-line' },
+                                h('span', null, `Order: ${b.order ?? 0}`),
+                                h('span', null, `•`),
+                                h('span', null, `${(b.attachments || []).length} file(s)`)
+                            )
+                        ))
+                    )
+                )
+            ),
+
+            // Right Panel: Box Editor
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, selectedBoxId ? 'EDITING ARCHIVE CARD' : 'AUTHORING NEW CARD'),
+                        h('h2', { className: 'cr-panel-title' }, selectedBoxId ? (title || 'Edit Box') : 'Create New Box')
+                    ),
+                    selectedBoxId && h('button', {
+                        type: 'button',
+                        className: 'cr-btn cr-btn-danger',
+                        onClick: handleDeleteBox,
+                        disabled: saving
+                    },
+                        h(Icon, { name: 'trash', size: 14 }),
+                        'Delete Box'
+                    )
+                ),
+                h('form', { onSubmit: handleSave, className: 'cr-panel-body' },
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Box Title *'),
+                        h('input', {
+                            type: 'text',
+                            className: 'cr-form-input',
+                            placeholder: 'e.g. Git Commands / Server Deploy',
+                            value: title,
+                            onChange: e => setTitle(e.target.value),
+                            required: true,
+                            maxLength: 120
+                        })
+                    ),
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Short Summary'),
+                        h('input', {
+                            type: 'text',
+                            className: 'cr-form-input',
+                            placeholder: 'Brief summary displayed on homepage card',
+                            value: summary,
+                            onChange: e => setSummary(e.target.value),
+                            maxLength: 180
+                        })
+                    ),
+
+                    // Markdown Notes with formatting toolbar
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Notes / Commands (Plain-text Markdown)'),
+                        h('div', { className: 'cr-fmt-toolbar' },
+                            h('button', { type: 'button', className: 'cr-fmt-btn', title: 'Bold (Ctrl+B)', onClick: () => applyFormat('**', '**', 'bold text') }, h('strong', null, 'B')),
+                            h('button', { type: 'button', className: 'cr-fmt-btn', title: 'Italic (Ctrl+I)', onClick: () => applyFormat('*', '*', 'italic text') }, h('em', null, 'I')),
+                            h('button', { type: 'button', className: 'cr-fmt-btn', title: 'Inline Code', onClick: () => applyFormat('`', '`', 'code') }, '</>'),
+                            h('button', { type: 'button', className: 'cr-fmt-btn', title: 'Code Block (Ctrl+Shift+M)', onClick: () => applyFormat('```\n', '\n```', 'command') }, '```'),
+                            h('button', { type: 'button', className: 'cr-fmt-btn', title: 'Quote', onClick: () => applyFormat('> ', '', 'quote') }, '>'),
+                            h('button', { type: 'button', className: 'cr-fmt-btn', title: 'Bullet List', onClick: () => applyFormat('- ', '', 'item') }, '-')
+                        ),
+                        h('textarea', {
+                            ref: notesRef,
+                            rows: 6,
+                            className: 'cr-form-textarea has-toolbar',
+                            placeholder: 'git status\ngit commit -m "feat: control room"\ngit push origin main',
+                            value: notes,
+                            onChange: e => setNotes(e.target.value),
+                            onKeyDown: (e) => {
+                                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                                    e.preventDefault(); applyFormat('**', '**', 'bold text');
+                                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+                                    e.preventDefault(); applyFormat('*', '*', 'italic text');
+                                } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+                                    e.preventDefault(); applyFormat('```\n', '\n```', 'command');
+                                }
+                            }
+                        })
+                    ),
+
+                    // Links
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Useful Links (Label | URL, one per line)'),
+                        h('textarea', {
+                            rows: 3,
+                            className: 'cr-form-textarea',
+                            placeholder: 'GitHub | https://github.com/Hunters1ar\nDocs | https://example.com/docs',
+                            value: linksText,
+                            onChange: e => setLinksText(e.target.value)
+                        })
+                    ),
+
+                    // File Attachments & Upload Dropzone
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Archive Attachments & Files'),
+                        h('div', {
+                            className: 'cr-dropzone',
+                            onClick: () => fileInputRef.current && fileInputRef.current.click(),
+                            onDragOver: e => e.preventDefault(),
+                            onDrop: e => {
+                                e.preventDefault();
+                                handleAddFiles(e.dataTransfer.files);
+                            }
+                        },
+                            h('input', {
+                                ref: fileInputRef,
+                                type: 'file',
+                                multiple: true,
+                                style: { display: 'none' },
+                                onChange: e => handleAddFiles(e.target.files)
+                            }),
+                            h('div', { className: 'cr-dropzone-icon' }, '+'),
+                            h('div', { className: 'cr-dropzone-text' }, 'Drop archive files here or click to browse'),
+                            h('div', { className: 'cr-dropzone-sub' }, 'Supports images, audio, video, PDFs, archives, and executables (download-only).')
+                        ),
+
+                        uploadProgress && h('div', { className: 'cr-progress-wrap' },
+                            h('div', { className: 'cr-progress-meta' },
+                                h('span', null, 'Uploading files to storage...'),
+                                h('span', null, uploadProgress.meta)
+                            ),
+                            h('div', { className: 'cr-progress-bar' },
+                                h('div', { className: 'cr-progress-fill', style: { width: `${uploadProgress.percent}%` } })
+                            )
+                        ),
+
+                        // List of existing + pending attachments
+                        (existingAttachments.length > 0 || pendingFiles.length > 0) && h('div', { className: 'cr-attachment-list' },
+                            existingAttachments.map(att => h('div', { key: att.id, className: 'cr-attachment-card' },
+                                h('span', { className: `cr-attachment-badge kind-${att.kind || 'file'}` },
+                                    (att.kind || 'FILE').toUpperCase()
+                                ),
+                                h('div', { className: 'cr-attachment-info' },
+                                    h('div', { className: 'cr-attachment-name', title: att.name }, att.name),
+                                    h('div', { className: 'cr-attachment-size' }, formatFileSize(att.size))
+                                ),
+                                att.url && h('a', {
+                                    href: att.url,
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    download: att.kind === 'program' ? (att.name || 'file') : undefined,
+                                    title: att.kind === 'program' ? 'Download' : 'Open',
+                                    className: 'cr-btn cr-btn-secondary',
+                                    style: { padding: '4px 8px' }
+                                }, h(Icon, { name: att.kind === 'program' ? 'download' : 'external-link', size: 14 })),
+                                h('button', {
+                                    type: 'button',
+                                    className: 'cr-btn cr-btn-danger',
+                                    style: { padding: '4px 8px' },
+                                    onClick: () => {
+                                        setExistingAttachments(prev => prev.filter(x => x.id !== att.id));
+                                        setRemovedAttachments(prev => [...prev, att]);
+                                    }
+                                }, h(Icon, { name: 'x', size: 14 }))
+                            )),
+                            pendingFiles.map(p => h('div', { key: p.id, className: 'cr-attachment-card', style: { borderStyle: 'dashed' } },
+                                h('span', { className: `cr-attachment-badge kind-${p.kind}` },
+                                    p.kind.toUpperCase()
+                                ),
+                                h('div', { className: 'cr-attachment-info' },
+                                    h('div', { className: 'cr-attachment-name' }, `[Pending] ${p.name}`),
+                                    h('div', { className: 'cr-attachment-size' }, formatFileSize(p.size))
+                                ),
+                                h('button', {
+                                    type: 'button',
+                                    className: 'cr-btn cr-btn-danger',
+                                    style: { padding: '4px 8px' },
+                                    onClick: () => setPendingFiles(prev => prev.filter(x => x.id !== p.id))
+                                }, h(Icon, { name: 'x', size: 14 }))
+                            ))
+                        )
+                    ),
+
+                    // Order & Published Toggle
+                    h('div', { style: { display: 'flex', alignItems: 'center', gap: '20px', margin: '10px 0' } },
+                        h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+                            h('label', { className: 'cr-form-label', style: { margin: 0 } }, 'Sort Order:'),
+                            h('input', {
+                                type: 'number',
+                                className: 'cr-form-input',
+                                style: { width: '80px', padding: '6px 10px' },
+                                value: order,
+                                onChange: e => setOrder(Number(e.target.value) || 0)
+                            })
+                        ),
+                        h('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.84rem' } },
+                            h('input', {
+                                type: 'checkbox',
+                                checked: published,
+                                onChange: e => setPublished(e.target.checked)
+                            }),
+                            h('span', null, 'Publish on Public Index')
+                        )
+                    ),
+
+                    // Actions
+                    h('div', { style: { display: 'flex', gap: '10px', marginTop: '14px' } },
+                        h('button', {
+                            type: 'submit',
+                            className: 'cr-btn cr-btn-primary',
+                            disabled: saving
+                        },
+                            h(Icon, { name: 'check', size: 16 }),
+                            saving ? 'Saving to Archive...' : (selectedBoxId ? 'Update Box' : 'Save New Box')
+                        ),
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-btn cr-btn-secondary',
+                            onClick: handleNewBox,
+                            disabled: saving
+                        }, 'Clear Form')
+                    )
+                )
+            )
+        );
     }
 
-    async function handleLogout() {
-        if (!firebaseTools) return;
+    // =========================================================================
+    // 8. WORKSPACE 3: YOUTUBE PLAYLISTS
+    // =========================================================================
+    function PlaylistsWorkspace({ playlists, loading, error, onRefresh, toast, onConfirm }) {
+        const [urlInput, setUrlInput] = useState('');
+        const [adding, setAdding] = useState(false);
 
-        try {
-            await firebaseTools.signOutAdmin();
-            setStatus(authStatus, 'Signed out of control room.', 'success');
-        } catch (error) {
-            setStatus(authStatus, getFriendlyError(error), 'error');
-        }
+        const handleAddPlaylist = async (e) => {
+            e.preventDefault();
+            const val = urlInput.trim();
+            if (!val) return;
+            setAdding(true);
+
+            try {
+                const res = await adminServices.playlists.add(val);
+                toast(`Added playlist "${res.title || res.id}".`, 'success');
+                setUrlInput('');
+                onRefresh();
+            } catch (err) {
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setAdding(false);
+            }
+        };
+
+        const handleRemove = (playlist) => {
+            onConfirm({
+                eyebrow: 'REMOVE PLAYLIST',
+                title: 'Remove from Radio Gallery?',
+                message: `Are you sure you want to remove "${playlist.title || playlist.id}" from the live playlist gallery?`,
+                confirmLabel: 'Remove Playlist',
+                isDanger: true,
+                onConfirm: async () => {
+                    try {
+                        await adminServices.playlists.delete(playlist.id);
+                        toast('Playlist removed.', 'success');
+                        onRefresh();
+                    } catch (err) {
+                        toast(getFriendlyError(err), 'error');
+                    }
+                }
+            });
+        };
+
+        return h('div', { className: 'cr-split-layout' },
+            // Left Panel: Add Playlist
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, 'GALLERY MANAGER'),
+                        h('h2', { className: 'cr-panel-title' }, 'Add Playlist')
+                    )
+                ),
+                h('form', { onSubmit: handleAddPlaylist, className: 'cr-panel-body' },
+                    h('p', { style: { fontSize: '0.82rem', color: 'var(--cr-text-secondary)', lineHeight: '1.5', margin: '0 0 10px 0' } },
+                        'Paste a YouTube playlist link or ID. It will appear on the public Radio Playlist page with metadata pulled automatically.'
+                    ),
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Playlist URL or Playlist ID'),
+                        h('input', {
+                            type: 'text',
+                            className: 'cr-form-input',
+                            placeholder: 'https://www.youtube.com/playlist?list=PL...',
+                            value: urlInput,
+                            onChange: e => setUrlInput(e.target.value),
+                            required: true
+                        })
+                    ),
+                    h('button', {
+                        type: 'submit',
+                        className: 'cr-btn cr-btn-primary',
+                        disabled: adding || !urlInput.trim()
+                    },
+                        h(Icon, { name: 'plus', size: 16 }),
+                        adding ? 'Fetching & Adding...' : 'Add to Radio'
+                    )
+                )
+            ),
+
+            // Right Panel: Live Playlists Grid
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, 'CONFIGURED GALLERY'),
+                        h('h2', { className: 'cr-panel-title' }, 'Live Playlists')
+                    ),
+                    h('span', { className: 'cr-badge cr-badge-accent' }, `${(playlists || []).length} ACTIVE`)
+                ),
+                h('div', { className: 'cr-panel-body' },
+                    loading && h('div', { className: 'cr-state-box' },
+                        h('div', { className: 'cr-spinner' }),
+                        h('span', { className: 'cr-state-desc' }, 'Loading playlists...')
+                    ),
+
+                    !loading && error && h('div', { className: 'cr-state-box' },
+                        h('span', { style: { color: 'var(--cr-danger)' } }, error)
+                    ),
+
+                    !loading && !error && (playlists || []).length === 0 && h('div', { className: 'cr-state-box' },
+                        h(Icon, { name: 'youtube', size: 36 }),
+                        h('span', { className: 'cr-state-title' }, 'No playlists registered'),
+                        h('span', { className: 'cr-state-desc' }, 'Add your favorite YouTube anime/ambient playlist on the left.')
+                    ),
+
+                    !loading && h('div', { className: 'cr-playlist-grid' },
+                        (playlists || []).map(p => h('div', { key: p.id, className: 'cr-playlist-card' },
+                            h('div', null,
+                                h('h4', { className: 'cr-playlist-title' }, p.title || 'YouTube Playlist'),
+                                h('div', { className: 'cr-playlist-id' }, p.id)
+                            ),
+                            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' } },
+                                h('a', {
+                                    href: `https://www.youtube.com/playlist?list=${p.id}`,
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    className: 'cr-btn cr-btn-secondary',
+                                    style: { padding: '4px 10px', fontSize: '0.74rem' }
+                                },
+                                    h(Icon, { name: 'external-link', size: 14 }),
+                                    'YouTube'
+                                ),
+                                h('button', {
+                                    type: 'button',
+                                    className: 'cr-btn cr-btn-danger',
+                                    style: { padding: '4px 10px', fontSize: '0.74rem' },
+                                    onClick: () => handleRemove(p)
+                                },
+                                    h(Icon, { name: 'trash', size: 14 }),
+                                    'Remove'
+                                )
+                            )
+                        ))
+                    )
+                )
+            )
+        );
     }
 
-    async function handleToggleRead() {
-        const selected = getSelectedSubmission();
-        if (!selected || !firebaseTools) return;
+    // =========================================================================
+    // 9. ADMIN SHELL & NAVIGATION
+    // =========================================================================
+    function AdminShell({
+        currentUser,
+        activeTab,
+        setActiveTab,
+        isCollapsed,
+        setIsCollapsed,
+        isMobileOpen,
+        setIsMobileOpen,
+        syncState,
+        onLockSession,
+        onOpenCmd,
+        unreadCount,
+        boxCount,
+        playlistCount,
+        children
+    }) {
+        const navItems = [
+            { id: 'submissions', label: 'Submissions', icon: 'inbox', badge: unreadCount > 0 ? String(unreadCount) : null, isPulse: unreadCount > 0 },
+            { id: 'content', label: 'Content Boxes', icon: 'layers', badge: String(boxCount) },
+            { id: 'playlists', label: 'YouTube Playlists', icon: 'youtube', badge: String(playlistCount) }
+        ];
 
-        toggleReadButton.disabled = true;
+        return h('div', { className: 'cr-app-shell' },
+            // Mobile Backdrop
+            isMobileOpen && h('div', {
+                className: 'cr-mobile-backdrop',
+                onClick: () => setIsMobileOpen(false)
+            }),
 
-        try {
-            await firebaseTools.updateSubmissionReadState(selected.id, !selected.read, selected.collectionName);
-        } catch (error) {
-            setStatus(authStatus, getFriendlyError(error), 'error');
-        } finally {
-            toggleReadButton.disabled = false;
-        }
+            // Collapsible Animated Sidebar
+            h('aside', {
+                className: 'cr-sidebar ' + (isCollapsed ? 'is-collapsed ' : '') + (isMobileOpen ? 'is-mobile-open' : '')
+            },
+                h('div', { className: 'cr-sidebar-header' },
+                    h('div', { className: 'cr-sidebar-brand' },
+                        h('div', { className: 'cr-brand-icon' },
+                            h(Icon, { name: 'command', size: 18 })
+                        ),
+                        h('div', { className: 'cr-brand-info' },
+                            h('span', { className: 'cr-brand-title' }, 'Control ', h('span', null, 'Room')),
+                            h('span', { className: 'cr-brand-sub' }, 'Hunterstar OS')
+                        )
+                    ),
+                    h('button', {
+                        type: 'button',
+                        className: 'cr-sidebar-toggle-btn',
+                        onClick: () => setIsCollapsed(!isCollapsed),
+                        title: isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'
+                    },
+                        h(Icon, { name: isCollapsed ? 'chevron-right' : 'chevron-left', size: 14 })
+                    )
+                ),
+
+                h('div', { className: 'cr-sidebar-nav' },
+                    h('div', { className: 'cr-nav-heading' }, 'Workspaces'),
+                    navItems.map(item => h('button', {
+                        key: item.id,
+                        type: 'button',
+                        className: 'cr-nav-item ' + (activeTab === item.id ? 'is-active' : ''),
+                        onClick: () => {
+                            setActiveTab(item.id);
+                            setIsMobileOpen(false);
+                        }
+                    },
+                        h('span', { className: 'cr-nav-icon' }, h(Icon, { name: item.icon, size: 18 })),
+                        h('span', { className: 'cr-nav-label' }, item.label),
+                        item.badge && h('span', {
+                            className: 'cr-nav-badge ' + (item.isPulse ? 'is-pulse' : '')
+                        }, item.badge)
+                    ))
+                ),
+
+                h('div', { className: 'cr-sidebar-footer' },
+                    h('div', { className: 'cr-user-chip' },
+                        h('div', { className: 'cr-user-avatar' },
+                            (currentUser && currentUser.email ? currentUser.email[0] : 'A').toUpperCase()
+                        ),
+                        h('div', { className: 'cr-user-details' },
+                            h('span', { className: 'cr-user-email' }, currentUser && currentUser.email ? currentUser.email : 'Admin User'),
+                            h('span', { className: 'cr-user-role' }, 'ROOT OPERATOR')
+                        )
+                    ),
+                    h('button', {
+                        type: 'button',
+                        className: 'cr-lock-btn',
+                        onClick: onLockSession,
+                        title: 'Lock Control Room (L)'
+                    },
+                        h(Icon, { name: 'lock', size: 14 }),
+                        h('span', null, 'Lock Session')
+                    )
+                )
+            ),
+
+            // Main Area
+            h('div', { className: 'cr-main-area' },
+                // Topbar
+                h('header', { className: 'cr-topbar' },
+                    h('div', { className: 'cr-topbar-left' },
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-mobile-menu-btn',
+                            onClick: () => setIsMobileOpen(true)
+                        }, h(Icon, { name: 'menu', size: 18 })),
+                        h('div', { className: 'cr-breadcrumb' },
+                            h('span', null, 'ARCHIVE'),
+                            h('span', { className: 'cr-breadcrumb-separator' }, '/'),
+                            h('span', { className: 'cr-breadcrumb-active' },
+                                activeTab === 'submissions' ? 'SUBMISSIONS FEED' : (activeTab === 'content' ? 'CONTENT & COMMANDS' : 'RADIO PLAYLISTS')
+                            )
+                        )
+                    ),
+                    h('div', { className: 'cr-topbar-right' },
+                        // Sync Status
+                        h('div', { className: `cr-sync-status is-${syncState}` },
+                            h('span', { className: 'cr-sync-dot' }),
+                            h('span', null, syncState === 'synced' ? '● SYNCED' : (syncState === 'syncing' ? '◐ SYNCING' : '⚠ RECONNECT'))
+                        ),
+                        // Command Palette Trigger
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-cmd-trigger',
+                            onClick: onOpenCmd,
+                            title: 'Search Commands (Ctrl+K)'
+                        },
+                            h(Icon, { name: 'search', size: 14 }),
+                            h('span', null, 'Commands'),
+                            h('span', { className: 'cr-kbd-shortcut' }, 'Ctrl+K')
+                        )
+                    )
+                ),
+
+                // Active Workspace Canvas
+                h('main', { className: 'cr-workspace-canvas' }, children)
+            )
+        );
     }
 
-    async function handleDelete() {
-        const selected = getSelectedSubmission();
-        if (!selected || !firebaseTools) return;
+    // =========================================================================
+    // 10. ROOT APPLICATION (AdminApp)
+    // =========================================================================
+    function AdminApp() {
+        const [currentUser, setCurrentUser] = useState(adminServices.auth.getCurrentUser());
+        const [activeTab, setActiveTab] = useState('submissions');
+        const [isCollapsed, setIsCollapsed] = useState(() => {
+            try { return localStorage.getItem('cr-sidebar-collapsed') === 'true'; } catch (_) { return false; }
+        });
+        const [isMobileOpen, setIsMobileOpen] = useState(false);
+        const [syncState, setSyncState] = useState('synced'); // synced, syncing, error
+        const [cmdOpen, setCmdOpen] = useState(false);
+        const [modalConfig, setModalConfig] = useState(null);
+        const [toasts, setToasts] = useState([]);
 
-        const confirmed = window.confirm('Delete this submission permanently?');
-        if (!confirmed) return;
+        // Data states
+        const [submissions, setSubmissions] = useState([]);
+        const [subsLoading, setSubsLoading] = useState(false);
+        const [subsError, setSubsError] = useState(null);
 
-        deleteButton.disabled = true;
+        const [boxes, setBoxes] = useState([]);
+        const [boxesLoading, setBoxesLoading] = useState(false);
+        const [boxesError, setBoxesError] = useState(null);
 
-        try {
-            await firebaseTools.deleteSubmission(selected.id, selected.collectionName);
-            state.selectedId = null;
-        } catch (error) {
-            setStatus(authStatus, getFriendlyError(error), 'error');
-        } finally {
-            deleteButton.disabled = false;
-        }
-    }
+        const [playlists, setPlaylists] = useState([]);
+        const [playlistsLoading, setPlaylistsLoading] = useState(false);
+        const [playlistsError, setPlaylistsError] = useState(null);
 
-    async function handleResourceSave(event) {
-        event.preventDefault();
+        // Toast dispatcher
+        const addToast = useCallback((message, type = 'info') => {
+            const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            setToasts(prev => [...prev, { id, message, type }]);
+            setTimeout(() => {
+                setToasts(prev => prev.filter(t => t.id !== id));
+            }, 3800);
+        }, []);
 
-        if (!firebaseTools || !firebaseTools.saveContentBox) {
-            setStatus(resourceStatus, 'Firebase content box helper is missing.', 'error');
-            return;
-        }
+        const dismissToast = useCallback((id) => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, []);
 
-        try {
-            setResourceSaving(true);
-            setStatus(resourceStatus, '', 'hidden');
+        // Persist sidebar state
+        useEffect(() => {
+            try { localStorage.setItem('cr-sidebar-collapsed', String(isCollapsed)); } catch (_) {}
+        }, [isCollapsed]);
 
-            const payload = {
-                id: state.selectedBoxId,
-                title: resourceTitleInput ? resourceTitleInput.value.trim() : '',
-                summary: resourceSummaryInput ? resourceSummaryInput.value.trim() : '',
-                notes: resourceNotesInput ? resourceNotesInput.value.trim() : '',
-                links: parseLinksInput(resourceLinksInput ? resourceLinksInput.value : ''),
-                attachments: state.resourceDraftAttachments,
-                removedAttachments: state.resourceRemovedAttachments,
-                files: state.resourcePendingFiles.map((entry) => entry.file),
-                onUploadProgress: updateResourceUploadProgress,
-                order: resourceOrderInput ? Number(resourceOrderInput.value || 0) : 0,
-                published: resourcePublishedInput ? resourcePublishedInput.checked : true
+        // Authoritative Auth State Subscription
+        useEffect(() => {
+            const unsub = adminServices.auth.onAuthStateChanged((user) => {
+                setCurrentUser(user);
+            });
+            return () => unsub();
+        }, []);
+
+        // Authoritative Inactivity Check & Session Touch
+        useEffect(() => {
+            if (!currentUser) return;
+            let idleTimer = null;
+            const timeoutMs = adminServices.auth.getIdleTimeoutMs();
+
+            const resetTimer = () => {
+                if (idleTimer) clearTimeout(idleTimer);
+                idleTimer = setTimeout(async () => {
+                    await adminServices.auth.expireSession();
+                    addToast('Session locked after 5 minutes of inactivity.', 'warning');
+                }, timeoutMs);
             };
 
-            if (!payload.title) {
-                throw new Error('Box title is required.');
-            }
+            const handleActivity = () => {
+                resetTimer();
+                adminServices.auth.touchSession().catch(() => {});
+            };
 
-            if (payload.files.length) {
-                const totalBytes = payload.files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
-                updateResourceUploadProgress({
-                    fileName: payload.files[0].name,
-                    fileIndex: 0,
-                    fileCount: payload.files.length,
-                    bytesTransferred: 0,
-                    totalBytes,
-                    percent: 0,
-                    state: 'queued'
-                });
-            } else {
-                resetResourceUploadProgress();
-            }
-
-            const savedId = await firebaseTools.saveContentBox(payload);
-            state.selectedBoxId = savedId;
-            revokePendingFilePreviews(state.resourcePendingFiles);
-            state.resourcePendingFiles = [];
-            state.resourceRemovedAttachments = [];
-            if (resourceFilesInput) resourceFilesInput.value = '';
-            renderResourceFilePreviews();
-            setStatus(resourceStatus, payload.id ? 'Box updated successfully.' : 'Box created successfully.', 'success');
-        } catch (error) {
-            markResourceUploadError();
-            setStatus(resourceStatus, getFriendlyError(error), 'error');
-        } finally {
-            setResourceSaving(false);
-        }
-    }
-
-    async function handleResourceDelete() {
-        const selected = getSelectedBox();
-        if (!selected || !firebaseTools || !firebaseTools.deleteContentBox) return;
-
-        const confirmed = window.confirm('Delete this homepage box permanently?');
-        if (!confirmed) return;
-
-        try {
-            setResourceSaving(true);
-            await firebaseTools.deleteContentBox(selected.id);
-            resetResourceForm(true);
-            setStatus(resourceStatus, 'Box deleted successfully.', 'success');
-        } catch (error) {
-            setStatus(resourceStatus, getFriendlyError(error), 'error');
-        } finally {
-            setResourceSaving(false);
-        }
-    }
-
-    function addResourceFiles(fileSource) {
-        const files = Array.from(fileSource || []).filter((file) =>
-            file && typeof file.name === 'string' && Number(file.size) >= 0
-        );
-
-        if (!files.length) return;
-
-        const addedBytes = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
-
-        state.resourcePendingFiles = state.resourcePendingFiles.concat(files.map(createPendingFileEntry));
-        renderResourceFilePreviews();
-        resetResourceUploadProgress();
-        setResourceSaving(false);
-        setStatus(
-            resourceStatus,
-            files.length + (files.length === 1 ? ' file' : ' files') + ' ready. Save the box to upload ' + formatFileSize(addedBytes) + '.',
-            'success'
-        );
-    }
-
-    function handleResourceFilesChange(event) {
-        addResourceFiles(event.target.files);
-        event.target.value = '';
-    }
-
-    function handleResourceFileDrag(event) {
-        if (!resourceFileDropTarget) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-        resourceFileDropTarget.classList.add('is-dragging');
-    }
-
-    function handleResourceFileDragLeave(event) {
-        if (!resourceFileDropTarget) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (!resourceFileDropTarget.contains(event.relatedTarget)) {
-            resourceFileDropTarget.classList.remove('is-dragging');
-        }
-    }
-
-    function handleResourceFileDrop(event) {
-        if (!resourceFileDropTarget) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-        resourceFileDropTarget.classList.remove('is-dragging');
-
-        if (resourceFilesInput && resourceFilesInput.disabled) return;
-
-        addResourceFiles(event.dataTransfer ? event.dataTransfer.files : []);
-    }
-
-    function handleResourceFileTargetKeydown(event) {
-        if (!resourceFilesInput || resourceFilesInput.disabled) return;
-
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            resourceFilesInput.click();
-        }
-    }
-
-    function handleAuthStateChange(user) {
-        const isSignedIn = Boolean(user);
-
-        if (authCard) authCard.classList.toggle('hidden', isSignedIn);
-        if (dashboard) dashboard.classList.toggle('hidden', !isSignedIn);
-
-        if (!isSignedIn) {
-            clearAdminIdleTimer();
-            state.lastLocalActivityAt = 0;
-            state.lastSessionTouchAt = 0;
-            resetTwoFactorFlow();
-            stopSubmissionSubscription();
-            stopBoxSubscription();
-            state.loading = false;
-            state.submissions = [];
-            state.filteredSubmissions = [];
-            state.selectedId = null;
-            state.boxesLoading = false;
-            state.boxes = [];
-            updateStats();
-            updateResourceStats();
-            renderListStatus();
-            renderList();
-            renderDetail();
-            renderResourceList();
-            resetResourceForm(true);
-            clearPlaylistManager();
-            if (sessionUser) sessionUser.textContent = 'Signed out';
-            return;
-        }
-
-        if (sessionUser) {
-            sessionUser.textContent = user.email || 'Admin session';
-        }
-
-        state.lastLocalActivityAt = Date.now();
-        state.lastSessionTouchAt = Date.now();
-        scheduleAdminIdleLock();
-
-        startSubmissionSubscription();
-        startBoxSubscription();
-        refreshPlaylists();
-    }
-
-    // -----------------------------------------------------------------------
-    // Playlist gallery manager
-    // -----------------------------------------------------------------------
-    function setPlaylistStatus(message, type) {
-        if (!playlistStatus) return;
-        if (!message) {
-            playlistStatus.textContent = '';
-            playlistStatus.className = 'form-status hidden';
-            return;
-        }
-        playlistStatus.textContent = message;
-        playlistStatus.className = 'form-status ' + (type || '');
-    }
-
-    function setPlaylistListStatus(message, isError) {
-        if (!playlistListStatus) return;
-        playlistListStatus.textContent = message;
-        playlistListStatus.style.color = isError ? '#f18f86' : '';
-    }
-
-    function renderPlaylists(playlists) {
-        if (!playlistList) return;
-        playlistList.innerHTML = '';
-        if (playlistCount) playlistCount.textContent = String(playlists.length);
-
-        if (!playlists.length) {
-            setPlaylistListStatus('No playlists yet. Add one above.', false);
-            return;
-        }
-
-        setPlaylistListStatus(playlists.length + (playlists.length === 1 ? ' playlist live.' : ' playlists live.'), false);
-
-        playlists.forEach((playlist) => {
-            const item = document.createElement('article');
-            item.className = 'admin-resource-item';
-
-            const top = document.createElement('div');
-            top.className = 'admin-resource-item-top';
-
-            const group = document.createElement('div');
-            const title = document.createElement('h4');
-            title.className = 'admin-resource-title';
-            title.textContent = playlist.title || 'Playlist';
-            const meta = document.createElement('p');
-            meta.className = 'admin-resource-meta';
-            meta.textContent = playlist.id;
-            group.appendChild(title);
-            group.appendChild(meta);
-
-            const removeButton = document.createElement('button');
-            removeButton.type = 'button';
-            removeButton.className = 'admin-danger-button admin-mini-button';
-            removeButton.textContent = 'Remove';
-            removeButton.addEventListener('click', () => handlePlaylistRemove(playlist, removeButton));
-
-            top.appendChild(group);
-            top.appendChild(removeButton);
-            item.appendChild(top);
-            playlistList.appendChild(item);
-        });
-    }
-
-    async function refreshPlaylists() {
-        if (!firebaseTools || !firebaseTools.listAdminPlaylists) return;
-        setPlaylistListStatus('Loading playlists...', false);
-        try {
-            const playlists = await firebaseTools.listAdminPlaylists();
-            renderPlaylists(playlists);
-        } catch (error) {
-            if (playlistList) playlistList.innerHTML = '';
-            if (playlistCount) playlistCount.textContent = '0';
-            setPlaylistListStatus(getFriendlyError(error), true);
-        }
-    }
-
-    async function handlePlaylistSubmit(event) {
-        event.preventDefault();
-        if (playlistAddInFlight || !firebaseTools || !playlistInput) return;
-
-        const value = playlistInput.value.trim();
-        if (!value) return;
-
-        playlistAddInFlight = true;
-        if (playlistAddButton) {
-            playlistAddButton.disabled = true;
-            playlistAddButton.textContent = 'Adding...';
-        }
-        setPlaylistStatus('', '');
-
-        try {
-            const result = await firebaseTools.addAdminPlaylist(value);
-            setPlaylistStatus('Added "' + (result.title || result.id) + '".', 'success');
-            playlistInput.value = '';
-            await refreshPlaylists();
-        } catch (error) {
-            setPlaylistStatus(getFriendlyError(error), 'error');
-        } finally {
-            playlistAddInFlight = false;
-            if (playlistAddButton) {
-                playlistAddButton.disabled = false;
-                playlistAddButton.textContent = 'Add Playlist';
-            }
-        }
-    }
-
-    async function handlePlaylistRemove(playlist, button) {
-        const label = playlist.title || playlist.id;
-        if (!window.confirm('Remove "' + label + '" from the playlist gallery?')) return;
-
-        if (button) button.disabled = true;
-        try {
-            await firebaseTools.deleteAdminPlaylist(playlist.id);
-            setPlaylistStatus('Removed "' + label + '".', 'success');
-            await refreshPlaylists();
-        } catch (error) {
-            if (button) button.disabled = false;
-            setPlaylistStatus(getFriendlyError(error), 'error');
-        }
-    }
-
-    function clearPlaylistManager() {
-        if (playlistList) playlistList.innerHTML = '';
-        if (playlistCount) playlistCount.textContent = '0';
-        setPlaylistListStatus('Waiting for secure session...', false);
-        setPlaylistStatus('', '');
-    }
-
-    function init() {
-        if (!firebaseTools) {
-            setStatus(authStatus, 'Firebase helper failed to load.', 'error');
-            return;
-        }
-
-        if (searchInput) {
-            searchInput.addEventListener('input', applyFilter);
-        }
-
-        if (loginForm) {
-            loginForm.addEventListener('submit', handleLoginSubmit);
-        }
-
-        if (twoFactorForm) {
-            twoFactorForm.addEventListener('submit', handleTwoFactorSubmit);
-        }
-
-        if (logoutButton) {
-            logoutButton.addEventListener('click', handleLogout);
-        }
-
-        if (toggleReadButton) {
-            toggleReadButton.addEventListener('click', handleToggleRead);
-            toggleReadButton.disabled = true;
-        }
-
-        if (deleteButton) {
-            deleteButton.addEventListener('click', handleDelete);
-            deleteButton.disabled = true;
-        }
-
-        if (resourceForm) {
-            resourceForm.addEventListener('submit', handleResourceSave);
-        }
-
-        if (resourceNotesToolbar) {
-            resourceNotesToolbar.addEventListener('click', handleNotesToolbarClick);
-        }
-
-        if (resourceNotesInput) {
-            resourceNotesInput.addEventListener('keydown', handleNotesKeyboardShortcuts);
-        }
-
-        if (resourceFilesInput) {
-            resourceFilesInput.addEventListener('change', handleResourceFilesChange);
-        }
-
-        if (resourceFileDropTarget) {
-            resourceFileDropTarget.addEventListener('dragenter', handleResourceFileDrag);
-            resourceFileDropTarget.addEventListener('dragover', handleResourceFileDrag);
-            resourceFileDropTarget.addEventListener('dragleave', handleResourceFileDragLeave);
-            resourceFileDropTarget.addEventListener('drop', handleResourceFileDrop);
-            resourceFileDropTarget.addEventListener('keydown', handleResourceFileTargetKeydown);
-        }
-
-        if (resourceResetButton) {
-            resourceResetButton.addEventListener('click', () => resetResourceForm(false));
-        }
-
-        if (resourceDeleteButton) {
-            resourceDeleteButton.addEventListener('click', handleResourceDelete);
-            resourceDeleteButton.disabled = true;
-        }
-
-        if (playlistForm) {
-            playlistForm.addEventListener('submit', handlePlaylistSubmit);
-        }
-
-        ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
-            document.addEventListener(eventName, handleAdminActivity, {
-                capture: true,
-                passive: true
+            ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
+                window.addEventListener(evt, handleActivity, { passive: true, capture: true });
             });
-        });
 
-        window.addEventListener('focus', handleAdminActivity);
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                handleAdminActivity();
+            resetTimer();
+
+            return () => {
+                if (idleTimer) clearTimeout(idleTimer);
+                ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
+                    window.removeEventListener(evt, handleActivity);
+                });
+            };
+        }, [currentUser, addToast]);
+
+        // Load Submissions Feed
+        useEffect(() => {
+            if (!currentUser) return;
+            setSubsLoading(true);
+            setSyncState('syncing');
+            const unsub = adminServices.submissions.subscribe(
+                (data) => {
+                    setSubmissions(data || []);
+                    setSubsLoading(false);
+                    setSubsError(null);
+                    setSyncState('synced');
+                },
+                (err) => {
+                    setSubsError(getFriendlyError(err));
+                    setSubsLoading(false);
+                    setSyncState('error');
+                }
+            );
+            return () => unsub();
+        }, [currentUser]);
+
+        // Load Content Boxes Feed
+        useEffect(() => {
+            if (!currentUser) return;
+            setBoxesLoading(true);
+            setSyncState('syncing');
+            const unsub = adminServices.content.subscribe(
+                (data) => {
+                    setBoxes(data || []);
+                    setBoxesLoading(false);
+                    setBoxesError(null);
+                    setSyncState('synced');
+                },
+                (err) => {
+                    setBoxesError(getFriendlyError(err));
+                    setBoxesLoading(false);
+                    setSyncState('error');
+                }
+            );
+            return () => unsub();
+        }, [currentUser]);
+
+        // Load Playlists
+        const refreshPlaylists = useCallback(async () => {
+            if (!currentUser) return;
+            setPlaylistsLoading(true);
+            try {
+                const list = await adminServices.playlists.list();
+                setPlaylists(list || []);
+                setPlaylistsError(null);
+            } catch (err) {
+                setPlaylistsError(getFriendlyError(err));
+            } finally {
+                setPlaylistsLoading(false);
             }
-        });
+        }, [currentUser]);
 
-        updateStats();
-        updateResourceStats();
-        renderListStatus();
-        renderDetail();
-        renderResourceList();
-        renderResourceFilePreviews();
-        resetResourceForm(true);
+        useEffect(() => {
+            if (currentUser) {
+                refreshPlaylists();
+            }
+        }, [currentUser, refreshPlaylists]);
 
-        firebaseTools.onAdminAuthStateChanged(handleAuthStateChange);
-        window.addEventListener('beforeunload', () => {
-            clearAdminIdleTimer();
-            stopSubmissionSubscription();
-            stopBoxSubscription();
-        });
+        // Global Keyboard Shortcuts (Ctrl+1, Ctrl+2, Ctrl+3, Ctrl+K, L, Esc)
+        useEffect(() => {
+            const handleKeyDown = (e) => {
+                const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+                
+                // Ctrl / Cmd + K -> Command Palette
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                    e.preventDefault();
+                    setCmdOpen(prev => !prev);
+                    return;
+                }
+
+                // Workspace Switching (Ctrl + 1/2/3)
+                if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+                    if (e.key === '1') { e.preventDefault(); setActiveTab('submissions'); }
+                    else if (e.key === '2') { e.preventDefault(); setActiveTab('content'); }
+                    else if (e.key === '3') { e.preventDefault(); setActiveTab('playlists'); }
+                }
+
+                // Esc to close overlays
+                if (e.key === 'Escape') {
+                    if (cmdOpen) setCmdOpen(false);
+                    if (modalConfig) setModalConfig(null);
+                }
+
+                // L to lock session when not in an active input
+                if (!isInput && (e.key === 'l' || e.key === 'L') && currentUser) {
+                    e.preventDefault();
+                    adminServices.auth.signOut().then(() => addToast('Session locked.', 'info'));
+                }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [cmdOpen, modalConfig, currentUser, addToast]);
+
+        // Lock handler
+        const handleLockSession = async () => {
+            await adminServices.auth.signOut();
+            addToast('Control Room session signed out.', 'info');
+        };
+
+        // Command action selector
+        const handleCommandAction = (actionId) => {
+            if (actionId === 'submissions') setActiveTab('submissions');
+            else if (actionId === 'content') setActiveTab('content');
+            else if (actionId === 'playlists') setActiveTab('playlists');
+            else if (actionId === 'new-box') {
+                setActiveTab('content');
+            } else if (actionId === 'refresh') {
+                refreshPlaylists();
+                addToast('Refreshing live data feeds...', 'info');
+            } else if (actionId === 'lock') {
+                handleLockSession();
+            }
+        };
+
+        const unreadSubCount = useMemo(() => {
+            return (submissions || []).filter(s => !s.read).length;
+        }, [submissions]);
+
+        return h(window.React.Fragment, null,
+            // Toasts & Dialogs
+            h(ToastContainer, { toasts, onDismiss: dismissToast }),
+            h(ConfirmModal, { config: modalConfig, onClose: () => setModalConfig(null) }),
+            h(CommandPalette, {
+                isOpen: cmdOpen,
+                onClose: () => setCmdOpen(false),
+                onSelectAction: handleCommandAction
+            }),
+
+            // If not logged in -> Auth Gate
+            !currentUser ? (
+                h(AuthGate, {
+                    onAuthSuccess: () => {},
+                    toast: addToast
+                })
+            ) : (
+                // Authenticated Dashboard Shell
+                h(AdminShell, {
+                    currentUser,
+                    activeTab,
+                    setActiveTab,
+                    isCollapsed,
+                    setIsCollapsed,
+                    isMobileOpen,
+                    setIsMobileOpen,
+                    syncState,
+                    onLockSession: handleLockSession,
+                    onOpenCmd: () => setCmdOpen(true),
+                    unreadCount: unreadSubCount,
+                    boxCount: (boxes || []).length,
+                    playlistCount: (playlists || []).length
+                },
+                    activeTab === 'submissions' && h(SubmissionsWorkspace, {
+                        submissions,
+                        loading: subsLoading,
+                        error: subsError,
+                        toast: addToast,
+                        onConfirm: setModalConfig
+                    }),
+                    activeTab === 'content' && h(ContentWorkspace, {
+                        boxes,
+                        loading: boxesLoading,
+                        error: boxesError,
+                        toast: addToast,
+                        onConfirm: setModalConfig
+                    }),
+                    activeTab === 'playlists' && h(PlaylistsWorkspace, {
+                        playlists,
+                        loading: playlistsLoading,
+                        error: playlistsError,
+                        onRefresh: refreshPlaylists,
+                        toast: addToast,
+                        onConfirm: setModalConfig
+                    })
+                )
+            )
+        );
     }
 
-    init();
+    // Bootstrap React mount
+    function init() {
+        const rootElem = document.getElementById('adminRoot');
+        if (!rootElem) {
+            console.error('Mount target #adminRoot missing.');
+            return;
+        }
+        const root = window.ReactDOM.createRoot(rootElem);
+        root.render(h(AdminApp));
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
