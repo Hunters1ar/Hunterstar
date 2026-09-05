@@ -249,6 +249,12 @@
                     h('line', { x1: '18', y1: '6', x2: '6', y2: '18' }),
                     h('line', { x1: '6', y1: '6', x2: '18', y2: '18' })
                 );
+            case 'upload':
+                return h('svg', props,
+                    h('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+                    h('polyline', { points: '17 8 12 3 7 8' }),
+                    h('line', { x1: '12', y1: '3', x2: '12', y2: '15' })
+                );
             case 'command':
                 return h('svg', props,
                     h('path', { d: 'M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z' })
@@ -264,6 +270,56 @@
             default:
                 return h('svg', props, h('circle', { cx: '12', cy: '12', r: '10' }));
         }
+    }
+
+    function BrandLogo({ size = 20, className = '' }) {
+        return h('img', {
+            src: 'assets/logo.png',
+            alt: 'Hunterstar',
+            className: 'cr-brand-logo-img ' + className,
+            width: size,
+            height: size,
+            onError: (e) => {
+                if (!e.target.dataset.fallback) {
+                    e.target.dataset.fallback = '1';
+                    e.target.src = 'hunterstar.webp';
+                } else if (e.target.dataset.fallback === '1') {
+                    e.target.dataset.fallback = '2';
+                    e.target.src = 'favicon.svg';
+                } else if (e.target.dataset.fallback === '2') {
+                    e.target.dataset.fallback = '3';
+                    e.target.src = 'favicon-96x96.png';
+                }
+            }
+        });
+    }
+
+    function UserAvatar({ user, size = 32, className = '' }) {
+        const [imgFailed, setImgFailed] = useState(false);
+        const initial = (user && user.email ? user.email[0] : 'H').toUpperCase();
+
+        if (imgFailed) {
+            return h('span', { className: 'cr-avatar-initial' }, initial);
+        }
+
+        return h('img', {
+            src: 'assets/hunterrealpic.png',
+            alt: user && user.email ? user.email : 'Hunterstar Root Operator',
+            className: 'cr-user-avatar-img ' + className,
+            width: size,
+            height: size,
+            onError: (e) => {
+                if (!e.target.dataset.fallback) {
+                    e.target.dataset.fallback = '1';
+                    e.target.src = 'hunterstar.webp';
+                } else if (e.target.dataset.fallback === '1') {
+                    e.target.dataset.fallback = '2';
+                    e.target.src = 'assets/logo.png';
+                } else {
+                    setImgFailed(true);
+                }
+            }
+        });
     }
 
     // =========================================================================
@@ -462,8 +518,8 @@
         return h('div', { className: 'cr-auth-screen' },
             h('div', { className: 'cr-auth-card' },
                 h('div', { className: 'cr-auth-header' },
-                    h('div', { className: 'cr-brand-icon', style: { width: '44px', height: '44px' } },
-                        h(Icon, { name: 'lock', size: 22 })
+                    h('div', { className: 'cr-brand-icon', style: { width: '48px', height: '48px', padding: '4px' } },
+                        h(BrandLogo, { size: 38 })
                     ),
                     h('h1', { className: 'cr-auth-title' },
                         'Control Room ',
@@ -1110,7 +1166,7 @@
                                 style: { display: 'none' },
                                 onChange: e => handleAddFiles(e.target.files)
                             }),
-                            h('div', { className: 'cr-dropzone-icon' }, '+'),
+                            h('div', { className: 'cr-dropzone-icon' }, h(Icon, { name: 'upload', size: 28 })),
                             h('div', { className: 'cr-dropzone-text' }, 'Drop archive files here or click to browse'),
                             h('div', { className: 'cr-dropzone-sub' }, 'Supports images, audio, video, PDFs, archives, and executables (download-only).')
                         ),
@@ -1393,7 +1449,7 @@
                 h('div', { className: 'cr-sidebar-header' },
                     h('div', { className: 'cr-sidebar-brand' },
                         h('div', { className: 'cr-brand-icon' },
-                            h(Icon, { name: 'command', size: 18 })
+                            h(BrandLogo, { size: 24 })
                         ),
                         h('div', { className: 'cr-brand-info' },
                             h('span', { className: 'cr-brand-title' }, 'Control ', h('span', null, 'Room')),
@@ -1432,7 +1488,7 @@
                 h('div', { className: 'cr-sidebar-footer' },
                     h('div', { className: 'cr-user-chip' },
                         h('div', { className: 'cr-user-avatar' },
-                            (currentUser && currentUser.email ? currentUser.email[0] : 'A').toUpperCase()
+                            h(UserAvatar, { user: currentUser, size: 32 })
                         ),
                         h('div', { className: 'cr-user-details' },
                             h('span', { className: 'cr-user-email' }, currentUser && currentUser.email ? currentUser.email : 'Admin User'),

@@ -141,6 +141,17 @@ body.admin-page-body {
     justify-content: center;
     color: var(--cr-accent);
     box-shadow: 0 0 16px var(--cr-accent-glow);
+    overflow: hidden;
+    padding: 3px;
+}
+
+.cr-brand-logo-img,
+.cr-brand-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: inherit;
+    display: block;
 }
 
 .cr-brand-info {
@@ -358,6 +369,21 @@ body.admin-page-body {
     font-family: var(--cr-font-mono);
     font-weight: 700;
     font-size: 0.8rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.cr-user-avatar-img,
+.cr-user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.cr-avatar-initial {
+    line-height: 1;
 }
 
 .cr-user-details {

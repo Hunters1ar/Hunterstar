@@ -178,8 +178,18 @@ if [ -f "$ADMIN_SITE_SOURCE/admin.html" ]; then
         cp "$ADMIN_SITE_SOURCE/js/admin.js" "$ADMIN_DIR/js/admin.js"
     fi
 
+    for ASSET_FILE in favicon-96x96.png favicon.svg favicon.ico apple-touch-icon.png site.webmanifest web-app-manifest-192x192.png web-app-manifest-512x512.png hunterstar.webp; do
+        if [ -f "$ADMIN_SITE_SOURCE/$ASSET_FILE" ]; then
+            cp "$ADMIN_SITE_SOURCE/$ASSET_FILE" "$ADMIN_DIR/$ASSET_FILE"
+        fi
+    done
+
     if [ -f "$ADMIN_SITE_SOURCE/assets/logo.png" ]; then
         cp "$ADMIN_SITE_SOURCE/assets/logo.png" "$ADMIN_DIR/assets/logo.png"
+    fi
+
+    if [ -f "$ADMIN_SITE_SOURCE/assets/hunterrealpic.png" ]; then
+        cp "$ADMIN_SITE_SOURCE/assets/hunterrealpic.png" "$ADMIN_DIR/assets/hunterrealpic.png"
     fi
 
     find "$ADMIN_DIR" -type d -exec chmod 755 {} \;

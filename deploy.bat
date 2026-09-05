@@ -64,7 +64,8 @@ echo       Git OK.
 
 :: ---- Step 2: SCP server.js and admin assets to VPS ---------
 echo.
-echo [2/3] Uploading api/server.js and admin assets to %VPS_HOST%...
+echo [2/3] Uploading api/server.js, admin static files, favicons, and assets to %VPS_HOST%...
+ssh %SSH_OPTS% %VPS_HOST% "mkdir -p %VPS_ADMIN_DIR%/assets %VPS_ADMIN_DIR%/css %VPS_ADMIN_DIR%/js"
 scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%VPS_HOST%:%VPS_API_DIR%/server.js"
 if errorlevel 1 ( echo ERROR: SCP server.js upload failed. & goto fail )
 scp %SSH_OPTS% "%PROJECT_ROOT%\admin.html" "%VPS_HOST%:%VPS_ADMIN_DIR%/admin.html"
@@ -73,6 +74,10 @@ scp %SSH_OPTS% "%PROJECT_ROOT%\css\admin-dashboard.css" "%VPS_HOST%:%VPS_ADMIN_D
 scp %SSH_OPTS% "%PROJECT_ROOT%\css\styles.css" "%VPS_HOST%:%VPS_ADMIN_DIR%/css/styles.css"
 scp %SSH_OPTS% "%PROJECT_ROOT%\js\admin.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/admin.js"
 scp %SSH_OPTS% "%PROJECT_ROOT%\js\firebase-config.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/firebase-config.js"
+scp %SSH_OPTS% "%PROJECT_ROOT%\favicon.ico" "%PROJECT_ROOT%\favicon-96x96.png" "%PROJECT_ROOT%\favicon.svg" "%PROJECT_ROOT%\apple-touch-icon.png" "%PROJECT_ROOT%\site.webmanifest" "%PROJECT_ROOT%\web-app-manifest-192x192.png" "%PROJECT_ROOT%\web-app-manifest-512x512.png" "%PROJECT_ROOT%\hunterstar.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/"
+if errorlevel 1 ( echo ERROR: SCP favicons and manifests failed. & goto fail )
+scp %SSH_OPTS% "%PROJECT_ROOT%\assets\logo.png" "%PROJECT_ROOT%\assets\hunterrealpic.png" "%VPS_HOST%:%VPS_ADMIN_DIR%/assets/"
+if errorlevel 1 ( echo ERROR: SCP assets/logo.png and hunterrealpic.png failed. & goto fail )
 echo       Upload OK.
 
 :: ---- Step 3: Restart PM2 ------------------------------------

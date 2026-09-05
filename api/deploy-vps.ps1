@@ -102,15 +102,23 @@ $privateStaticFiles = @(
     'favicon.svg',
     'favicon.ico',
     'apple-touch-icon.png',
-    'site.webmanifest'
+    'site.webmanifest',
+    'web-app-manifest-192x192.png',
+    'web-app-manifest-512x512.png',
+    'hunterstar.webp'
 ) | Where-Object { Test-Path -LiteralPath $_ }
 
 if ($privateStaticFiles.Count -gt 0) {
     Invoke-Step { & scp @sshOptions @privateStaticFiles ($vpsHost + ':' + $remoteDir + '/site/') } 'SCP private static assets upload failed'
 }
 
-if (Test-Path -LiteralPath 'assets/logo.png') {
-    Invoke-Step { & scp @sshOptions assets/logo.png ($vpsHost + ':' + $remoteDir + '/site/assets/') } 'SCP admin assets upload failed'
+$adminBrandAssets = @(
+    'assets/logo.png',
+    'assets/hunterrealpic.png'
+) | Where-Object { Test-Path -LiteralPath $_ }
+
+if ($adminBrandAssets.Count -gt 0) {
+    Invoke-Step { & scp @sshOptions @adminBrandAssets ($vpsHost + ':' + $remoteDir + '/site/assets/') } 'SCP admin assets upload failed'
 }
 
 $idCommand = '$(id -u)'
