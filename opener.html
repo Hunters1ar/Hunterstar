@@ -481,33 +481,29 @@
 
         // App Opening Logic
         async function openApp(profileId, app) {
-            const token = localStorage.getItem('opener-launcher-token');
-            if (!token) {
-                showConnectModal();
-                return;
-            }
+            const token = localStorage.getItem('opener-launcher-token') || '';
             
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['X-Launcher-Token'] = token;
+
                 const res = await fetch('http://127.0.0.1:9876/open', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Launcher-Token': token
-                    },
+                    headers,
                     body: JSON.stringify({ account: profileId, app: app })
                 });
                 
                 if (!res.ok) {
                     if (res.status === 401 || res.status === 403) {
-                        alert("Unauthorized: Invalid launcher token.");
                         showConnectModal();
                     } else {
-                        alert(`Error opening app: HTTP ${res.status}`);
+                        const errData = await res.json().catch(() => ({}));
+                        alert(`Error: ${errData.error || 'Failed to open'}`);
                     }
                 }
             } catch (err) {
                 console.error("Failed to connect to launcher:", err);
-                alert("Cannot connect to launcher. Is it running?");
+                alert("Cannot connect to local launcher. Please make sure it's running.");
             }
         }
 

@@ -9,7 +9,25 @@ const PORT = 9876;
 const HOST = '127.0.0.1';
 const VERSION = '1.0.0';
 
-const LAUNCHER_TOKEN = crypto.randomBytes(16).toString('hex');
+const PROFILE_BASE_DIR = path.join(os.homedir(), '.opener-profiles');
+const TOKEN_FILE = path.join(PROFILE_BASE_DIR, 'token.txt');
+
+function getOrCreateToken() {
+  if (!fs.existsSync(PROFILE_BASE_DIR)) {
+    try { fs.mkdirSync(PROFILE_BASE_DIR, { recursive: true }); } catch (_) {}
+  }
+  if (fs.existsSync(TOKEN_FILE)) {
+    try {
+      const existing = fs.readFileSync(TOKEN_FILE, 'utf8').trim();
+      if (/^[a-f0-9]{32}$/.test(existing)) return existing;
+    } catch (_) {}
+  }
+  const newToken = crypto.randomBytes(16).toString('hex');
+  try { fs.writeFileSync(TOKEN_FILE, newToken, 'utf8'); } catch (_) {}
+  return newToken;
+}
+
+const LAUNCHER_TOKEN = getOrCreateToken();
 
 const APP_URLS = Object.freeze({
   chatgpt: 'https://chatgpt.com',
@@ -20,8 +38,6 @@ const APP_URLS = Object.freeze({
   poe: 'https://poe.com',
   deepseek: 'https://chat.deepseek.com'
 });
-
-const PROFILE_BASE_DIR = path.join(os.homedir(), '.opener-profiles');
 
 function getChromePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
@@ -50,9 +66,14 @@ function truncateString(str, maxLength) {
   return str.substring(0, maxLength - 3) + '...';
 }
 
+function isOriginAllowed(origin) {
+  return /^https?:\/\/opener\.hunterstar\.uz$/.test(origin) ||
+         /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin || '';
-  if (/^https?:\/\/opener\.hunterstar\.uz$/.test(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+  if (isOriginAllowed(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -75,10 +96,13 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/open') {
-    const token = req.headers['x-launcher-token'];
-    if (token !== LAUNCHER_TOKEN) {
+    const origin = req.headers.origin || '';
+    const token = req.headers['x-launcher-token'] || '';
+    const isTrusted = isOriginAllowed(origin) || (token && token === LAUNCHER_TOKEN);
+
+    if (!isTrusted) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'Unauthorized: Invalid or missing token' }));
+      res.end(JSON.stringify({ ok: false, error: 'Unauthorized: Access denied' }));
       return;
     }
 
@@ -139,6 +163,14 @@ const server = http.createServer((req, res) => {
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ ok: false, error: 'Not Found' }));
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`[INFO] Launcher is already running in background on http://${HOST}:${PORT}`);
+    process.exit(0);
+  }
+  console.error('[ERROR]', err);
 });
 
 server.listen(PORT, HOST, () => {
