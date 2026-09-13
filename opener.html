@@ -451,6 +451,19 @@
 
         btnConnectModal.addEventListener('click', showConnectModal);
         btnCancelConnect.addEventListener('click', hideConnectModal);
+        connectModal.addEventListener('click', (e) => {
+            if (e.target === connectModal) hideConnectModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && connectModal.classList.contains('active')) {
+                hideConnectModal();
+            }
+        });
+        tokenInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                btnSubmitConnect.click();
+            }
+        });
         btnSubmitConnect.addEventListener('click', () => {
             const token = tokenInput.value.trim();
             if (token) {
@@ -606,23 +619,14 @@
                 const res = await fetch(`${API_BASE}/api/opener-accounts`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.accounts) {
-                        accountsData = data.accounts;
-                    }
+                    accountsData = Array.isArray(data.accounts) ? data.accounts : [];
                     renderAccounts();
+                } else {
+                    accountGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--color-accent-primary); font-family: var(--font-mono); padding: 2rem;">// FAILED_TO_LOAD_ACCOUNTS (HTTP ${res.status})</div>`;
                 }
             } catch (err) {
                 console.error("Failed to fetch accounts", err);
-                
-                // Mock data for display if API fails
-                if (accountsData.length === 0) {
-                    accountsData = [
-                        { id: '1', name: 'krutiopoli', profileId: 'acct_7f31a2c9e481', enabledApps: ['chatgpt', 'claude', 'gemini', 'grok'] },
-                        { id: '2', name: 'devhunter', profileId: 'acct_91bd22a0c411', enabledApps: ['chatgpt', 'copilot', 'poe', 'deepseek', 'grok'] },
-                        { id: '3', name: 'creative_studio', profileId: 'acct_4cc8e19b5e32', enabledApps: ['claude', 'gemini'] }
-                    ];
-                    renderAccounts();
-                }
+                accountGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--color-accent-primary); font-family: var(--font-mono); padding: 2rem;">// NETWORK_ERROR: Cannot reach ${API_BASE}</div>`;
             }
         }
 

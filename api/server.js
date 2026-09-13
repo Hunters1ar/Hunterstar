@@ -63,10 +63,17 @@ function stripWrappingQuotes(value) {
 // Configuration
 // ---------------------------------------------------------------------------
 const PORT = process.env.PORT || 3001;
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://hunterstar.uz,https://www.hunterstar.uz,https://admin.hunterstar.uz,https://opener.hunterstar.uz')
+const parsedOrigins = (process.env.ALLOWED_ORIGINS || 'https://hunterstar.uz,https://www.hunterstar.uz,https://admin.hunterstar.uz,https://opener.hunterstar.uz')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+const ALLOWED_ORIGINS = Array.from(new Set([
+    ...parsedOrigins,
+    'https://hunterstar.uz',
+    'https://www.hunterstar.uz',
+    'https://admin.hunterstar.uz',
+    'https://opener.hunterstar.uz'
+]));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const ADMIN_SESSION_COOKIE = 'admin_session';
 const PRIVATE_SESSION_COOKIE = 'private_session';
