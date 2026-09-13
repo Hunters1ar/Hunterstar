@@ -146,23 +146,33 @@ const server = http.createServer((req, res) => {
         const profileDir = path.join(PROFILE_BASE_DIR, account);
         const appUrl = APP_URLS[app];
 
-        function bringToFront(pid) {
-          const psCode = `
-            $ws = New-Object -ComObject WScript.Shell
-            for ($i = 0; $i -lt 12; $i++) {
-              Start-Sleep -Milliseconds 250
-              if ($ws.AppActivate(${pid})) { break }
-              $procs = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }
-              if ($procs) {
-                foreach ($p in $procs) {
-                  if ($ws.AppActivate($p.Id)) { break }
-                }
-                break
-              }
-            }
-          `;
+        function bringToFront(appName) {
+          const appTitles = {
+            chatgpt: 'ChatGPT',
+            claude: 'Claude',
+            gemini: 'Gemini',
+            grok: 'Grok',
+            copilot: 'Copilot',
+            poe: 'Poe',
+            deepseek: 'DeepSeek'
+          };
+          const target = appTitles[appName] || 'Google Chrome';
+
+          const vbs = [
+            'Set wsh = CreateObject("WScript.Shell")',
+            'wsh.SendKeys "%"',
+            'For i = 1 To 25',
+            '  WScript.Sleep 200',
+            `  If wsh.AppActivate("${target}") Or wsh.AppActivate("${appName}.com") Or wsh.AppActivate("${appName}.ai") Or wsh.AppActivate("New Tab") Or wsh.AppActivate("Google Chrome") Or wsh.AppActivate("Chrome") Then`,
+            '    Exit For',
+            '  End If',
+            'Next'
+          ].join('\r\n');
+
+          const tmpVbs = path.join(os.tmpdir(), 'hs-focus.vbs');
           try {
-            const focusProc = child_process.spawn('powershell', ['-WindowStyle', 'Hidden', '-NoProfile', '-Command', psCode], {
+            fs.writeFileSync(tmpVbs, vbs, 'utf8');
+            const focusProc = child_process.spawn('cscript', ['//nologo', tmpVbs], {
               detached: true,
               stdio: 'ignore'
             });
@@ -182,7 +192,7 @@ const server = http.createServer((req, res) => {
             stdio: 'ignore'
           });
           child.unref();
-          bringToFront(child.pid);
+          bringToFront(app);
 
           const time = new Date().toTimeString().split(' ')[0];
           safeLog(`OPEN ${account} → ${app}`);
