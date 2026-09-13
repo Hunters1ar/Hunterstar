@@ -11,6 +11,17 @@ const VERSION = '1.0.0';
 
 const PROFILE_BASE_DIR = path.join(os.homedir(), '.opener-profiles');
 const TOKEN_FILE = path.join(PROFILE_BASE_DIR, 'token.txt');
+const LOG_FILE = path.join(PROFILE_BASE_DIR, 'launcher.log');
+
+function safeLog(...args) {
+  const line = `[${new Date().toISOString()}] ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  try { console.log(...args); } catch (_) {}
+  try { fs.appendFileSync(LOG_FILE, line + '\n', 'utf8'); } catch (_) {}
+}
+
+process.on('uncaughtException', (err) => {
+  safeLog('UNCAUGHT_EXCEPTION', err.stack || err.message);
+});
 
 function getOrCreateToken() {
   if (!fs.existsSync(PROFILE_BASE_DIR)) {
@@ -135,18 +146,46 @@ const server = http.createServer((req, res) => {
         const profileDir = path.join(PROFILE_BASE_DIR, account);
         const appUrl = APP_URLS[app];
 
+        function bringToFront(pid) {
+          const psCode = `
+            $ws = New-Object -ComObject WScript.Shell
+            for ($i = 0; $i -lt 12; $i++) {
+              Start-Sleep -Milliseconds 250
+              if ($ws.AppActivate(${pid})) { break }
+              $procs = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }
+              if ($procs) {
+                foreach ($p in $procs) {
+                  if ($ws.AppActivate($p.Id)) { break }
+                }
+                break
+              }
+            }
+          `;
+          try {
+            const focusProc = child_process.spawn('powershell', ['-WindowStyle', 'Hidden', '-NoProfile', '-Command', psCode], {
+              detached: true,
+              stdio: 'ignore'
+            });
+            focusProc.unref();
+          } catch (_) {}
+        }
+
         try {
           const child = child_process.spawn(CHROME_PATH, [
             `--user-data-dir=${profileDir}`,
+            '--new-window',
+            '--no-first-run',
+            '--no-default-browser-check',
             appUrl
           ], {
             detached: true,
             stdio: 'ignore'
           });
           child.unref();
+          bringToFront(child.pid);
 
           const time = new Date().toTimeString().split(' ')[0];
-          console.log(`[${time}] OPEN ${account} → ${app}`);
+          safeLog(`OPEN ${account} → ${app}`);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true, message: `Launched ${app} for ${account}` }));
