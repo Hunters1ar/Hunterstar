@@ -377,8 +377,6 @@
             <div class="status-indicator">
                 <span class="dot offline" id="launcherDot"></span>
                 <span id="launcherStatusText">LAUNCHER OFFLINE</span>
-            </div>
-            <button class="btn-connect" id="btnConnectModal">Connect</button>
         </div>
 
         <!-- Search Bar -->
@@ -392,21 +390,13 @@
         </div>
     </div>
 
-    <!-- Connect Modal -->
-    <div class="modal-overlay" id="connectModal">
-        <div class="modal-content">
-            <h2 class="modal-title">Connect to Local Launcher</h2>
-            <p class="modal-desc">Enter the token displayed in your launcher console to allow opening browser sessions.</p>
-            <input type="text" id="tokenInput" class="modal-input" placeholder="Paste token here...">
-            <div class="modal-actions">
-                <button class="btn-modal btn-cancel" id="btnCancelConnect">Cancel</button>
-                <button class="btn-modal btn-submit" id="btnSubmitConnect">Connect</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="js/main.js"></script>
     <script>
+        // Unregister any cached service worker on this domain
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for (const reg of regs) reg.unregister();
+            });
+        }
         // Configuration & State
         let API_BASE = 'https://api.hunterstar.uz';
         if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
@@ -430,49 +420,8 @@
         // DOM Elements
         const launcherDot = document.getElementById('launcherDot');
         const launcherStatusText = document.getElementById('launcherStatusText');
-        const btnConnectModal = document.getElementById('btnConnectModal');
-        const connectModal = document.getElementById('connectModal');
-        const btnCancelConnect = document.getElementById('btnCancelConnect');
-        const btnSubmitConnect = document.getElementById('btnSubmitConnect');
-        const tokenInput = document.getElementById('tokenInput');
         const accountGrid = document.getElementById('accountGrid');
         const searchInput = document.getElementById('searchInput');
-
-        // Modal Logic
-        function showConnectModal() {
-            tokenInput.value = localStorage.getItem('opener-launcher-token') || '';
-            connectModal.classList.add('active');
-            setTimeout(() => tokenInput.focus(), 100);
-        }
-
-        function hideConnectModal() {
-            connectModal.classList.remove('active');
-        }
-
-        btnConnectModal.addEventListener('click', showConnectModal);
-        btnCancelConnect.addEventListener('click', hideConnectModal);
-        connectModal.addEventListener('click', (e) => {
-            if (e.target === connectModal) hideConnectModal();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && connectModal.classList.contains('active')) {
-                hideConnectModal();
-            }
-        });
-        tokenInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                btnSubmitConnect.click();
-            }
-        });
-        btnSubmitConnect.addEventListener('click', () => {
-            const token = tokenInput.value.trim();
-            if (token) {
-                localStorage.setItem('opener-launcher-token', token);
-            } else {
-                localStorage.removeItem('opener-launcher-token');
-            }
-            hideConnectModal();
-        });
 
         // Search Logic
         searchInput.addEventListener('input', () => {
@@ -481,29 +430,22 @@
 
         // App Opening Logic
         async function openApp(profileId, app) {
-            const token = localStorage.getItem('opener-launcher-token') || '';
-            
             try {
-                const headers = { 'Content-Type': 'application/json' };
-                if (token) headers['X-Launcher-Token'] = token;
-
                 const res = await fetch('http://127.0.0.1:9876/open', {
                     method: 'POST',
-                    headers,
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ account: profileId, app: app })
                 });
                 
-                if (!res.ok) {
-                    if (res.status === 401 || res.status === 403) {
-                        showConnectModal();
-                    } else {
-                        const errData = await res.json().catch(() => ({}));
-                        alert(`Error: ${errData.error || 'Failed to open'}`);
-                    }
+                if (res.ok) {
+                    return;
                 }
+
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error opening app: ${errData.error || res.statusText || res.status}`);
             } catch (err) {
                 console.error("Failed to connect to launcher:", err);
-                alert("Cannot connect to local launcher. Please make sure it's running.");
+                alert("Cannot connect to local launcher. Please make sure the background launcher is running.");
             }
         }
 

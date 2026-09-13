@@ -78,6 +78,7 @@ function setCorsHeaders(req, res) {
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Launcher-Token');
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 
 const server = http.createServer((req, res) => {
