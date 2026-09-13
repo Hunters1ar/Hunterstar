@@ -15,12 +15,19 @@ const LOG_FILE = path.join(PROFILE_BASE_DIR, 'launcher.log');
 
 function safeLog(...args) {
   const line = `[${new Date().toISOString()}] ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-  try { console.log(...args); } catch (_) {}
-  try { fs.appendFileSync(LOG_FILE, line + '\n', 'utf8'); } catch (_) {}
+  if (process.stdout && !process.stdout.destroyed && process.stdout.writable) {
+    try { process.stdout.write(line + '\n'); } catch (_) {}
+  }
+  try {
+    if (!fs.existsSync(PROFILE_BASE_DIR)) fs.mkdirSync(PROFILE_BASE_DIR, { recursive: true });
+    fs.appendFileSync(LOG_FILE, line + '\n', 'utf8');
+  } catch (_) {}
 }
 
 process.on('uncaughtException', (err) => {
-  safeLog('UNCAUGHT_EXCEPTION', err.stack || err.message);
+  try {
+    fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] CRASH: ${err && err.stack || err}\n`, 'utf8');
+  } catch (_) {}
 });
 
 function getOrCreateToken() {
@@ -181,15 +188,24 @@ const server = http.createServer((req, res) => {
         }
 
         try {
-          const child = child_process.spawn(CHROME_PATH, [
-            `--user-data-dir=${profileDir}`,
+          const cmdArgs = [
+            '/c',
+            'start',
+            '/max',
+            '""',
+            `"${CHROME_PATH}"`,
+            `"--user-data-dir=${profileDir}"`,
             '--new-window',
+            '--start-maximized',
             '--no-first-run',
             '--no-default-browser-check',
-            appUrl
-          ], {
+            `"${appUrl}"`
+          ];
+
+          const child = child_process.spawn('cmd.exe', cmdArgs, {
             detached: true,
-            stdio: 'ignore'
+            stdio: 'ignore',
+            windowsVerbatimArguments: true
           });
           child.unref();
           bringToFront(app);
@@ -217,17 +233,17 @@ const server = http.createServer((req, res) => {
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.log(`[INFO] Launcher is already running in background on http://${HOST}:${PORT}`);
+    safeLog(`[INFO] Launcher is already running in background on http://${HOST}:${PORT}`);
     process.exit(0);
   }
-  console.error('[ERROR]', err);
+  safeLog('[ERROR]', err && err.stack || err);
 });
 
 server.listen(PORT, HOST, () => {
   const chromeDisplay = truncateString(CHROME_PATH || 'NOT FOUND', 28);
   const profileDisplay = truncateString(PROFILE_BASE_DIR, 28);
   
-  console.log(`
+  safeLog(`
 +--------------------------------------------------------------+
 |             HUNTERSTAR ACCOUNT OPENER                        |
 |             Local Launcher v1.0.0                            |

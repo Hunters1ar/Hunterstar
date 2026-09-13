@@ -26,33 +26,34 @@
             padding-bottom: var(--space-4xl);
         }
 
-        /* Launcher Status Bar */
-        .launcher-status-bar {
+        /* Controls Toolbar */
+        .opener-toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--color-surface-card);
-            border: 1px solid var(--color-surface-border);
-            padding: 1rem 1.5rem;
-            border-radius: var(--radius-md);
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px var(--color-shadow-medium);
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
         }
 
         .status-indicator {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.75rem;
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-md);
             font-family: var(--font-mono);
-            font-size: 0.9rem;
-            font-weight: bold;
+            font-size: 0.82rem;
+            font-weight: 600;
             letter-spacing: 1px;
             color: var(--color-text-primary);
         }
 
         .dot {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             display: inline-block;
         }
@@ -67,38 +68,22 @@
             box-shadow: 0 0 10px var(--color-accent-glow);
         }
 
-        .btn-connect {
-            background: transparent;
-            color: var(--color-text-primary);
-            border: 1px solid var(--color-text-muted);
-            padding: 0.5rem 1rem;
-            font-family: var(--font-mono);
-            font-weight: bold;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: var(--transition-fast);
-            border-radius: var(--radius-sm);
-        }
-
-        .btn-connect:hover {
-            border-color: var(--color-text-primary);
-            background: var(--color-bg-elevated);
-        }
-
         /* Search Bar */
         .search-bar {
-            margin-bottom: 2rem;
+            flex: 1;
+            min-width: 260px;
+            max-width: 440px;
+            margin-left: auto;
         }
 
         .search-input {
             width: 100%;
-            background: var(--color-bg-tertiary);
+            background: var(--color-surface-card);
             border: 1px solid var(--color-surface-border);
             color: var(--color-text-primary);
-            padding: 1rem 1.5rem;
+            padding: 0.75rem 1.25rem;
             font-family: var(--font-mono);
-            font-size: 1rem;
+            font-size: 0.9rem;
             border-radius: var(--radius-md);
             outline: none;
             transition: var(--transition-fast);
@@ -106,14 +91,15 @@
 
         .search-input:focus {
             border-color: var(--color-accent-primary);
-            box-shadow: inset 0 0 10px var(--color-accent-glow);
+            box-shadow: 0 0 10px var(--color-accent-glow);
         }
 
         /* Account Grid */
         .account-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
             gap: 1.5rem;
+            width: 100%;
         }
 
         .account-card {
@@ -124,20 +110,36 @@
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
-            transition: var(--transition-fast);
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .account-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--color-accent-primary), transparent);
+            opacity: 0.5;
         }
 
         .account-card:hover {
             border-color: var(--color-surface-border-hover);
-            box-shadow: 0 5px 15px var(--color-shadow-medium);
+            box-shadow: 0 8px 24px var(--color-shadow-medium);
             transform: translateY(-2px);
+        }
+
+        .account-card:hover::before {
+            opacity: 1;
         }
 
         .account-name {
             font-family: var(--font-mono);
             font-size: 1.25rem;
             color: var(--color-text-primary);
-            font-weight: 500;
+            font-weight: 600;
+            letter-spacing: 0.5px;
             word-break: break-all;
         }
 
@@ -372,16 +374,15 @@
             <p class="section-subtitle">Open dedicated browser sessions for AI platforms.</p>
         </header>
 
-        <!-- Launcher Status -->
-        <div class="launcher-status-bar">
+        <!-- Controls Toolbar -->
+        <div class="opener-toolbar">
             <div class="status-indicator">
                 <span class="dot offline" id="launcherDot"></span>
                 <span id="launcherStatusText">LAUNCHER OFFLINE</span>
-        </div>
-
-        <!-- Search Bar -->
-        <div class="search-bar">
-            <input type="text" id="searchInput" class="search-input" placeholder="> Search accounts by name..." autocomplete="off">
+            </div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="> Search accounts..." autocomplete="off">
+            </div>
         </div>
 
         <!-- Account Grid -->
