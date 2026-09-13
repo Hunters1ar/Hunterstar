@@ -164,6 +164,25 @@
                 if (!firebaseTools || !firebaseTools.deleteAdminPlaylist) throw new Error('Playlist delete service unavailable.');
                 await firebaseTools.deleteAdminPlaylist(id);
             }
+        },
+
+        openerAccounts: {
+            list: async () => {
+                if (!firebaseTools || !firebaseTools.listAdminOpenerAccounts) return [];
+                return await firebaseTools.listAdminOpenerAccounts();
+            },
+            add: async (account) => {
+                if (!firebaseTools || !firebaseTools.addOpenerAccount) throw new Error('Opener account service unavailable.');
+                return await firebaseTools.addOpenerAccount(account);
+            },
+            update: async (id, updates) => {
+                if (!firebaseTools || !firebaseTools.updateOpenerAccount) throw new Error('Opener account service unavailable.');
+                return await firebaseTools.updateOpenerAccount(id, updates);
+            },
+            delete: async (id) => {
+                if (!firebaseTools || !firebaseTools.deleteOpenerAccount) throw new Error('Opener account service unavailable.');
+                await firebaseTools.deleteOpenerAccount(id);
+            }
         }
     };
 
@@ -381,6 +400,7 @@
             { id: 'tab-submissions', label: 'Open Submissions (Inbox)', shortcut: '1', run: () => onSelectAction('submissions') },
             { id: 'tab-content', label: 'Open Content Boxes & Notes', shortcut: '2', run: () => onSelectAction('content') },
             { id: 'tab-playlists', label: 'Open YouTube Playlists', shortcut: '3', run: () => onSelectAction('playlists') },
+            { id: 'tab-accounts', label: 'Open Opener Accounts', shortcut: '4', run: () => onSelectAction('accounts') },
             { id: 'action-new-box', label: 'Create New Content Box', shortcut: 'N', run: () => onSelectAction('new-box') },
             { id: 'action-refresh', label: 'Refresh All Data', shortcut: 'R', run: () => onSelectAction('refresh') },
             { id: 'action-lock', label: 'Lock Control Room Session', shortcut: 'L', run: () => onSelectAction('lock') }
@@ -1848,6 +1868,302 @@
     }
 
     // =========================================================================
+    // 8.5. WORKSPACE 4: ACCOUNTS
+    // =========================================================================
+    function AccountsWorkspace({ accounts, loading, error, onRefresh, toast, onConfirm }) {
+        const [nameInput, setNameInput] = useState('');
+        const [emailInput, setEmailInput] = useState('');
+        const [selectedApps, setSelectedApps] = useState(['chatgpt', 'claude', 'gemini']);
+        const [adding, setAdding] = useState(false);
+        const [editingId, setEditingId] = useState(null);
+        const [editName, setEditName] = useState('');
+        const [editEmail, setEditEmail] = useState('');
+        const [editApps, setEditApps] = useState([]);
+        const [saving, setSaving] = useState(false);
+
+        const AVAILABLE_APPS = [
+            { id: 'chatgpt', label: 'ChatGPT', color: '#10a37f' },
+            { id: 'claude', label: 'Claude', color: '#da7756' },
+            { id: 'gemini', label: 'Gemini', color: '#4285f4' },
+            { id: 'grok', label: 'Grok', color: '#888' },
+            { id: 'copilot', label: 'Copilot', color: '#0078d4' },
+            { id: 'poe', label: 'Poe', color: '#5b3cc4' },
+            { id: 'deepseek', label: 'DeepSeek', color: '#4d6bfe' }
+        ];
+
+        const toggleApp = (appId, list, setter) => {
+            setter(list.includes(appId) ? list.filter(a => a !== appId) : [...list, appId]);
+        };
+
+        const handleAdd = async (e) => {
+            e.preventDefault();
+            if (!nameInput.trim()) return;
+            setAdding(true);
+            try {
+                await adminServices.openerAccounts.add({
+                    name: nameInput.trim(),
+                    email: emailInput.trim(),
+                    enabledApps: selectedApps
+                });
+                toast(`Added account "${nameInput.trim()}".`, 'success');
+                setNameInput('');
+                setEmailInput('');
+                setSelectedApps(['chatgpt', 'claude', 'gemini']);
+                onRefresh();
+            } catch (err) {
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setAdding(false);
+            }
+        };
+
+        const startEdit = (account) => {
+            setEditingId(account.id);
+            setEditName(account.name);
+            setEditEmail(account.email || '');
+            setEditApps([...(account.enabledApps || [])]);
+        };
+
+        const cancelEdit = () => {
+            setEditingId(null);
+        };
+
+        const saveEdit = async () => {
+            if (!editingId) return;
+            setSaving(true);
+            try {
+                await adminServices.openerAccounts.update(editingId, {
+                    name: editName.trim(),
+                    email: editEmail.trim(),
+                    enabledApps: editApps
+                });
+                toast('Account updated.', 'success');
+                setEditingId(null);
+                onRefresh();
+            } catch (err) {
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        const handleDelete = (account) => {
+            onConfirm({
+                eyebrow: 'DELETE ACCOUNT',
+                title: 'Delete opener account?',
+                message: `Are you sure you want to delete "${account.name}"? The local browser profile will not be deleted.`,
+                confirmLabel: 'Delete Account',
+                isDanger: true,
+                onConfirm: async () => {
+                    try {
+                        await adminServices.openerAccounts.delete(account.id);
+                        toast('Account deleted.', 'success');
+                        onRefresh();
+                    } catch (err) {
+                        toast(getFriendlyError(err), 'error');
+                    }
+                }
+            });
+        };
+
+        const renderAppCheckboxes = (list, setter) => {
+            return h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' } },
+                AVAILABLE_APPS.map(app => 
+                    h('label', {
+                        key: app.id,
+                        style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.78rem',
+                            fontFamily: 'var(--font-mono, monospace)',
+                            color: list.includes(app.id) ? app.color : 'var(--cr-text-muted)',
+                            cursor: 'pointer',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid ' + (list.includes(app.id) ? app.color : 'var(--cr-border)'),
+                            background: list.includes(app.id) ? app.color + '18' : 'transparent',
+                            transition: 'all 150ms ease'
+                        }
+                    },
+                        h('input', {
+                            type: 'checkbox',
+                            checked: list.includes(app.id),
+                            onChange: () => toggleApp(app.id, list, setter),
+                            style: { display: 'none' }
+                        }),
+                        app.label
+                    )
+                )
+            );
+        };
+
+        return h('div', { className: 'cr-split-layout' },
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, 'ACCOUNT MANAGER'),
+                        h('h2', { className: 'cr-panel-title' }, 'Add Account')
+                    )
+                ),
+                h('form', { onSubmit: handleAdd, className: 'cr-panel-body' },
+                    h('p', { style: { fontSize: '0.82rem', color: 'var(--cr-text-secondary)', lineHeight: '1.5', margin: '0 0 10px 0' } },
+                        'Add an account to the Opener. Each account gets a dedicated Chrome profile for isolated sessions.'
+                    ),
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Account Name'),
+                        h('input', {
+                            type: 'text',
+                            className: 'cr-form-input',
+                            placeholder: 'krutiopoli',
+                            value: nameInput,
+                            onChange: e => setNameInput(e.target.value),
+                            required: true
+                        })
+                    ),
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Email (optional)'),
+                        h('input', {
+                            type: 'email',
+                            className: 'cr-form-input',
+                            placeholder: 'krutiopoli@gmail.com',
+                            value: emailInput,
+                            onChange: e => setEmailInput(e.target.value)
+                        })
+                    ),
+                    h('div', { className: 'cr-form-group' },
+                        h('label', { className: 'cr-form-label' }, 'Enabled Apps'),
+                        renderAppCheckboxes(selectedApps, setSelectedApps)
+                    ),
+                    h('button', {
+                        type: 'submit',
+                        className: 'cr-btn cr-btn-primary',
+                        disabled: adding || !nameInput.trim()
+                    },
+                        h(Icon, { name: 'plus', size: 16 }),
+                        adding ? 'Adding...' : 'Add Account'
+                    )
+                )
+            ),
+            h('div', { className: 'cr-panel' },
+                h('div', { className: 'cr-panel-header' },
+                    h('div', { className: 'cr-panel-title-group' },
+                        h('span', { className: 'cr-panel-eyebrow' }, 'OPENER ACCOUNTS'),
+                        h('h2', { className: 'cr-panel-title' }, 'Registered Accounts')
+                    ),
+                    h('span', { className: 'cr-badge cr-badge-accent' }, `${(accounts || []).length} ACCOUNTS`)
+                ),
+                h('div', { className: 'cr-panel-body' },
+                    loading && h('div', { className: 'cr-state-box' },
+                        h('div', { className: 'cr-spinner' }),
+                        h('span', { className: 'cr-state-desc' }, 'Loading accounts...')
+                    ),
+                    !loading && error && h('div', { className: 'cr-state-box' },
+                        h('span', { style: { color: 'var(--cr-danger)' } }, error)
+                    ),
+                    !loading && !error && (accounts || []).length === 0 && h('div', { className: 'cr-state-box' },
+                        h(Icon, { name: 'layers', size: 36 }),
+                        h('span', { className: 'cr-state-title' }, 'No accounts registered'),
+                        h('span', { className: 'cr-state-desc' }, 'Add your first account using the form on the left.')
+                    ),
+                    !loading && h('div', { className: 'cr-playlist-grid' },
+                        (accounts || []).map(acct => {
+                            const isEditing = editingId === acct.id;
+                            if (isEditing) {
+                                return h('div', { key: acct.id, className: 'cr-playlist-card', style: { borderColor: 'var(--cr-accent)' } },
+                                    h('div', { className: 'cr-form-group', style: { marginBottom: '6px' } },
+                                        h('label', { className: 'cr-form-label' }, 'Name'),
+                                        h('input', {
+                                            type: 'text',
+                                            className: 'cr-form-input',
+                                            value: editName,
+                                            onChange: e => setEditName(e.target.value),
+                                            style: { fontSize: '0.82rem' }
+                                        })
+                                    ),
+                                    h('div', { className: 'cr-form-group', style: { marginBottom: '6px' } },
+                                        h('label', { className: 'cr-form-label' }, 'Email'),
+                                        h('input', {
+                                            type: 'email',
+                                            className: 'cr-form-input',
+                                            value: editEmail,
+                                            onChange: e => setEditEmail(e.target.value),
+                                            style: { fontSize: '0.82rem' }
+                                        })
+                                    ),
+                                    h('div', { className: 'cr-form-group', style: { marginBottom: '6px' } },
+                                        h('label', { className: 'cr-form-label' }, 'Apps'),
+                                        renderAppCheckboxes(editApps, setEditApps)
+                                    ),
+                                    h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '8px' } },
+                                        h('button', {
+                                            type: 'button',
+                                            className: 'cr-btn cr-btn-secondary',
+                                            style: { padding: '4px 10px', fontSize: '0.74rem' },
+                                            onClick: cancelEdit
+                                        }, 'Cancel'),
+                                        h('button', {
+                                            type: 'button',
+                                            className: 'cr-btn cr-btn-primary',
+                                            style: { padding: '4px 10px', fontSize: '0.74rem' },
+                                            disabled: saving,
+                                            onClick: saveEdit
+                                        }, saving ? 'Saving...' : 'Save')
+                                    )
+                                );
+                            }
+                            return h('div', { key: acct.id, className: 'cr-playlist-card' },
+                                h('div', null,
+                                    h('h4', { className: 'cr-playlist-title' }, acct.name || 'Unnamed'),
+                                    acct.email && h('div', { className: 'cr-playlist-id', style: { marginBottom: '2px' } }, acct.email),
+                                    h('div', { className: 'cr-playlist-id' }, acct.profileId || 'No profile ID')
+                                ),
+                                h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '8px 0' } },
+                                    (acct.enabledApps || []).map(appId => {
+                                        const appInfo = AVAILABLE_APPS.find(a => a.id === appId);
+                                        return h('span', {
+                                            key: appId,
+                                            style: {
+                                                fontSize: '0.68rem',
+                                                fontFamily: 'var(--font-mono, monospace)',
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                background: (appInfo ? appInfo.color : '#666') + '22',
+                                                color: appInfo ? appInfo.color : '#666',
+                                                border: '1px solid ' + (appInfo ? appInfo.color : '#666') + '44'
+                                            }
+                                        }, appInfo ? appInfo.label : appId);
+                                    })
+                                ),
+                                h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' } },
+                                    h('button', {
+                                        type: 'button',
+                                        className: 'cr-btn cr-btn-secondary',
+                                        style: { padding: '4px 10px', fontSize: '0.74rem' },
+                                        onClick: () => startEdit(acct)
+                                    },
+                                        h(Icon, { name: 'layers', size: 14 }),
+                                        'Edit'
+                                    ),
+                                    h('button', {
+                                        type: 'button',
+                                        className: 'cr-btn cr-btn-danger',
+                                        style: { padding: '4px 10px', fontSize: '0.74rem' },
+                                        onClick: () => handleDelete(acct)
+                                    },
+                                        h(Icon, { name: 'trash', size: 14 }),
+                                        'Delete'
+                                    )
+                                )
+                            );
+                        })
+                    )
+                )
+            )
+        );
+    }
+
+    // =========================================================================
     // 9. ADMIN SHELL & NAVIGATION
     // =========================================================================
     function AdminShell({
@@ -1864,12 +2180,14 @@
         unreadCount,
         boxCount,
         playlistCount,
+        accountCount,
         children
     }) {
         const navItems = [
             { id: 'submissions', label: 'Submissions', icon: 'inbox', badge: unreadCount > 0 ? String(unreadCount) : null, isPulse: unreadCount > 0 },
             { id: 'content', label: 'Content Boxes', icon: 'layers', badge: String(boxCount) },
-            { id: 'playlists', label: 'YouTube Playlists', icon: 'youtube', badge: String(playlistCount) }
+            { id: 'playlists', label: 'YouTube Playlists', icon: 'youtube', badge: String(playlistCount) },
+            { id: 'accounts', label: 'Opener Accounts', icon: 'external-link', badge: String(accountCount) }
         ];
 
         return h('div', { className: 'cr-app-shell' },
@@ -2016,6 +2334,10 @@
         const [playlistsLoading, setPlaylistsLoading] = useState(false);
         const [playlistsError, setPlaylistsError] = useState(null);
 
+        const [openerAccounts, setOpenerAccounts] = useState([]);
+        const [openerLoading, setOpenerLoading] = useState(false);
+        const [openerError, setOpenerError] = useState(null);
+
         // Toast dispatcher
         const addToast = useCallback((message, type = 'info') => {
             const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -2132,13 +2454,28 @@
             }
         }, [currentUser]);
 
+        const refreshOpenerAccounts = useCallback(async () => {
+            if (!currentUser) return;
+            setOpenerLoading(true);
+            try {
+                const list = await adminServices.openerAccounts.list();
+                setOpenerAccounts(list || []);
+                setOpenerError(null);
+            } catch (err) {
+                setOpenerError(getFriendlyError(err));
+            } finally {
+                setOpenerLoading(false);
+            }
+        }, [currentUser]);
+
         useEffect(() => {
             if (currentUser) {
                 refreshPlaylists();
+                refreshOpenerAccounts();
             }
-        }, [currentUser, refreshPlaylists]);
+        }, [currentUser, refreshPlaylists, refreshOpenerAccounts]);
 
-        // Global Keyboard Shortcuts (Ctrl+1, Ctrl+2, Ctrl+3, Ctrl+K, L, Esc)
+        // Global Keyboard Shortcuts (Ctrl+1, Ctrl+2, Ctrl+3, Ctrl+4, Ctrl+K, L, Esc)
         useEffect(() => {
             const handleKeyDown = (e) => {
                 const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
@@ -2150,11 +2487,12 @@
                     return;
                 }
 
-                // Workspace Switching (Ctrl + 1/2/3)
+                // Workspace Switching (Ctrl + 1/2/3/4)
                 if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
                     if (e.key === '1') { e.preventDefault(); setActiveTab('submissions'); }
                     else if (e.key === '2') { e.preventDefault(); setActiveTab('content'); }
                     else if (e.key === '3') { e.preventDefault(); setActiveTab('playlists'); }
+                    else if (e.key === '4') { e.preventDefault(); setActiveTab('accounts'); }
                 }
 
                 // Esc to close overlays
@@ -2185,10 +2523,12 @@
             if (actionId === 'submissions') setActiveTab('submissions');
             else if (actionId === 'content') setActiveTab('content');
             else if (actionId === 'playlists') setActiveTab('playlists');
+            else if (actionId === 'accounts') setActiveTab('accounts');
             else if (actionId === 'new-box') {
                 setActiveTab('content');
             } else if (actionId === 'refresh') {
                 refreshPlaylists();
+                refreshOpenerAccounts();
                 addToast('Refreshing live data feeds...', 'info');
             } else if (actionId === 'lock') {
                 handleLockSession();
@@ -2230,7 +2570,8 @@
                     onOpenCmd: () => setCmdOpen(true),
                     unreadCount: unreadSubCount,
                     boxCount: (boxes || []).length,
-                    playlistCount: (playlists || []).length
+                    playlistCount: (playlists || []).length,
+                    accountCount: (openerAccounts || []).length
                 },
                     activeTab === 'submissions' && h(SubmissionsWorkspace, {
                         submissions,
@@ -2251,6 +2592,14 @@
                         loading: playlistsLoading,
                         error: playlistsError,
                         onRefresh: refreshPlaylists,
+                        toast: addToast,
+                        onConfirm: setModalConfig
+                    }),
+                    activeTab === 'accounts' && h(AccountsWorkspace, {
+                        accounts: openerAccounts,
+                        loading: openerLoading,
+                        error: openerError,
+                        onRefresh: refreshOpenerAccounts,
                         toast: addToast,
                         onConfirm: setModalConfig
                     })

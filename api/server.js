@@ -63,7 +63,7 @@ function stripWrappingQuotes(value) {
 // Configuration
 // ---------------------------------------------------------------------------
 const PORT = process.env.PORT || 3001;
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://hunterstar.uz,https://www.hunterstar.uz,https://admin.hunterstar.uz')
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://hunterstar.uz,https://www.hunterstar.uz,https://admin.hunterstar.uz,https://opener.hunterstar.uz')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -92,6 +92,7 @@ const PRIVATE_TWO_FACTOR_COLLECTION = 'private_two_factor';
 const PRIVATE_DIARY_COLLECTION = 'private_diary_pages';
 const PRIVATE_DIARY_STORAGE_FOLDER = 'private-diary';
 const PRIVATE_DIARY_TEXT_MAX_LENGTH = 120000;
+const OPENER_ACCOUNTS_COLLECTION = 'opener_accounts';
 
 // Cloud Function storage relay (used when VPS cannot reach Firebase Storage directly)
 const CLOUD_FUNCTION_UPLOAD_URL = stripWrappingQuotes(process.env.CLOUD_FUNCTION_UPLOAD_URL) || '';
@@ -2184,6 +2185,164 @@ app.delete('/api/admin/playlists/:id', requireAdmin, adminLimiter, async (req, r
     } catch (error) {
         console.error('Delete playlist error:', error);
         res.status(500).json({ ok: false, error: 'Failed to delete playlist.' });
+    }
+});
+
+// ---------------------------------------------------------------------------
+// OPENER ACCOUNT ROUTES
+// ---------------------------------------------------------------------------
+
+// Public: list opener accounts (no email exposed)
+app.get('/api/opener-accounts', publicLimiter, async (req, res) => {
+    try {
+        const snapshot = await db.collection(OPENER_ACCOUNTS_COLLECTION)
+            .orderBy('order', 'asc')
+            .get();
+
+        const accounts = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: data.name || '',
+                enabledApps: Array.isArray(data.enabledApps) ? data.enabledApps : [],
+                profileId: data.profileId || '',
+                order: data.order || 0
+            };
+        });
+
+        res.json({ ok: true, count: accounts.length, accounts });
+    } catch (error) {
+        console.error('List opener accounts error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to load opener accounts.' });
+    }
+});
+
+// Admin: list opener accounts (includes email)
+app.get('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        const snapshot = await db.collection(OPENER_ACCOUNTS_COLLECTION)
+            .orderBy('order', 'asc')
+            .get();
+
+        const accounts = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: data.name || '',
+                email: data.email || '',
+                enabledApps: Array.isArray(data.enabledApps) ? data.enabledApps : [],
+                profileId: data.profileId || '',
+                order: data.order || 0,
+                createdAt: data.createdAt || null
+            };
+        });
+
+        res.json({ ok: true, count: accounts.length, accounts });
+    } catch (error) {
+        console.error('Admin list opener accounts error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to load opener accounts.' });
+    }
+});
+
+// Admin: add opener account
+app.post('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        const { name, email, enabledApps } = req.body;
+
+        if (!name || typeof name !== 'string' || name.trim().length < 1) {
+            return res.status(400).json({ ok: false, error: 'Account name is required.' });
+        }
+
+        const VALID_APPS = ['chatgpt', 'claude', 'gemini', 'grok', 'copilot', 'poe', 'deepseek'];
+        const apps = Array.isArray(enabledApps)
+            ? enabledApps.filter(a => VALID_APPS.includes(a))
+            : ['chatgpt'];
+
+        // Generate stable 12-char hex profileId, check uniqueness
+        let profileId;
+        let isUnique = false;
+        while (!isUnique) {
+            profileId = 'acct_' + crypto.randomBytes(6).toString('hex');
+            const existing = await db.collection(OPENER_ACCOUNTS_COLLECTION)
+                .where('profileId', '==', profileId)
+                .limit(1)
+                .get();
+            isUnique = existing.empty;
+        }
+
+        // Determine next order value
+        const lastDoc = await db.collection(OPENER_ACCOUNTS_COLLECTION)
+            .orderBy('order', 'desc')
+            .limit(1)
+            .get();
+        const nextOrder = lastDoc.empty ? 0 : (lastDoc.docs[0].data().order || 0) + 1;
+
+        const docRef = await db.collection(OPENER_ACCOUNTS_COLLECTION).add({
+            name: name.trim(),
+            email: (email || '').trim(),
+            enabledApps: apps,
+            profileId,
+            order: nextOrder,
+            createdAt: Date.now()
+        });
+
+        res.json({ ok: true, id: docRef.id, profileId });
+    } catch (error) {
+        console.error('Add opener account error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to add opener account.' });
+    }
+});
+
+// Admin: update opener account
+app.patch('/api/admin/opener-accounts/:id', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        const docRef = db.collection(OPENER_ACCOUNTS_COLLECTION).doc(req.params.id);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ ok: false, error: 'Account not found.' });
+        }
+
+        const updates = {};
+        const { name, email, enabledApps, order } = req.body;
+
+        if (name !== undefined) updates.name = String(name).trim();
+        if (email !== undefined) updates.email = String(email).trim();
+        if (order !== undefined && typeof order === 'number') updates.order = order;
+
+        if (enabledApps !== undefined) {
+            const VALID_APPS = ['chatgpt', 'claude', 'gemini', 'grok', 'copilot', 'poe', 'deepseek'];
+            updates.enabledApps = Array.isArray(enabledApps)
+                ? enabledApps.filter(a => VALID_APPS.includes(a))
+                : [];
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ ok: false, error: 'No valid fields to update.' });
+        }
+
+        updates.updatedAt = Date.now();
+        await docRef.update(updates);
+
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Update opener account error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to update opener account.' });
+    }
+});
+
+// Admin: delete opener account
+app.delete('/api/admin/opener-accounts/:id', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        const docRef = db.collection(OPENER_ACCOUNTS_COLLECTION).doc(req.params.id);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ ok: false, error: 'Account not found.' });
+        }
+        await docRef.delete();
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Delete opener account error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to delete opener account.' });
     }
 });
 

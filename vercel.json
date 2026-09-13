@@ -58,6 +58,61 @@
       "permanent": false
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "opener.hunterstar.uz"
+        }
+      ],
+      "destination": "/opener",
+      "permanent": false
+    },
+    {
+      "source": "/opener.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/opener",
+      "has": [
+        {
+          "type": "host",
+          "value": "hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/opener.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/opener",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
       "source": "/admin",
       "destination": "/404.html",
       "permanent": false
@@ -94,9 +149,28 @@
           "value": "noindex, nofollow, noarchive"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "opener.hunterstar.uz"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/opener",
+      "destination": "/opener.html"
+    },
     {
       "source": "/archives",
       "destination": "/archives.html"

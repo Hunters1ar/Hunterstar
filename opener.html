@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Opener | Hunterstar</title>
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/web-app-manifest-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-title" content="Hunterstar">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .opener-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            padding-top: calc(var(--space-4xl) + 2rem);
+            padding-bottom: var(--space-4xl);
+        }
+
+        /* Launcher Status Bar */
+        .launcher-status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px var(--color-shadow-medium);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: var(--color-text-primary);
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot.online {
+            background-color: #10a37f;
+            box-shadow: 0 0 10px #10a37f;
+        }
+
+        .dot.offline {
+            background-color: var(--color-accent-primary);
+            box-shadow: 0 0 10px var(--color-accent-glow);
+        }
+
+        .btn-connect {
+            background: transparent;
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-text-muted);
+            padding: 0.5rem 1rem;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-connect:hover {
+            border-color: var(--color-text-primary);
+            background: var(--color-bg-elevated);
+        }
+
+        /* Search Bar */
+        .search-bar {
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-primary);
+            padding: 1rem 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            border-radius: var(--radius-md);
+            outline: none;
+            transition: var(--transition-fast);
+        }
+
+        .search-input:focus {
+            border-color: var(--color-accent-primary);
+            box-shadow: inset 0 0 10px var(--color-accent-glow);
+        }
+
+        /* Account Grid */
+        .account-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .account-card {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            transition: var(--transition-fast);
+        }
+
+        .account-card:hover {
+            border-color: var(--color-surface-border-hover);
+            box-shadow: 0 5px 15px var(--color-shadow-medium);
+            transform: translateY(-2px);
+        }
+
+        .account-name {
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            color: var(--color-text-primary);
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .app-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-app {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            padding: 0.5rem 0.75rem;
+            border: none;
+            border-radius: var(--radius-sm);
+            color: #ffffff;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-app:hover:not(:disabled) {
+            filter: brightness(1.15);
+            transform: translateY(-1px);
+        }
+
+        .btn-app:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Dropdown style for "more" button */
+        .btn-more {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-surface-border);
+            position: relative;
+        }
+        
+        .btn-more:hover {
+            background: var(--color-bg-elevated);
+        }
+
+        .more-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 0.5rem;
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 0.5rem;
+            border-radius: var(--radius-sm);
+            z-index: 10;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: max-content;
+            box-shadow: 0 4px 12px var(--color-shadow-deep);
+        }
+
+        .btn-more:focus-within .more-dropdown,
+        .more-dropdown-wrapper.active .more-dropdown {
+            display: flex;
+        }
+
+        .more-dropdown-wrapper {
+            position: relative;
+        }
+
+        /* App Colors */
+        .app-chatgpt { background-color: #10a37f; }
+        .app-claude { background-color: #da7756; }
+        .app-gemini { background-color: #4285f4; }
+        .app-grok { 
+            background-color: #ffffff; 
+            color: #000000; 
+            border: 1px solid #d1d5db; 
+        }
+        [data-theme="dark"] .app-grok { border: 1px solid #374151; }
+        .app-copilot { background-color: #0078d4; }
+        .app-poe { background-color: #5b3cc4; }
+        .app-deepseek { background-color: #4d6bfe; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-fast);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-surface-border);
+            border-radius: var(--radius-md);
+            padding: 2rem;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 40px var(--color-shadow-deep);
+        }
+
+        .modal-title {
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--color-text-primary);
+        }
+
+        .modal-desc {
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-primary);
+            padding: 0.75rem 1rem;
+            font-family: var(--font-mono);
+            border-radius: var(--radius-sm);
+            margin-bottom: 1.5rem;
+            outline: none;
+        }
+
+        .modal-input:focus {
+            border-color: var(--color-accent-primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .btn-modal {
+            padding: 0.5rem 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--color-text-muted);
+            color: var(--color-text-primary);
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--color-text-primary);
+        }
+
+        .btn-submit {
+            background: transparent;
+            border: 1px solid var(--color-accent-primary);
+            color: var(--color-accent-primary);
+        }
+
+        .btn-submit:hover {
+            background: var(--color-accent-primary);
+            color: #ffffff;
+            box-shadow: 0 0 15px var(--color-accent-glow);
+        }
+
+        @media (max-width: 768px) {
+            .account-grid {
+                grid-template-columns: 1fr;
+            }
+            .launcher-status-bar {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            .btn-connect {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="redline-page">
+    <div class="grain-overlay" aria-hidden="true"></div>
+    <div class="vignette-overlay" aria-hidden="true"></div>
+
+    <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html" class="site-logo" aria-label="Hunterstar home">
+            <span class="site-logo-mark" aria-hidden="true">
+                <img src="assets/logo.png" alt="Hunterstar Logo" class="site-logo-image">
+            </span>
+            <span>Hunterstar</span>
+        </a>
+        <div class="site-nav-actions">
+            <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                <span class="sr-only">Toggle theme</span>
+                <span class="icon-container">
+                    <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="opener-container container">
+        <header class="section-header" style="text-align: center; align-items: center; margin-bottom: 2rem;">
+            <span class="section-number">System / Tool</span>
+            <h1 class="section-title">HUNTERSTAR ACCOUNT OPENER</h1>
+            <p class="section-subtitle">Open dedicated browser sessions for AI platforms.</p>
+        </header>
+
+        <!-- Launcher Status -->
+        <div class="launcher-status-bar">
+            <div class="status-indicator">
+                <span class="dot offline" id="launcherDot"></span>
+                <span id="launcherStatusText">LAUNCHER OFFLINE</span>
+            </div>
+            <button class="btn-connect" id="btnConnectModal">Connect</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" class="search-input" placeholder="> Search accounts by name..." autocomplete="off">
+        </div>
+
+        <!-- Account Grid -->
+        <div class="account-grid" id="accountGrid">
+            <!-- Rendered via JS -->
+        </div>
+    </div>
+
+    <!-- Connect Modal -->
+    <div class="modal-overlay" id="connectModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Connect to Local Launcher</h2>
+            <p class="modal-desc">Enter the token displayed in your launcher console to allow opening browser sessions.</p>
+            <input type="text" id="tokenInput" class="modal-input" placeholder="Paste token here...">
+            <div class="modal-actions">
+                <button class="btn-modal btn-cancel" id="btnCancelConnect">Cancel</button>
+                <button class="btn-modal btn-submit" id="btnSubmitConnect">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        // Configuration & State
+        let API_BASE = 'https://api.hunterstar.uz';
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            API_BASE = 'http://localhost:3001';
+        }
+
+        let isLauncherOnline = false;
+        let accountsData = [];
+
+        // App to Color mapping
+        const appMap = {
+            'chatgpt': { label: 'OPEN CHATGPT', class: 'app-chatgpt' },
+            'claude': { label: 'OPEN CLAUDE', class: 'app-claude' },
+            'gemini': { label: 'OPEN GEMINI', class: 'app-gemini' },
+            'grok': { label: 'OPEN GROK', class: 'app-grok' },
+            'copilot': { label: 'OPEN COPILOT', class: 'app-copilot' },
+            'poe': { label: 'OPEN POE', class: 'app-poe' },
+            'deepseek': { label: 'OPEN DEEPSEEK', class: 'app-deepseek' }
+        };
+
+        // DOM Elements
+        const launcherDot = document.getElementById('launcherDot');
+        const launcherStatusText = document.getElementById('launcherStatusText');
+        const btnConnectModal = document.getElementById('btnConnectModal');
+        const connectModal = document.getElementById('connectModal');
+        const btnCancelConnect = document.getElementById('btnCancelConnect');
+        const btnSubmitConnect = document.getElementById('btnSubmitConnect');
+        const tokenInput = document.getElementById('tokenInput');
+        const accountGrid = document.getElementById('accountGrid');
+        const searchInput = document.getElementById('searchInput');
+
+        // Modal Logic
+        function showConnectModal() {
+            tokenInput.value = localStorage.getItem('opener-launcher-token') || '';
+            connectModal.classList.add('active');
+            setTimeout(() => tokenInput.focus(), 100);
+        }
+
+        function hideConnectModal() {
+            connectModal.classList.remove('active');
+        }
+
+        btnConnectModal.addEventListener('click', showConnectModal);
+        btnCancelConnect.addEventListener('click', hideConnectModal);
+        btnSubmitConnect.addEventListener('click', () => {
+            const token = tokenInput.value.trim();
+            if (token) {
+                localStorage.setItem('opener-launcher-token', token);
+            } else {
+                localStorage.removeItem('opener-launcher-token');
+            }
+            hideConnectModal();
+        });
+
+        // Search Logic
+        searchInput.addEventListener('input', () => {
+            renderAccounts();
+        });
+
+        // App Opening Logic
+        async function openApp(profileId, app) {
+            const token = localStorage.getItem('opener-launcher-token');
+            if (!token) {
+                showConnectModal();
+                return;
+            }
+            
+            try {
+                const res = await fetch('http://127.0.0.1:9876/open', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Launcher-Token': token
+                    },
+                    body: JSON.stringify({ account: profileId, app: app })
+                });
+                
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) {
+                        alert("Unauthorized: Invalid launcher token.");
+                        showConnectModal();
+                    } else {
+                        alert(`Error opening app: HTTP ${res.status}`);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to connect to launcher:", err);
+                alert("Cannot connect to launcher. Is it running?");
+            }
+        }
+
+        // Dropdown toggle logic
+        document.addEventListener('click', (e) => {
+            const isDropdownBtn = e.target.closest('.btn-more');
+            
+            if (isDropdownBtn) {
+                const wrapper = e.target.closest('.more-dropdown-wrapper');
+                // Close all other dropdowns
+                document.querySelectorAll('.more-dropdown-wrapper.active').forEach(el => {
+                    if (el !== wrapper) el.classList.remove('active');
+                });
+                wrapper.classList.toggle('active');
+            } else {
+                // Clicked outside, close all dropdowns
+                document.querySelectorAll('.more-dropdown-wrapper.active').forEach(el => {
+                    el.classList.remove('active');
+                });
+            }
+        });
+
+        // Render Cards
+        function renderAccounts() {
+            const filter = searchInput.value.toLowerCase();
+            
+            const filteredAccounts = accountsData.filter(acc => 
+                acc.name.toLowerCase().includes(filter)
+            );
+
+            accountGrid.innerHTML = '';
+
+            if (filteredAccounts.length === 0) {
+                accountGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--color-text-muted); font-family: var(--font-mono); padding: 2rem;">No accounts found.</div>`;
+                return;
+            }
+
+            filteredAccounts.forEach(acc => {
+                const card = document.createElement('div');
+                card.className = 'account-card';
+                
+                // Name
+                const nameEl = document.createElement('div');
+                nameEl.className = 'account-name';
+                nameEl.textContent = acc.name;
+                card.appendChild(nameEl);
+
+                // Buttons container
+                const buttonsEl = document.createElement('div');
+                buttonsEl.className = 'app-buttons';
+                
+                const apps = acc.enabledApps || [];
+                const firstApps = apps.slice(0, 3);
+                const restApps = apps.slice(3);
+
+                firstApps.forEach(appKey => {
+                    const btn = createAppButton(appKey, acc.profileId);
+                    buttonsEl.appendChild(btn);
+                });
+
+                if (restApps.length > 0) {
+                    const moreWrapper = document.createElement('div');
+                    moreWrapper.className = 'more-dropdown-wrapper';
+                    
+                    const moreBtn = document.createElement('button');
+                    moreBtn.className = 'btn-app btn-more';
+                    moreBtn.innerHTML = '•••';
+                    moreBtn.title = 'More Apps';
+                    moreBtn.disabled = !isLauncherOnline;
+                    
+                    const dropdown = document.createElement('div');
+                    dropdown.className = 'more-dropdown';
+
+                    restApps.forEach(appKey => {
+                        const drpBtn = createAppButton(appKey, acc.profileId);
+                        drpBtn.style.width = '100%';
+                        dropdown.appendChild(drpBtn);
+                    });
+
+                    moreWrapper.appendChild(moreBtn);
+                    moreWrapper.appendChild(dropdown);
+                    buttonsEl.appendChild(moreWrapper);
+                }
+
+                card.appendChild(buttonsEl);
+                accountGrid.appendChild(card);
+            });
+        }
+
+        function createAppButton(appKey, profileId) {
+            const btn = document.createElement('button');
+            const appInfo = appMap[appKey] || { label: `OPEN ${appKey.toUpperCase()}`, class: 'btn-more' };
+            
+            btn.className = `btn-app ${appInfo.class}`;
+            btn.textContent = appInfo.label;
+            btn.disabled = !isLauncherOnline;
+            if (!isLauncherOnline) {
+                btn.title = "Launcher offline";
+            }
+            
+            btn.addEventListener('click', () => openApp(profileId, appKey));
+            
+            return btn;
+        }
+
+        // Fetch Accounts
+        async function fetchAccounts() {
+            try {
+                const res = await fetch(`${API_BASE}/api/opener-accounts`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.accounts) {
+                        accountsData = data.accounts;
+                    }
+                    renderAccounts();
+                }
+            } catch (err) {
+                console.error("Failed to fetch accounts", err);
+                
+                // Mock data for display if API fails
+                if (accountsData.length === 0) {
+                    accountsData = [
+                        { id: '1', name: 'krutiopoli', profileId: 'acct_7f31a2c9e481', enabledApps: ['chatgpt', 'claude', 'gemini', 'grok'] },
+                        { id: '2', name: 'devhunter', profileId: 'acct_91bd22a0c411', enabledApps: ['chatgpt', 'copilot', 'poe', 'deepseek', 'grok'] },
+                        { id: '3', name: 'creative_studio', profileId: 'acct_4cc8e19b5e32', enabledApps: ['claude', 'gemini'] }
+                    ];
+                    renderAccounts();
+                }
+            }
+        }
+
+        // Launcher Health Check
+        async function checkLauncher() {
+            try {
+                const res = await fetch('http://127.0.0.1:9876/health', { signal: AbortSignal.timeout(2000) });
+                return res.ok;
+            } catch {
+                return false;
+            }
+        }
+
+        async function pollLauncher() {
+            const online = await checkLauncher();
+            if (online !== isLauncherOnline) {
+                isLauncherOnline = online;
+                if (isLauncherOnline) {
+                    launcherDot.classList.remove('offline');
+                    launcherDot.classList.add('online');
+                    launcherStatusText.textContent = 'LAUNCHER ONLINE';
+                } else {
+                    launcherDot.classList.remove('online');
+                    launcherDot.classList.add('offline');
+                    launcherStatusText.textContent = 'LAUNCHER OFFLINE';
+                }
+                
+                // Re-render to update button disabled states
+                renderAccounts();
+            }
+        }
+
+        // Init
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchAccounts();
+            pollLauncher();
+            setInterval(pollLauncher, 5000);
+        });
+    </script>
+</body>
+</html>

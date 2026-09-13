@@ -748,6 +748,50 @@ function getAttachmentKind(contentType, fileName) {
 }
 
 // ---------------------------------------------------------------------------
+// OPENER: Account management
+// ---------------------------------------------------------------------------
+async function listOpenerAccounts() {
+    const { data } = await apiRequest('/api/opener-accounts');
+    if (!data.ok) throw new Error(data.error || 'Failed to load opener accounts.');
+    return Array.isArray(data.accounts) ? data.accounts : [];
+}
+
+async function listAdminOpenerAccounts() {
+    const { data } = await apiRequest('/api/admin/opener-accounts');
+    if (!data.ok) throw new Error(data.error || 'Failed to load opener accounts.');
+    return Array.isArray(data.accounts) ? data.accounts : [];
+}
+
+async function addOpenerAccount(account) {
+    const { data } = await apiRequest('/api/admin/opener-accounts', {
+        method: 'POST',
+        body: account,
+        forceActivity: true
+    });
+    if (!data.ok) throw new Error(data.error || 'Failed to add opener account.');
+    return data;
+}
+
+async function updateOpenerAccount(id, updates) {
+    const { data } = await apiRequest(`/api/admin/opener-accounts/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: updates,
+        forceActivity: true
+    });
+    if (!data.ok) throw new Error(data.error || 'Failed to update opener account.');
+    return data;
+}
+
+async function deleteOpenerAccount(id) {
+    const { data } = await apiRequest(`/api/admin/opener-accounts/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        forceActivity: true
+    });
+    if (!data.ok) throw new Error(data.error || 'Failed to delete opener account.');
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // Export same interface as before
 // ---------------------------------------------------------------------------
 window.firebaseConfig = {
@@ -787,6 +831,11 @@ window.firebaseConfig = {
     listAdminPlaylists,
     addAdminPlaylist,
     deleteAdminPlaylist,
+    listOpenerAccounts,
+    listAdminOpenerAccounts,
+    addOpenerAccount,
+    updateOpenerAccount,
+    deleteOpenerAccount,
     getSubmissionCollectionName: () => primarySubmissionCollectionName,
     getSubmissionCollectionNames: () => submissionCollectionNames.slice(),
     getContentBoxesCollectionName: () => contentBoxesCollectionName,
