@@ -1871,33 +1871,93 @@
     // 8.5. WORKSPACE 4: ACCOUNTS
     // =========================================================================
     function AccountsWorkspace({ accounts, loading, error, onRefresh, toast, onConfirm }) {
+        const PRESET_APPS = [
+            { id: 'chatgpt', name: 'ChatGPT', url: 'https://chatgpt.com', color: '#10a37f' },
+            { id: 'claude', name: 'Claude', url: 'https://claude.ai', color: '#da7756' },
+            { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/app', color: '#4285f4' },
+            { id: 'kimi', name: 'Kimi AI', url: 'https://www.kimi.ai/', color: '#10b981' },
+            { id: 'deepseek', name: 'DeepSeek', url: 'https://chat.deepseek.com', color: '#4d6bfe' },
+            { id: 'grok', name: 'Grok', url: 'https://grok.com', color: '#888888' },
+            { id: 'copilot', name: 'Copilot', url: 'https://copilot.microsoft.com', color: '#0078d4' },
+            { id: 'poe', name: 'Poe', url: 'https://poe.com', color: '#5b3cc4' }
+        ];
+
+        const normalizeApps = (apps) => {
+            if (!Array.isArray(apps)) return [];
+            return apps.map(item => {
+                if (typeof item === 'string') {
+                    const found = PRESET_APPS.find(p => p.id === item.toLowerCase());
+                    return found ? { name: found.name, url: found.url, icon: '' } : { name: item, url: '', icon: '' };
+                }
+                return item;
+            }).filter(item => item && item.name && item.url);
+        };
+
         const [nameInput, setNameInput] = useState('');
         const [emailInput, setEmailInput] = useState('');
-        const [selectedApps, setSelectedApps] = useState(['chatgpt', 'claude', 'gemini']);
+        const [selectedApps, setSelectedApps] = useState([
+            { name: 'ChatGPT', url: 'https://chatgpt.com', icon: '' },
+            { name: 'Claude', url: 'https://claude.ai', icon: '' },
+            { name: 'Gemini', url: 'https://gemini.google.com/app', icon: '' },
+            { name: 'Kimi AI', url: 'https://www.kimi.ai/', icon: '' }
+        ]);
+
+        // Custom Link state for Add form
+        const [customName, setCustomName] = useState('');
+        const [customUrl, setCustomUrl] = useState('');
+        const [customIcon, setCustomIcon] = useState('');
+
         const [adding, setAdding] = useState(false);
         const [editingId, setEditingId] = useState(null);
         const [editName, setEditName] = useState('');
         const [editEmail, setEditEmail] = useState('');
         const [editApps, setEditApps] = useState([]);
+        const [editCustomName, setEditCustomName] = useState('');
+        const [editCustomUrl, setEditCustomUrl] = useState('');
         const [saving, setSaving] = useState(false);
 
-        const AVAILABLE_APPS = [
-            { id: 'chatgpt', label: 'ChatGPT', color: '#10a37f' },
-            { id: 'claude', label: 'Claude', color: '#da7756' },
-            { id: 'gemini', label: 'Gemini', color: '#4285f4' },
-            { id: 'grok', label: 'Grok', color: '#888' },
-            { id: 'copilot', label: 'Copilot', color: '#0078d4' },
-            { id: 'poe', label: 'Poe', color: '#5b3cc4' },
-            { id: 'deepseek', label: 'DeepSeek', color: '#4d6bfe' }
-        ];
+        const togglePreset = (preset, currentList, setter) => {
+            const exists = currentList.some(a => (a.url || '').toLowerCase() === preset.url.toLowerCase());
+            if (exists) {
+                setter(currentList.filter(a => (a.url || '').toLowerCase() !== preset.url.toLowerCase()));
+            } else {
+                setter([...currentList, { name: preset.name, url: preset.url, icon: '' }]);
+            }
+        };
 
-        const toggleApp = (appId, list, setter) => {
-            setter(list.includes(appId) ? list.filter(a => a !== appId) : [...list, appId]);
+        const removeApp = (urlToRemove, currentList, setter) => {
+            setter(currentList.filter(a => a.url !== urlToRemove));
+        };
+
+        const addCustomApp = (cName, cUrl, cIcon, currentList, setter, clearInputs) => {
+            const cleanName = (cName || '').trim().slice(0, 50);
+            const cleanUrl = (cUrl || '').trim();
+            if (!cleanName || !cleanUrl) {
+                toast('Please enter both name and URL for the custom link.', 'warning');
+                return;
+            }
+            try {
+                const parsed = new URL(cleanUrl);
+                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                    toast('URL must begin with http:// or https://', 'warning');
+                    return;
+                }
+            } catch {
+                toast('Please enter a valid website URL (e.g. https://www.kimi.ai/)', 'warning');
+                return;
+            }
+
+            setter([...currentList, { name: cleanName, url: cleanUrl, icon: (cIcon || '').trim() }]);
+            clearInputs();
         };
 
         const handleAdd = async (e) => {
             e.preventDefault();
             if (!nameInput.trim()) return;
+            if (selectedApps.length === 0) {
+                toast('Please select or add at least one app/link.', 'warning');
+                return;
+            }
             setAdding(true);
             try {
                 await adminServices.openerAccounts.add({
@@ -1908,7 +1968,12 @@
                 toast(`Added account "${nameInput.trim()}".`, 'success');
                 setNameInput('');
                 setEmailInput('');
-                setSelectedApps(['chatgpt', 'claude', 'gemini']);
+                setSelectedApps([
+                    { name: 'ChatGPT', url: 'https://chatgpt.com', icon: '' },
+                    { name: 'Claude', url: 'https://claude.ai', icon: '' },
+                    { name: 'Gemini', url: 'https://gemini.google.com/app', icon: '' },
+                    { name: 'Kimi AI', url: 'https://www.kimi.ai/', icon: '' }
+                ]);
                 onRefresh();
             } catch (err) {
                 toast(getFriendlyError(err), 'error');
@@ -1921,7 +1986,9 @@
             setEditingId(account.id);
             setEditName(account.name);
             setEditEmail(account.email || '');
-            setEditApps([...(account.enabledApps || [])]);
+            setEditApps(normalizeApps(account.enabledApps));
+            setEditCustomName('');
+            setEditCustomUrl('');
         };
 
         const cancelEdit = () => {
@@ -1930,6 +1997,10 @@
 
         const saveEdit = async () => {
             if (!editingId) return;
+            if (editApps.length === 0) {
+                toast('Please select or add at least one app/link.', 'warning');
+                return;
+            }
             setSaving(true);
             try {
                 await adminServices.openerAccounts.update(editingId, {
@@ -1966,39 +2037,126 @@
             });
         };
 
-        const renderAppCheckboxes = (list, setter) => {
-            return h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' } },
-                AVAILABLE_APPS.map(app => 
-                    h('label', {
-                        key: app.id,
-                        style: {
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '0.78rem',
-                            fontFamily: 'var(--font-mono, monospace)',
-                            color: list.includes(app.id) ? app.color : 'var(--cr-text-muted)',
-                            cursor: 'pointer',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid ' + (list.includes(app.id) ? app.color : 'var(--cr-border)'),
-                            background: list.includes(app.id) ? app.color + '18' : 'transparent',
-                            transition: 'all 150ms ease'
-                        }
-                    },
+        const renderAppEditor = (currentList, setter, customN, setCustomN, customU, setCustomU) => {
+            return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' } },
+                // Preset quick buttons
+                h('div', null,
+                    h('span', { style: { fontSize: '0.72rem', color: 'var(--cr-text-muted)', fontFamily: 'var(--font-mono)' } }, 'QUICK PRESETS:'),
+                    h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' } },
+                        PRESET_APPS.map(preset => {
+                            const isSelected = currentList.some(a => (a.url || '').toLowerCase() === preset.url.toLowerCase());
+                            return h('button', {
+                                key: preset.id,
+                                type: 'button',
+                                onClick: () => togglePreset(preset, currentList, setter),
+                                style: {
+                                    fontSize: '0.74rem',
+                                    fontFamily: 'var(--font-mono, monospace)',
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    border: '1px solid ' + (isSelected ? preset.color : 'var(--cr-border)'),
+                                    background: isSelected ? preset.color + '22' : 'transparent',
+                                    color: isSelected ? preset.color : 'var(--cr-text-secondary)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px'
+                                }
+                            },
+                                h('img', {
+                                    src: `https://www.google.com/s2/favicons?domain=${new URL(preset.url).hostname}&sz=32`,
+                                    style: { width: '12px', height: '12px', borderRadius: '2px' }
+                                }),
+                                preset.name
+                            );
+                        })
+                    )
+                ),
+
+                // Selected Links Chips
+                h('div', null,
+                    h('span', { style: { fontSize: '0.72rem', color: 'var(--cr-text-muted)', fontFamily: 'var(--font-mono)' } }, `ACTIVE LINKS (${currentList.length}):`),
+                    currentList.length === 0 && h('div', { style: { fontSize: '0.74rem', color: 'var(--cr-danger)', marginTop: '4px' } }, 'No links selected. Please add presets or custom links.'),
+                    h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' } },
+                        currentList.map(app => {
+                            let domain = '';
+                            try { domain = new URL(app.url).hostname; } catch {}
+                            return h('span', {
+                                key: app.url,
+                                style: {
+                                    fontSize: '0.74rem',
+                                    fontFamily: 'var(--font-mono, monospace)',
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    background: 'var(--cr-bg-card)',
+                                    border: '1px solid var(--cr-border)',
+                                    color: 'var(--cr-text)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }
+                            },
+                                h('img', {
+                                    src: app.icon || (domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : ''),
+                                    style: { width: '14px', height: '14px', borderRadius: '2px' }
+                                }),
+                                h('span', { style: { fontWeight: 500 } }, app.name),
+                                h('button', {
+                                    type: 'button',
+                                    title: `Remove ${app.name}`,
+                                    onClick: () => removeApp(app.url, currentList, setter),
+                                    style: {
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--cr-danger)',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        padding: '0 2px',
+                                        fontSize: '0.85rem',
+                                        lineHeight: 1
+                                    }
+                                }, '×')
+                            );
+                        })
+                    )
+                ),
+
+                // Add Custom Link Inputs
+                h('div', { style: { background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '4px', border: '1px dashed var(--cr-border)' } },
+                    h('div', { style: { fontSize: '0.72rem', color: 'var(--cr-accent)', fontFamily: 'var(--font-mono)', marginBottom: '6px' } }, '+ ADD CUSTOM LINK'),
+                    h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } },
                         h('input', {
-                            type: 'checkbox',
-                            checked: list.includes(app.id),
-                            onChange: () => toggleApp(app.id, list, setter),
-                            style: { display: 'none' }
+                            type: 'text',
+                            placeholder: 'Name (e.g. Kimi, Perplexity)',
+                            value: customN,
+                            onChange: e => setCustomN(e.target.value),
+                            className: 'cr-form-input',
+                            style: { flex: '1 1 120px', fontSize: '0.75rem', padding: '4px 8px' }
                         }),
-                        app.label
+                        h('input', {
+                            type: 'url',
+                            placeholder: 'URL (https://...)',
+                            value: customU,
+                            onChange: e => setCustomU(e.target.value),
+                            className: 'cr-form-input',
+                            style: { flex: '2 1 180px', fontSize: '0.75rem', padding: '4px 8px' }
+                        }),
+                        h('button', {
+                            type: 'button',
+                            className: 'cr-btn cr-btn-secondary',
+                            style: { padding: '4px 10px', fontSize: '0.72rem' },
+                            onClick: () => addCustomApp(customN, customU, '', currentList, setter, () => {
+                                setCustomN('');
+                                setCustomU('');
+                            })
+                        }, '+ Add Link')
                     )
                 )
             );
         };
 
         return h('div', { className: 'cr-split-layout' },
+            // Left Panel: Add Account
             h('div', { className: 'cr-panel' },
                 h('div', { className: 'cr-panel-header' },
                     h('div', { className: 'cr-panel-title-group' },
@@ -2008,14 +2166,14 @@
                 ),
                 h('form', { onSubmit: handleAdd, className: 'cr-panel-body' },
                     h('p', { style: { fontSize: '0.82rem', color: 'var(--cr-text-secondary)', lineHeight: '1.5', margin: '0 0 10px 0' } },
-                        'Add an account to the Opener. Each account gets a dedicated Chrome profile for isolated sessions.'
+                        'Add an account to the Opener. Each account gets an isolated Chrome profile with arbitrary custom links.'
                     ),
                     h('div', { className: 'cr-form-group' },
                         h('label', { className: 'cr-form-label' }, 'Account Name'),
                         h('input', {
                             type: 'text',
                             className: 'cr-form-input',
-                            placeholder: 'krutiopoli',
+                            placeholder: 'Hunterstardeveloper',
                             value: nameInput,
                             onChange: e => setNameInput(e.target.value),
                             required: true
@@ -2026,25 +2184,28 @@
                         h('input', {
                             type: 'email',
                             className: 'cr-form-input',
-                            placeholder: 'krutiopoli@gmail.com',
+                            placeholder: 'user@example.com',
                             value: emailInput,
                             onChange: e => setEmailInput(e.target.value)
                         })
                     ),
                     h('div', { className: 'cr-form-group' },
-                        h('label', { className: 'cr-form-label' }, 'Enabled Apps'),
-                        renderAppCheckboxes(selectedApps, setSelectedApps)
+                        h('label', { className: 'cr-form-label' }, 'Enabled Apps & Links'),
+                        renderAppEditor(selectedApps, setSelectedApps, customName, setCustomName, customUrl, setCustomUrl)
                     ),
                     h('button', {
                         type: 'submit',
                         className: 'cr-btn cr-btn-primary',
-                        disabled: adding || !nameInput.trim()
+                        style: { marginTop: '12px' },
+                        disabled: adding || !nameInput.trim() || selectedApps.length === 0
                     },
                         h(Icon, { name: 'plus', size: 16 }),
                         adding ? 'Adding...' : 'Add Account'
                     )
                 )
             ),
+
+            // Right Panel: Account List
             h('div', { className: 'cr-panel' },
                 h('div', { className: 'cr-panel-header' },
                     h('div', { className: 'cr-panel-title-group' },
@@ -2069,6 +2230,8 @@
                     !loading && h('div', { className: 'cr-playlist-grid' },
                         (accounts || []).map(acct => {
                             const isEditing = editingId === acct.id;
+                            const normalized = normalizeApps(acct.enabledApps);
+
                             if (isEditing) {
                                 return h('div', { key: acct.id, className: 'cr-playlist-card', style: { borderColor: 'var(--cr-accent)' } },
                                     h('div', { className: 'cr-form-group', style: { marginBottom: '6px' } },
@@ -2092,10 +2255,10 @@
                                         })
                                     ),
                                     h('div', { className: 'cr-form-group', style: { marginBottom: '6px' } },
-                                        h('label', { className: 'cr-form-label' }, 'Apps'),
-                                        renderAppCheckboxes(editApps, setEditApps)
+                                        h('label', { className: 'cr-form-label' }, 'Apps & Links'),
+                                        renderAppEditor(editApps, setEditApps, editCustomName, setEditCustomName, editCustomUrl, setEditCustomUrl)
                                     ),
-                                    h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '8px' } },
+                                    h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '12px' } },
                                         h('button', {
                                             type: 'button',
                                             className: 'cr-btn cr-btn-secondary',
@@ -2106,33 +2269,44 @@
                                             type: 'button',
                                             className: 'cr-btn cr-btn-primary',
                                             style: { padding: '4px 10px', fontSize: '0.74rem' },
-                                            disabled: saving,
+                                            disabled: saving || !editName.trim() || editApps.length === 0,
                                             onClick: saveEdit
                                         }, saving ? 'Saving...' : 'Save')
                                     )
                                 );
                             }
+
                             return h('div', { key: acct.id, className: 'cr-playlist-card' },
                                 h('div', null,
                                     h('h4', { className: 'cr-playlist-title' }, acct.name || 'Unnamed'),
                                     acct.email && h('div', { className: 'cr-playlist-id', style: { marginBottom: '2px' } }, acct.email),
                                     h('div', { className: 'cr-playlist-id' }, acct.profileId || 'No profile ID')
                                 ),
-                                h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '8px 0' } },
-                                    (acct.enabledApps || []).map(appId => {
-                                        const appInfo = AVAILABLE_APPS.find(a => a.id === appId);
+                                h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '10px 0' } },
+                                    normalized.map(app => {
+                                        let domain = '';
+                                        try { domain = new URL(app.url).hostname; } catch {}
                                         return h('span', {
-                                            key: appId,
+                                            key: app.url,
                                             style: {
                                                 fontSize: '0.68rem',
                                                 fontFamily: 'var(--font-mono, monospace)',
                                                 padding: '2px 6px',
                                                 borderRadius: '3px',
-                                                background: (appInfo ? appInfo.color : '#666') + '22',
-                                                color: appInfo ? appInfo.color : '#666',
-                                                border: '1px solid ' + (appInfo ? appInfo.color : '#666') + '44'
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                color: 'var(--cr-text-secondary)',
+                                                border: '1px solid var(--cr-border)',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
                                             }
-                                        }, appInfo ? appInfo.label : appId);
+                                        },
+                                            domain && h('img', {
+                                                src: app.icon || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+                                                style: { width: '12px', height: '12px', borderRadius: '2px' }
+                                            }),
+                                            app.name
+                                        );
                                     })
                                 ),
                                 h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' } },

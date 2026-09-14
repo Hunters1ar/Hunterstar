@@ -51,11 +51,100 @@ const APP_URLS = Object.freeze({
   chatgpt: 'https://chatgpt.com',
   claude: 'https://claude.ai',
   gemini: 'https://gemini.google.com/app',
+  kimi: 'https://www.kimi.ai/',
+  deepseek: 'https://chat.deepseek.com',
   grok: 'https://grok.com',
   copilot: 'https://copilot.microsoft.com',
-  poe: 'https://poe.com',
-  deepseek: 'https://chat.deepseek.com'
+  poe: 'https://poe.com'
 });
+
+function isPrivateIpOrHost(hostname) {
+  if (!hostname) return true;
+  const lower = hostname.toLowerCase().trim();
+  if (lower === 'localhost' || lower === '127.0.0.1' || lower === '0.0.0.0' || lower === '::1' || lower === '[::1]') {
+    return true;
+  }
+  if (lower.endsWith('.local') || lower.endsWith('.internal') || lower.endsWith('.lan') || !lower.includes('.')) {
+    return true;
+  }
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = lower.match(ipv4Regex);
+  if (match) {
+    const [_, a, b, c, d] = match.map(Number);
+    if (a > 255 || b > 255 || c > 255 || d > 255) return true;
+    if (a === 127) return true;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 0) return true;
+  }
+  return false;
+}
+
+function validateAndSanitizeUrl(value) {
+  if (!value || typeof value !== 'string') return null;
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    if (isPrivateIpOrHost(parsed.hostname)) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function bringChromeToFront(titleHint) {
+  const safeHint = (titleHint || '').replace(/"/g, '').trim();
+  const psScript = `
+    $wshell = New-Object -ComObject Wscript.Shell
+    for ($i = 0; $i -lt 20; $i++) {
+      Start-Sleep -Milliseconds 150
+      if ($wshell.AppActivate("Chrome") -or $wshell.AppActivate("Google Chrome") -or ($args[0] -and $wshell.AppActivate($args[0]))) {
+        break
+      }
+    }
+  `;
+  try {
+    const proc = child_process.spawn('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-WindowStyle', 'Hidden',
+      '-Command', psScript,
+      safeHint
+    ], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+    proc.unref();
+  } catch (_) {
+    // Fallback to VBScript if PowerShell fails
+    const vbs = [
+      'Set wsh = CreateObject("WScript.Shell")',
+      'wsh.SendKeys "%"',
+      'For i = 1 To 20',
+      '  WScript.Sleep 150',
+      '  If wsh.AppActivate("Chrome") Or wsh.AppActivate("Google Chrome") Then',
+      '    Exit For',
+      '  End If',
+      'Next'
+    ].join('\r\n');
+    const tmpVbs = path.join(os.tmpdir(), 'hs-focus.vbs');
+    try {
+      fs.writeFileSync(tmpVbs, vbs, 'utf8');
+      const focusProc = child_process.spawn('cscript', ['//nologo', tmpVbs], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      focusProc.unref();
+    } catch (__) {}
+  }
+}
 
 function getChromePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
@@ -130,7 +219,7 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const body = JSON.parse(bodyStr);
-        const { account, app } = body;
+        const { account, app, url, name } = body;
 
         if (!account || !/^acct_[a-f0-9]{12}$/.test(account)) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -138,9 +227,21 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        if (!app || !APP_URLS[app]) {
+        let targetUrl = null;
+        let displayName = name ? String(name).trim().slice(0, 50) : (app || 'Chrome');
+
+        if (url) {
+          targetUrl = validateAndSanitizeUrl(url);
+          if (!targetUrl) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Invalid URL or private network address blocked' }));
+            return;
+          }
+        } else if (app && APP_URLS[app]) {
+          targetUrl = APP_URLS[app];
+        } else {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Invalid or missing app' }));
+          res.end(JSON.stringify({ ok: false, error: 'Invalid or missing app/url' }));
           return;
         }
 
@@ -151,41 +252,6 @@ const server = http.createServer((req, res) => {
         }
 
         const profileDir = path.join(PROFILE_BASE_DIR, account);
-        const appUrl = APP_URLS[app];
-
-        function bringToFront(appName) {
-          const appTitles = {
-            chatgpt: 'ChatGPT',
-            claude: 'Claude',
-            gemini: 'Gemini',
-            grok: 'Grok',
-            copilot: 'Copilot',
-            poe: 'Poe',
-            deepseek: 'DeepSeek'
-          };
-          const target = appTitles[appName] || 'Google Chrome';
-
-          const vbs = [
-            'Set wsh = CreateObject("WScript.Shell")',
-            'wsh.SendKeys "%"',
-            'For i = 1 To 25',
-            '  WScript.Sleep 200',
-            `  If wsh.AppActivate("${target}") Or wsh.AppActivate("${appName}.com") Or wsh.AppActivate("${appName}.ai") Or wsh.AppActivate("New Tab") Or wsh.AppActivate("Google Chrome") Or wsh.AppActivate("Chrome") Then`,
-            '    Exit For',
-            '  End If',
-            'Next'
-          ].join('\r\n');
-
-          const tmpVbs = path.join(os.tmpdir(), 'hs-focus.vbs');
-          try {
-            fs.writeFileSync(tmpVbs, vbs, 'utf8');
-            const focusProc = child_process.spawn('cscript', ['//nologo', tmpVbs], {
-              detached: true,
-              stdio: 'ignore'
-            });
-            focusProc.unref();
-          } catch (_) {}
-        }
 
         try {
           const cmdArgs = [
@@ -199,7 +265,7 @@ const server = http.createServer((req, res) => {
             '--start-maximized',
             '--no-first-run',
             '--no-default-browser-check',
-            `"${appUrl}"`
+            `"${targetUrl}"`
           ];
 
           const child = child_process.spawn('cmd.exe', cmdArgs, {
@@ -208,13 +274,12 @@ const server = http.createServer((req, res) => {
             windowsVerbatimArguments: true
           });
           child.unref();
-          bringToFront(app);
+          bringChromeToFront(displayName);
 
-          const time = new Date().toTimeString().split(' ')[0];
-          safeLog(`OPEN ${account} → ${app}`);
+          safeLog(`OPEN ${account} → ${displayName} (${targetUrl})`);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true, message: `Launched ${app} for ${account}` }));
+          res.end(JSON.stringify({ ok: true, message: `Launched ${displayName} for ${account}` }));
         } catch (e) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, error: 'Failed to launch Chrome' }));

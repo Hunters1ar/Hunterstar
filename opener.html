@@ -97,8 +97,8 @@
         /* Account Grid */
         .account-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 1.75rem;
             width: 100%;
         }
 
@@ -113,6 +113,7 @@
             transition: all var(--transition-fast);
             position: relative;
             overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         }
 
         .account-card::before {
@@ -121,12 +122,12 @@
             top: 0; left: 0; right: 0;
             height: 2px;
             background: linear-gradient(90deg, var(--color-accent-primary), transparent);
-            opacity: 0.5;
+            opacity: 0.6;
         }
 
         .account-card:hover {
             border-color: var(--color-surface-border-hover);
-            box-shadow: 0 8px 24px var(--color-shadow-medium);
+            box-shadow: 0 10px 30px var(--color-shadow-medium);
             transform: translateY(-2px);
         }
 
@@ -134,98 +135,157 @@
             opacity: 1;
         }
 
+        /* Account Card Header */
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--color-surface-border);
+            padding-bottom: 0.85rem;
+            gap: 1rem;
+        }
+
         .account-name {
             font-family: var(--font-mono);
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             color: var(--color-text-primary);
             font-weight: 600;
             letter-spacing: 0.5px;
             word-break: break-all;
         }
 
-        .app-buttons {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .btn-app {
+        .account-badge {
             font-family: var(--font-mono);
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            padding: 0.5rem 0.75rem;
-            border: none;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--color-accent-primary);
+            background: rgba(255, 59, 48, 0.08);
+            border: 1px solid rgba(255, 59, 48, 0.25);
+            padding: 0.25rem 0.6rem;
             border-radius: var(--radius-sm);
-            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        /* App Grid within Card */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+            gap: 0.75rem;
+        }
+
+        /* App Tile Button */
+        .app-card-btn {
+            all: unset;
             cursor: pointer;
-            font-weight: bold;
-            transition: var(--transition-fast);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-app:hover:not(:disabled) {
-            filter: brightness(1.15);
-            transform: translateY(-1px);
-        }
-
-        .btn-app:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        /* Dropdown style for "more" button */
-        .btn-more {
             background: var(--color-bg-tertiary);
-            color: var(--color-text-primary);
             border: 1px solid var(--color-surface-border);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 0.6rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.45rem;
+            transition: all var(--transition-fast);
             position: relative;
+            user-select: none;
+            box-sizing: border-box;
         }
-        
-        .btn-more:hover {
+
+        .app-card-btn:hover:not(:disabled) {
+            transform: translateY(-4px);
+            border-color: var(--color-accent-primary);
+            box-shadow: 0 6px 20px var(--color-accent-glow);
             background: var(--color-bg-elevated);
         }
 
-        .more-dropdown {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            margin-top: 0.5rem;
+        .app-card-btn:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .app-card-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.6);
+        }
+
+        /* Favicon & Avatar Wrap */
+        .app-icon-wrap {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
             background: var(--color-surface-card);
             border: 1px solid var(--color-surface-border);
-            padding: 0.5rem;
-            border-radius: var(--radius-sm);
-            z-index: 10;
-            flex-direction: column;
-            gap: 0.5rem;
-            min-width: max-content;
-            box-shadow: 0 4px 12px var(--color-shadow-deep);
-        }
-
-        .btn-more:focus-within .more-dropdown,
-        .more-dropdown-wrapper.active .more-dropdown {
             display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: all var(--transition-fast);
+            flex-shrink: 0;
         }
 
-        .more-dropdown-wrapper {
-            position: relative;
+        .app-card-btn:hover:not(:disabled) .app-icon-wrap {
+            border-color: var(--color-accent-primary);
+            box-shadow: 0 0 10px var(--color-accent-glow);
+            transform: scale(1.05);
         }
 
-        /* App Colors */
-        .app-chatgpt { background-color: #10a37f; }
-        .app-claude { background-color: #da7756; }
-        .app-gemini { background-color: #4285f4; }
-        .app-grok { 
-            background-color: #ffffff; 
-            color: #000000; 
-            border: 1px solid #d1d5db; 
+        .app-icon-img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            border-radius: 4px;
         }
-        [data-theme="dark"] .app-grok { border: 1px solid #374151; }
-        .app-copilot { background-color: #0078d4; }
-        .app-poe { background-color: #5b3cc4; }
-        .app-deepseek { background-color: #4d6bfe; }
+
+        .app-letter-avatar {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--color-accent-primary);
+            background: var(--color-bg-elevated);
+            text-transform: uppercase;
+        }
+
+        /* Typography inside App Tile */
+        .app-card-name {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            line-height: 1.2;
+        }
+
+        .app-card-domain {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--color-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            line-height: 1.2;
+        }
+
+        /* Launching feedback */
+        .app-card-btn.launching {
+            border-color: #10a37f !important;
+            box-shadow: 0 0 15px rgba(16, 163, 127, 0.4) !important;
+        }
+
+        .app-card-btn.launching .app-card-name {
+            color: #10a37f !important;
+        }
 
         /* Modal */
         .modal-overlay {
@@ -407,35 +467,74 @@
         let isLauncherOnline = false;
         let accountsData = [];
 
-        // App to Color mapping
-        const appMap = {
-            'chatgpt': { label: 'OPEN CHATGPT', class: 'app-chatgpt' },
-            'claude': { label: 'OPEN CLAUDE', class: 'app-claude' },
-            'gemini': { label: 'OPEN GEMINI', class: 'app-gemini' },
-            'grok': { label: 'OPEN GROK', class: 'app-grok' },
-            'copilot': { label: 'OPEN COPILOT', class: 'app-copilot' },
-            'poe': { label: 'OPEN POE', class: 'app-poe' },
-            'deepseek': { label: 'OPEN DEEPSEEK', class: 'app-deepseek' }
-        };
+        // Favicon with multi-stage fallback (Google S2 -> domain/favicon.ico -> letter avatar)
+        function createFaviconElement(name, url, iconUrl) {
+            let hostname = '';
+            try {
+                hostname = new URL(url).hostname;
+            } catch {
+                hostname = '';
+            }
 
-        // DOM Elements
-        const launcherDot = document.getElementById('launcherDot');
-        const launcherStatusText = document.getElementById('launcherStatusText');
-        const accountGrid = document.getElementById('accountGrid');
-        const searchInput = document.getElementById('searchInput');
+            const wrap = document.createElement('div');
+            wrap.className = 'app-icon-wrap';
 
-        // Search Logic
-        searchInput.addEventListener('input', () => {
-            renderAccounts();
-        });
+            const renderLetter = () => {
+                wrap.innerHTML = '';
+                const avatar = document.createElement('div');
+                avatar.className = 'app-letter-avatar';
+                avatar.textContent = (name || 'A').trim().charAt(0).toUpperCase();
+                wrap.appendChild(avatar);
+            };
+
+            if (iconUrl) {
+                const img = document.createElement('img');
+                img.className = 'app-icon-img';
+                img.alt = name;
+                img.loading = 'lazy';
+                img.src = iconUrl;
+                img.onerror = () => {
+                    if (hostname) {
+                        img.onerror = () => {
+                            img.onerror = () => renderLetter();
+                            img.src = `https://${hostname}/favicon.ico`;
+                        };
+                        img.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+                    } else {
+                        renderLetter();
+                    }
+                };
+                wrap.appendChild(img);
+                return wrap;
+            }
+
+            if (!hostname) {
+                renderLetter();
+                return wrap;
+            }
+
+            const img = document.createElement('img');
+            img.className = 'app-icon-img';
+            img.alt = name;
+            img.loading = 'lazy';
+            img.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+
+            img.onerror = () => {
+                img.onerror = () => renderLetter();
+                img.src = `https://${hostname}/favicon.ico`;
+            };
+
+            wrap.appendChild(img);
+            return wrap;
+        }
 
         // App Opening Logic
-        async function openApp(profileId, app) {
+        async function openApp(profileId, name, url) {
             try {
                 const res = await fetch('http://127.0.0.1:9876/open', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ account: profileId, app: app })
+                    body: JSON.stringify({ account: profileId, name: name, url: url })
                 });
                 
                 if (res.ok) {
@@ -443,35 +542,71 @@
                 }
 
                 const errData = await res.json().catch(() => ({}));
-                alert(`Error opening app: ${errData.error || res.statusText || res.status}`);
+                alert(`Error opening ${name}: ${errData.error || res.statusText || res.status}`);
             } catch (err) {
                 console.error("Failed to connect to launcher:", err);
                 alert("Cannot connect to local launcher. Please make sure the background launcher is running.");
             }
         }
 
-        // Dropdown toggle logic
-        document.addEventListener('click', (e) => {
-            const isDropdownBtn = e.target.closest('.btn-more');
-            
-            if (isDropdownBtn) {
-                const wrapper = e.target.closest('.more-dropdown-wrapper');
-                // Close all other dropdowns
-                document.querySelectorAll('.more-dropdown-wrapper.active').forEach(el => {
-                    if (el !== wrapper) el.classList.remove('active');
-                });
-                wrapper.classList.toggle('active');
-            } else {
-                // Clicked outside, close all dropdowns
-                document.querySelectorAll('.more-dropdown-wrapper.active').forEach(el => {
-                    el.classList.remove('active');
-                });
+        function createAppCard(app, profileId) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'app-card-btn';
+            btn.disabled = !isLauncherOnline;
+            if (!isLauncherOnline) {
+                btn.title = 'Launcher offline - Please start local launcher';
             }
+
+            // Favicon or Avatar
+            const iconWrap = createFaviconElement(app.name, app.url, app.icon);
+            btn.appendChild(iconWrap);
+
+            // Name
+            const nameEl = document.createElement('div');
+            nameEl.className = 'app-card-name';
+            nameEl.textContent = app.name || 'App';
+            nameEl.title = app.name || 'App';
+            btn.appendChild(nameEl);
+
+            // Domain
+            let hostname = '';
+            try {
+                hostname = new URL(app.url).hostname.replace(/^www\./, '');
+            } catch {}
+            const domainEl = document.createElement('div');
+            domainEl.className = 'app-card-domain';
+            domainEl.textContent = hostname || 'open link';
+            domainEl.title = app.url || '';
+            btn.appendChild(domainEl);
+
+            // Click handling with launch feedback
+            btn.addEventListener('click', async () => {
+                if (!isLauncherOnline) return;
+                btn.classList.add('launching');
+                const origText = nameEl.textContent;
+                nameEl.textContent = 'Launching...';
+                try {
+                    await openApp(profileId, app.name, app.url);
+                } finally {
+                    setTimeout(() => {
+                        btn.classList.remove('launching');
+                        nameEl.textContent = origText;
+                    }, 1200);
+                }
+            });
+
+            return btn;
+        }
+
+        // Search Logic
+        searchInput.addEventListener('input', () => {
+            renderAccounts();
         });
 
         // Render Cards
         function renderAccounts() {
-            const filter = searchInput.value.toLowerCase();
+            const filter = searchInput.value.toLowerCase().trim();
             
             const filteredAccounts = accountsData.filter(acc => 
                 acc.name.toLowerCase().includes(filter)
@@ -480,7 +615,7 @@
             accountGrid.innerHTML = '';
 
             if (filteredAccounts.length === 0) {
-                accountGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--color-text-muted); font-family: var(--font-mono); padding: 2rem;">No accounts found.</div>`;
+                accountGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--color-text-muted); font-family: var(--font-mono); padding: 2.5rem; font-size: 0.9rem;">No accounts found.</div>`;
                 return;
             }
 
@@ -488,68 +623,39 @@
                 const card = document.createElement('div');
                 card.className = 'account-card';
                 
-                // Name
+                // Header
+                const headerEl = document.createElement('div');
+                headerEl.className = 'account-header';
+
                 const nameEl = document.createElement('div');
                 nameEl.className = 'account-name';
                 nameEl.textContent = acc.name;
-                card.appendChild(nameEl);
+                headerEl.appendChild(nameEl);
 
-                // Buttons container
-                const buttonsEl = document.createElement('div');
-                buttonsEl.className = 'app-buttons';
-                
-                const apps = acc.enabledApps || [];
-                const firstApps = apps.slice(0, 3);
-                const restApps = apps.slice(3);
+                const apps = Array.isArray(acc.enabledApps) ? acc.enabledApps : [];
+                const badgeEl = document.createElement('div');
+                badgeEl.className = 'account-badge';
+                badgeEl.textContent = `${apps.length} APP${apps.length === 1 ? '' : 'S'}`;
+                headerEl.appendChild(badgeEl);
 
-                firstApps.forEach(appKey => {
-                    const btn = createAppButton(appKey, acc.profileId);
-                    buttonsEl.appendChild(btn);
-                });
+                card.appendChild(headerEl);
 
-                if (restApps.length > 0) {
-                    const moreWrapper = document.createElement('div');
-                    moreWrapper.className = 'more-dropdown-wrapper';
-                    
-                    const moreBtn = document.createElement('button');
-                    moreBtn.className = 'btn-app btn-more';
-                    moreBtn.innerHTML = '•••';
-                    moreBtn.title = 'More Apps';
-                    moreBtn.disabled = !isLauncherOnline;
-                    
-                    const dropdown = document.createElement('div');
-                    dropdown.className = 'more-dropdown';
+                // Apps Grid
+                const appGrid = document.createElement('div');
+                appGrid.className = 'app-grid';
 
-                    restApps.forEach(appKey => {
-                        const drpBtn = createAppButton(appKey, acc.profileId);
-                        drpBtn.style.width = '100%';
-                        dropdown.appendChild(drpBtn);
+                if (apps.length === 0) {
+                    appGrid.innerHTML = `<div style="grid-column: 1/-1; color: var(--color-text-muted); font-size: 0.8rem; font-family: var(--font-mono); padding: 0.5rem 0;">No apps configured.</div>`;
+                } else {
+                    apps.forEach(app => {
+                        const appBtn = createAppCard(app, acc.profileId);
+                        appGrid.appendChild(appBtn);
                     });
-
-                    moreWrapper.appendChild(moreBtn);
-                    moreWrapper.appendChild(dropdown);
-                    buttonsEl.appendChild(moreWrapper);
                 }
 
-                card.appendChild(buttonsEl);
+                card.appendChild(appGrid);
                 accountGrid.appendChild(card);
             });
-        }
-
-        function createAppButton(appKey, profileId) {
-            const btn = document.createElement('button');
-            const appInfo = appMap[appKey] || { label: `OPEN ${appKey.toUpperCase()}`, class: 'btn-more' };
-            
-            btn.className = `btn-app ${appInfo.class}`;
-            btn.textContent = appInfo.label;
-            btn.disabled = !isLauncherOnline;
-            if (!isLauncherOnline) {
-                btn.title = "Launcher offline";
-            }
-            
-            btn.addEventListener('click', () => openApp(profileId, appKey));
-            
-            return btn;
         }
 
         // Fetch Accounts

@@ -2198,6 +2198,87 @@ app.delete('/api/admin/playlists/:id', requireAdmin, adminLimiter, async (req, r
 // ---------------------------------------------------------------------------
 // OPENER ACCOUNT ROUTES
 // ---------------------------------------------------------------------------
+// OPENER ACCOUNT ROUTES & HELPERS
+// ---------------------------------------------------------------------------
+
+const PRESET_APPS = {
+    chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com', icon: '' },
+    claude: { name: 'Claude', url: 'https://claude.ai', icon: '' },
+    gemini: { name: 'Gemini', url: 'https://gemini.google.com/app', icon: '' },
+    kimi: { name: 'Kimi AI', url: 'https://www.kimi.ai/', icon: '' },
+    deepseek: { name: 'DeepSeek', url: 'https://chat.deepseek.com', icon: '' },
+    grok: { name: 'Grok', url: 'https://grok.com', icon: '' },
+    copilot: { name: 'Copilot', url: 'https://copilot.microsoft.com', icon: '' },
+    poe: { name: 'Poe', url: 'https://poe.com', icon: '' }
+};
+
+function isPrivateIpOrHost(hostname) {
+    if (!hostname) return true;
+    const lower = hostname.toLowerCase().trim();
+    if (lower === 'localhost' || lower === '127.0.0.1' || lower === '0.0.0.0' || lower === '::1' || lower === '[::1]') {
+        return true;
+    }
+    if (lower.endsWith('.local') || lower.endsWith('.internal') || lower.endsWith('.lan') || !lower.includes('.')) {
+        return true;
+    }
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const match = lower.match(ipv4Regex);
+    if (match) {
+        const [_, a, b, c, d] = match.map(Number);
+        if (a > 255 || b > 255 || c > 255 || d > 255) return true;
+        if (a === 127 || a === 10 || a === 0) return true;
+        if (a === 172 && b >= 16 && b <= 31) return true;
+        if (a === 192 && b === 168) return true;
+        if (a === 169 && b === 254) return true;
+    }
+    return false;
+}
+
+function validateAndSanitizeUrl(value) {
+    if (!value || typeof value !== 'string') return null;
+    try {
+        const parsed = new URL(value.trim());
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return null;
+        }
+        if (isPrivateIpOrHost(parsed.hostname)) {
+            return null;
+        }
+        return parsed.toString();
+    } catch {
+        return null;
+    }
+}
+
+function normalizeEnabledApps(apps) {
+    if (!Array.isArray(apps)) return [];
+    const normalized = [];
+    for (const item of apps) {
+        if (!item) continue;
+        if (typeof item === 'string') {
+            const key = item.toLowerCase().trim();
+            if (PRESET_APPS[key]) {
+                normalized.push({
+                    name: PRESET_APPS[key].name,
+                    url: PRESET_APPS[key].url,
+                    icon: PRESET_APPS[key].icon || ''
+                });
+            }
+        } else if (typeof item === 'object') {
+            const name = typeof item.name === 'string' ? item.name.trim().slice(0, 50) : '';
+            const validUrl = validateAndSanitizeUrl(item.url);
+            const icon = typeof item.icon === 'string' ? (validateAndSanitizeUrl(item.icon) || '') : '';
+            if (name && validUrl) {
+                normalized.push({
+                    name,
+                    url: validUrl,
+                    icon
+                });
+            }
+        }
+    }
+    return normalized;
+}
 
 // Public: list opener accounts (no email exposed)
 app.get('/api/opener-accounts', publicLimiter, async (req, res) => {
@@ -2211,7 +2292,7 @@ app.get('/api/opener-accounts', publicLimiter, async (req, res) => {
             return {
                 id: doc.id,
                 name: data.name || '',
-                enabledApps: Array.isArray(data.enabledApps) ? data.enabledApps : [],
+                enabledApps: normalizeEnabledApps(data.enabledApps),
                 profileId: data.profileId || '',
                 order: data.order || 0
             };
@@ -2237,7 +2318,7 @@ app.get('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, re
                 id: doc.id,
                 name: data.name || '',
                 email: data.email || '',
-                enabledApps: Array.isArray(data.enabledApps) ? data.enabledApps : [],
+                enabledApps: normalizeEnabledApps(data.enabledApps),
                 profileId: data.profileId || '',
                 order: data.order || 0,
                 createdAt: data.createdAt || null
@@ -2256,14 +2337,12 @@ app.post('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, r
     try {
         const { name, email, enabledApps } = req.body;
 
-        if (!name || typeof name !== 'string' || name.trim().length < 1) {
-            return res.status(400).json({ ok: false, error: 'Account name is required.' });
+        const cleanName = (name || '').trim().slice(0, 50);
+        if (!cleanName) {
+            return res.status(400).json({ ok: false, error: 'Account name is required (max 50 characters).' });
         }
 
-        const VALID_APPS = ['chatgpt', 'claude', 'gemini', 'grok', 'copilot', 'poe', 'deepseek'];
-        const apps = Array.isArray(enabledApps)
-            ? enabledApps.filter(a => VALID_APPS.includes(a))
-            : ['chatgpt'];
+        const cleanApps = normalizeEnabledApps(enabledApps);
 
         // Generate stable 12-char hex profileId, check uniqueness
         let profileId;
@@ -2285,9 +2364,9 @@ app.post('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, r
         const nextOrder = lastDoc.empty ? 0 : (lastDoc.docs[0].data().order || 0) + 1;
 
         const docRef = await db.collection(OPENER_ACCOUNTS_COLLECTION).add({
-            name: name.trim(),
-            email: (email || '').trim(),
-            enabledApps: apps,
+            name: cleanName,
+            email: (email || '').trim().slice(0, 100),
+            enabledApps: cleanApps,
             profileId,
             order: nextOrder,
             createdAt: Date.now()
@@ -2312,15 +2391,16 @@ app.patch('/api/admin/opener-accounts/:id', requireAdmin, adminLimiter, async (r
         const updates = {};
         const { name, email, enabledApps, order } = req.body;
 
-        if (name !== undefined) updates.name = String(name).trim();
-        if (email !== undefined) updates.email = String(email).trim();
+        if (name !== undefined) {
+            const cleanName = String(name).trim().slice(0, 50);
+            if (!cleanName) return res.status(400).json({ ok: false, error: 'Account name cannot be empty.' });
+            updates.name = cleanName;
+        }
+        if (email !== undefined) updates.email = String(email).trim().slice(0, 100);
         if (order !== undefined && typeof order === 'number') updates.order = order;
 
         if (enabledApps !== undefined) {
-            const VALID_APPS = ['chatgpt', 'claude', 'gemini', 'grok', 'copilot', 'poe', 'deepseek'];
-            updates.enabledApps = Array.isArray(enabledApps)
-                ? enabledApps.filter(a => VALID_APPS.includes(a))
-                : [];
+            updates.enabledApps = normalizeEnabledApps(enabledApps);
         }
 
         if (Object.keys(updates).length === 0) {
