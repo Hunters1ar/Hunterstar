@@ -2,11 +2,12 @@ import { exec } from 'child_process';
 import util from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { HUNTERSTAR_LOGO } from '../spinner.js';
 
 const execPromise = util.promisify(exec);
 
 export async function runUpdate() {
-    console.log('\x1b[36mdYs? Checking for Hunterstar CLI updates...\x1b[0m');
+    console.log(`\x1b[36m${HUNTERSTAR_LOGO} Checking for Hunterstar CLI updates...\x1b[0m`);
     
     try {
         // Read current version from package.json

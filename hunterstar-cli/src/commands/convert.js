@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import ora from 'ora';
+import { createSpinner } from '../spinner.js';
 import chalk from 'chalk';
 import sharp from 'sharp';
 
@@ -57,7 +57,7 @@ export async function runConvert(args = []) {
         return;
     }
 
-    const spinner = ora(`Scanning ${chalk.cyan(targetDir)} for .${fromExts.join(', .')} images...`).start();
+    const spinner = createSpinner(`Scanning ${chalk.cyan(targetDir)} for .${fromExts.join(', .')} images...`).start();
 
     // Recursive file finder
     async function scanDirectory(dir) {
@@ -165,7 +165,7 @@ export async function runConvert(args = []) {
 
         // Update references across HTML, CSS, JS code files if requested
         if (updateRefs) {
-            const refSpinner = ora('Scanning and updating image references in HTML, CSS, JS...').start();
+            const refSpinner = createSpinner('Scanning and updating image references in HTML, CSS, JS...').start();
             try {
                 async function scanCodeFiles(dir) {
                     let results = [];

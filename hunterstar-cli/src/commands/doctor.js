@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { detectPlatform } from '../utils/platform.js';
 
 const execAsync = promisify(exec);
@@ -75,6 +76,22 @@ export async function runDoctor() {
         }
     } catch {
         // No .env.example, silently ignore
+    }
+
+    // 3. Hunterstar Font Check
+    console.log('\n\x1b[35m--- Hunterstar Font ---\x1b[0m');
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const fontPath = path.resolve(__dirname, '../../fonts/Hunterstar-Regular.ttf');
+    
+    try {
+        await fs.access(fontPath);
+        console.log(`Checking Hunterstar font file... \x1b[32m✅ Found\x1b[0m`);
+        console.log(`\x1b[33m⚠️ Terminal font selection cannot be detected automatically\x1b[0m`);
+        console.log('  Hunterstar animation requires the Hunterstar terminal font.');
+        console.log('  Windows Terminal:');
+        console.log('  Settings \u2192 Profile \u2192 Appearance \u2192 Font face \u2192 Hunterstar');
+    } catch {
+        console.log(`Checking Hunterstar font file... \x1b[31m❌ Missing\x1b[0m (${fontPath})`);
     }
 
     console.log('\n\x1b[32mDiagnosis complete.\x1b[0m');

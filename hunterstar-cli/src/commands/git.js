@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import util from 'util';
 import inquirer from 'inquirer';
-import ora from 'ora';
+import { createSpinner } from '../spinner.js';
 import chalk from 'chalk';
 import { detectPlatform } from '../utils/platform.js';
 
@@ -54,7 +54,7 @@ export async function runGit(args = []) {
     if (isRepo && remoteExists) {
         const commitMsg = customMessage || 'hunterstar-cli';
 
-        const spinner = ora('Staging all changes (git add .)...').start();
+        const spinner = createSpinner('Staging all changes (git add .)...').start();
         const addRes = await runCmd('git add .');
         if (!addRes.success) {
             spinner.fail(chalk.red(`Failed to stage files: ${addRes.stderr || addRes.message}`));
@@ -75,7 +75,7 @@ export async function runGit(args = []) {
             spinner.succeed(chalk.green(`Committed: "${commitMsg}"`));
         }
 
-        const pushSpinner = ora('Pushing changes to remote (git push)...').start();
+        const pushSpinner = createSpinner('Pushing changes to remote (git push)...').start();
         const pushRes = await runCmd('git push');
         if (pushRes.success) {
             pushSpinner.succeed(chalk.green('Successfully pushed to remote!'));
@@ -103,7 +103,7 @@ export async function runGit(args = []) {
 
     // Step 1: git init
     if (!isRepo) {
-        const initSpinner = ora('Initializing git repository (git init)...').start();
+        const initSpinner = createSpinner('Initializing git repository (git init)...').start();
         const initRes = await runCmd('git init');
         if (!initRes.success) {
             initSpinner.fail(chalk.red(`git init failed: ${initRes.stderr || initRes.message}`));
@@ -113,7 +113,7 @@ export async function runGit(args = []) {
     }
 
     // Step 2: git add .
-    const addSpinner = ora('Staging all files (git add .)...').start();
+    const addSpinner = createSpinner('Staging all files (git add .)...').start();
     const addRes = await runCmd('git add .');
     if (!addRes.success) {
         addSpinner.fail(chalk.red(`git add . failed: ${addRes.stderr || addRes.message}`));
@@ -123,7 +123,7 @@ export async function runGit(args = []) {
 
     // Step 3: git commit -m "hunter-cli"
     const commitMsg = customMessage || 'hunter-cli';
-    const commitSpinner = ora(`Committing as "${commitMsg}"...`).start();
+    const commitSpinner = createSpinner(`Committing as "${commitMsg}"...`).start();
     const commitRes = await runCmd(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`);
     if (!commitRes.success) {
         const out = commitRes.stdout + ' ' + commitRes.stderr;
@@ -138,7 +138,7 @@ export async function runGit(args = []) {
     }
 
     // Step 4: git branch -M main
-    const branchSpinner = ora('Setting main branch (git branch -M main)...').start();
+    const branchSpinner = createSpinner('Setting main branch (git branch -M main)...').start();
     const branchRes = await runCmd('git branch -M main');
     if (branchRes.success) {
         branchSpinner.succeed(chalk.green('Branch set to main.'));
@@ -159,7 +159,7 @@ export async function runGit(args = []) {
             }
         }]);
 
-        const remoteAddSpinner = ora(`Adding remote origin (${repoLink.trim()})...`).start();
+        const remoteAddSpinner = createSpinner(`Adding remote origin (${repoLink.trim()})...`).start();
         const addRemoteRes = await runCmd(`git remote add origin ${repoLink.trim()}`);
         if (!addRemoteRes.success) {
             // In case origin was already configured or failed, try setting URL
@@ -177,7 +177,7 @@ export async function runGit(args = []) {
         validate: (input) => input.trim() ? true : 'Username cannot be empty.'
     }]);
 
-    const configSpinner = ora(`Setting credential username to "${username.trim()}"...`).start();
+    const configSpinner = createSpinner(`Setting credential username to "${username.trim()}"...`).start();
     const configRes = await runCmd(`git config --local credential.username "${username.trim()}"`);
     if (configRes.success) {
         configSpinner.succeed(chalk.green(`Configured git config --local credential.username "${username.trim()}".`));
@@ -186,7 +186,7 @@ export async function runGit(args = []) {
     }
 
     // Step 7: Push to remote
-    const pushSpinner = ora('Pushing to GitHub (git push -u origin main)...').start();
+    const pushSpinner = createSpinner('Pushing to GitHub (git push -u origin main)...').start();
     let pushRes = await runCmd('git push -u origin main');
 
     // If remote was named upstream, fallback to upstream

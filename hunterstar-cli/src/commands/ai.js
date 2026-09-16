@@ -19,7 +19,7 @@ function renderMarkdown(text) {
 }
 
 import inquirer from 'inquirer';
-import ora from 'ora';
+import { createSpinner, HUNTERSTAR_LOGO } from '../spinner.js';
 import { detectPlatform, getShellGuidance } from '../utils/platform.js';
 
 // ...
@@ -162,7 +162,7 @@ CRITICAL EXECUTION RULES:
         let isProcessing = true;
         
         while (isProcessing) {
-            process.stdout.write('\x1b[33mAI is thinking...\x1b[0m');
+            const thinkingSpinner = createSpinner('AI is thinking...', { color: 'cyan' }).start();
             
             try {
                 const configUrl = getConfigValue('api-url');
@@ -170,10 +170,10 @@ CRITICAL EXECUTION RULES:
                 const endpoint = apiUrl.endsWith('/api/cli-chat') ? apiUrl : `${apiUrl}/api/cli-chat`;
                 
                 if (verbose) {
-                    process.stdout.write('\r\x1b[K');
+                    thinkingSpinner.stop();
                     console.log(`\x1b[90m[DEBUG] API URL: ${endpoint}\x1b[0m`);
                     console.log(`\x1b[90m[DEBUG] Requesting...\x1b[0m`);
-                    process.stdout.write('\x1b[33mAI is thinking...\x1b[0m');
+                    thinkingSpinner.start();
                 }
 
                 const fetchReq = await import('node-fetch').then(m => m.default).catch(() => fetch);
@@ -195,7 +195,7 @@ CRITICAL EXECUTION RULES:
                     data = await response.json();
                 } else {
                     const rawText = await response.text();
-                    process.stdout.write('\r\x1b[K'); // Clear thinking line
+                    thinkingSpinner.fail('AI request failed');
                     console.log(`\n\x1b[31mAPI Error (${response.status}):\x1b[0m The server returned an unexpected response (not JSON).`);
                     if (verbose) {
                         console.log(`\x1b[90m[DEBUG] Response preview: ${rawText.slice(0, 150).replace(/\\n/g, ' ')}...\x1b[0m`);
@@ -207,7 +207,7 @@ CRITICAL EXECUTION RULES:
                     continue;
                 }
 
-                process.stdout.write('\r\x1b[K'); // Clear thinking line
+                thinkingSpinner.stop();
                 
                 if (response.ok && data.ok) {
                     const rawContent = data.data.choices[0].message.content;
@@ -240,7 +240,7 @@ CRITICAL EXECUTION RULES:
                     }
 
                     if (normalText) {
-                        console.log(`\n\x1b[35mHunterstar AI:\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
+                        console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
                     }
 
                     if (commandToRun) {
@@ -284,7 +284,7 @@ CRITICAL EXECUTION RULES:
 
                         if (allow) {
                             const spinnerLabel = cmdLines.length > 0 ? (cmdLines[0].length > 60 ? cmdLines[0].slice(0, 57) + '...' : cmdLines[0]) : commandToRun;
-                            const spinner = ora(`Executing: ${spinnerLabel}`).start();
+                            const spinner = createSpinner(`Executing: ${spinnerLabel}`).start();
                             try {
                                 const execOpts = { cwd: process.cwd(), timeout: 30000, windowsHide: true, shell: platformInfo.shellPath };
                                 const { stdout, stderr } = await execPromise(commandToRun, execOpts);
@@ -382,7 +382,11 @@ CRITICAL EXECUTION RULES:
                     import('../analytics.js').then(m => m.reportErrorToTelegram(data?.error || 'Unknown API Error', 'AI Chat API Error (Not OK)')).catch(console.error);
                 }
             } catch (err) {
-                process.stdout.write('\r\x1b[K');
+                if (typeof thinkingSpinner !== 'undefined' && thinkingSpinner.isSpinning) {
+                    thinkingSpinner.fail('AI request failed');
+                } else {
+                    process.stdout.write('\r\x1b[K');
+                }
                 console.log(`\n\x1b[31mConnection Error:\x1b[0m Could not reach the API. (${err.message})\n`);
                 messages.pop();
                 isProcessing = false;

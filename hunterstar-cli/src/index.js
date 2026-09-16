@@ -8,6 +8,7 @@ import { runSync } from './commands/sync.js';
 import { runUpdate } from './commands/update.js';
 import { runConvert } from './commands/convert.js';
 import { runGit } from './commands/git.js';
+import { HUNTERSTAR_LOGO } from './spinner.js';
 
 export async function runCLI() {
     const rawArgs = process.argv.slice(2);
@@ -56,7 +57,7 @@ export async function runCLI() {
             await runUpdate();
             break;
         case 'init':
-            console.log('dYs? Initializing Hunterstar project...');
+            console.log(`${HUNTERSTAR_LOGO} Initializing Hunterstar project...`);
             console.log('\u2713 Project structures created successfully!');
             break;
         case 'help':
@@ -74,7 +75,7 @@ export async function runCLI() {
 
 function showHelp() {
     console.log(`
-\x1b[36mdYs? Hunterstar CLI\x1b[0m
+\x1b[36m${HUNTERSTAR_LOGO} Hunterstar CLI\x1b[0m
 
 \x1b[33mUsage:\x1b[0m hunterstar <command> [options]
 
