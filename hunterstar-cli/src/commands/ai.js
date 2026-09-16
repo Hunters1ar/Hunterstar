@@ -20,10 +20,13 @@ function renderMarkdown(text) {
 
 import inquirer from 'inquirer';
 import ora from 'ora';
+import { detectPlatform, getShellGuidance } from '../utils/platform.js';
 
 // ...
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}) {
+    const platformInfo = detectPlatform();
     console.log('\x1b[35mHunterstar AI CLI Initialized (Agent Mode).\x1b[0m');
+    console.log(`\x1b[90m[System: ${platformInfo.osDisplayName} | Shell: ${platformInfo.shell} | Chaining: "${platformInfo.commandSeparator}"]\x1b[0m`);
     console.log('Type \x1b[31m"/exit"\x1b[0m to quit, or \x1b[33m"/clear"\x1b[0m to reset conversation.');
     if (noExec) console.log('\x1b[33m[NO-EXEC MODE ACTIVE]\x1b[0m Command execution is disabled.');
     if (turbo) console.log('\x1b[33m[\u26A1 TURBO MODE ACTIVE]\x1b[0m Safe commands will be auto-executed.\n');
@@ -40,6 +43,8 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     };
 
     const systemPrompt = `You are the Hunterstar CLI AI Assistant.
+${getShellGuidance(platformInfo)}
+
 You can execute commands on the user's system by wrapping them in [EXEC]command[/EXEC].
 When executing multiple steps, execute one command at a time, wait for the result, and then proceed to the next step.
 If the user asks to "build my git and deploy it" or similar git operations, follow these EXACT steps:
@@ -172,11 +177,15 @@ CRITICAL EXECUTION RULES:
                 }
 
                 const fetchReq = await import('node-fetch').then(m => m.default).catch(() => fetch);
-                const os = await import('os');
                 const response = await fetchReq(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages, platform: os.platform() })
+                    body: JSON.stringify({
+                        messages,
+                        platform: platformInfo.os,
+                        shell: platformInfo.shell,
+                        commandSeparator: platformInfo.commandSeparator
+                    })
                 });
                 
                 let data;
@@ -277,8 +286,7 @@ CRITICAL EXECUTION RULES:
                             const spinnerLabel = cmdLines.length > 0 ? (cmdLines[0].length > 60 ? cmdLines[0].slice(0, 57) + '...' : cmdLines[0]) : commandToRun;
                             const spinner = ora(`Executing: ${spinnerLabel}`).start();
                             try {
-                                const execOpts = { cwd: process.cwd(), timeout: 30000, windowsHide: true };
-                                if (process.platform === 'win32') execOpts.shell = 'powershell.exe';
+                                const execOpts = { cwd: process.cwd(), timeout: 30000, windowsHide: true, shell: platformInfo.shellPath };
                                 const { stdout, stderr } = await execPromise(commandToRun, execOpts);
                                 
                                 spinner.succeed(`Command succeeded.`);

@@ -2,12 +2,20 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { detectPlatform } from '../utils/platform.js';
 
 const execAsync = promisify(exec);
 
 export async function runDoctor() {
     console.log('\x1b[36m🩺 Hunterstar System Doctor\x1b[0m\n');
     
+    // 0. Operating System & Shell Detection
+    const platform = detectPlatform();
+    console.log('\x1b[35m--- Operating System & Shell ---\x1b[0m');
+    console.log(`OS: \x1b[32m${platform.osDisplayName}\x1b[0m (${platform.osRelease})`);
+    console.log(`Shell: \x1b[32m${platform.shell}\x1b[0m (${platform.shellPath})`);
+    console.log(`Command Chaining: \x1b[32m${platform.commandSeparator}\x1b[0m\n`);
+
     // 1. System Dependencies
     console.log('\x1b[35m--- System Dependencies ---\x1b[0m');
     const checks = [

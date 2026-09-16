@@ -3,12 +3,14 @@ import util from 'util';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import chalk from 'chalk';
+import { detectPlatform } from '../utils/platform.js';
 
 const execPromise = util.promisify(exec);
 
 async function runCmd(cmd, options = {}) {
+    const platform = detectPlatform();
     try {
-        const { stdout, stderr } = await execPromise(cmd, { cwd: process.cwd(), ...options });
+        const { stdout, stderr } = await execPromise(cmd, { cwd: process.cwd(), shell: platform.shellPath, ...options });
         return { success: true, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() };
     } catch (error) {
         return {
@@ -21,7 +23,9 @@ async function runCmd(cmd, options = {}) {
 }
 
 export async function runGit(args = []) {
-    console.log(chalk.cyan('\n🚀 Hunterstar Git Manager\n'));
+    const platform = detectPlatform();
+    console.log(chalk.cyan('\n🚀 Hunterstar Git Manager'));
+    console.log(chalk.gray(`[System: ${platform.osDisplayName} | Shell: ${platform.shell}]\n`));
 
     // Custom commit message if provided in arguments
     const customMessage = args.filter(a => !a.startsWith('--')).join(' ').trim();
