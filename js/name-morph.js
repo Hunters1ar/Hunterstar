@@ -61,6 +61,22 @@
     let positionsB = [];
     let widthA = 0;
     let widthB = 0;
+    let activeStepTimeouts = [];
+
+    function setTrackedTimeout(fn, delay) {
+        const id = setTimeout(() => {
+            const idx = activeStepTimeouts.indexOf(id);
+            if (idx > -1) activeStepTimeouts.splice(idx, 1);
+            fn();
+        }, delay);
+        activeStepTimeouts.push(id);
+        return id;
+    }
+
+    function clearAllStepTimeouts() {
+        activeStepTimeouts.forEach((id) => clearTimeout(id));
+        activeStepTimeouts = [];
+    }
 
     // Elements
     let container = null;
@@ -280,6 +296,17 @@
         if (!stage || positionsA.length === 0 || positionsB.length === 0) return;
 
         const isA = state === 'A';
+        container.setAttribute('aria-label', isA ? 'Hunterstar' : 'Khurshid Khursandov');
+
+        // Remove all transition/animation classes to prevent overlapping animation states
+        const allChars = stage.querySelectorAll('.morph-char');
+        allChars.forEach((el) => {
+            el.classList.remove('char-moving', 'char-dissolve', 'char-appear');
+            el.style.transition = 'none';
+        });
+
+        // Force browser layout flush so transition: none applies immediately
+        void stage.offsetWidth;
 
         // Shared letters
         SHARED_LETTERS.forEach((item) => {
@@ -288,6 +315,7 @@
             const pos = isA ? positionsA[item.aIndex] : positionsB[item.bIndex];
             el.style.transform = `translate3d(${pos.left}px, 0, 0)`;
             el.style.opacity = '1';
+            el.style.pointerEvents = 'auto';
         });
 
         // Exclusive A
@@ -309,6 +337,18 @@
             el.style.opacity = isA ? '0' : '1';
             el.style.pointerEvents = isA ? 'none' : 'auto';
         });
+
+        // Restore transitions on next animation frame
+        requestAnimationFrame(() => {
+            allChars.forEach((el) => {
+                el.style.transition = '';
+            });
+        });
+
+        if (flare) {
+            flare.classList.remove('is-active');
+            flare.style.width = (isA ? widthA : widthB) + 'px';
+        }
     }
 
     function triggerLaserFlare(targetState) {

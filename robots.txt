@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
+Allow: /galery/
+Allow: /assets/
 Disallow: /api
 Disallow: /api/
 Disallow: /botApi
@@ -15,4 +17,4 @@ Disallow: /admin/
 Disallow: /pages/admin/
 Disallow: /script_controller.hta
 
-Sitemap: https://hunterstar.uz/sitemap.xml
+Sitemap: https://www.hunterstar.uz/sitemap.xml
