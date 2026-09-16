@@ -374,15 +374,27 @@
      */
     function morphToB() {
         if (isAnimating || currentState === 'B') return;
+        if (document.hidden) {
+            currentState = 'B';
+            applyStateImmediate('B');
+            return;
+        }
+
+        clearAllStepTimeouts();
         isAnimating = true;
         currentState = 'B';
         container.setAttribute('aria-label', 'Khurshid Khursandov');
+
+        // Clean any leftover animation classes before starting
+        stage.querySelectorAll('.morph-char').forEach((el) => {
+            el.classList.remove('char-moving', 'char-dissolve', 'char-appear');
+        });
 
         // Step 1: Dissolve exclusive letters of HUNTERSTAR over 800ms
         EXCLUSIVE_A.forEach((item, idx) => {
             const el = stage.querySelector('#char_' + item.id);
             if (!el) return;
-            setTimeout(() => {
+            setTrackedTimeout(() => {
                 emitLetterEmbers(el, 5);
                 const pos = positionsA[item.index];
                 el.style.transform = `translate3d(${pos.left}px, -12px, 0)`;
@@ -391,7 +403,7 @@
         });
 
         // Step 2: Spotlight H U R S in their original positions!
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) el.classList.add('char-moving');
@@ -399,7 +411,7 @@
         }, 800);
 
         // Step 3: Smooth, slow glide of H U R S into KHURSHID positions (over 1250ms!)
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (!el) return;
@@ -409,7 +421,7 @@
         }, 2000);
 
         // Step 4: Incoming letters (K on left, H, I, D on right) & laser flare
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             triggerLaserFlare('B');
 
             EXCLUSIVE_B.forEach((item, idx) => {
@@ -419,7 +431,7 @@
                 const startOffset = item.index === 0 ? -16 : 16;
                 el.style.transform = `translate3d(${posB.left + startOffset}px, 0, 0)`;
 
-                setTimeout(() => {
+                setTrackedTimeout(() => {
                     el.style.transform = `translate3d(${posB.left}px, 0, 0)`;
                     el.classList.add('char-appear');
                 }, 80 + idx * 60);
@@ -427,7 +439,7 @@
         }, 3600);
 
         // Step 5: Settle completely
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) el.classList.remove('char-moving');
@@ -461,9 +473,21 @@
      */
     function morphToA() {
         if (isAnimating || currentState === 'A') return;
+        if (document.hidden) {
+            currentState = 'A';
+            applyStateImmediate('A');
+            return;
+        }
+
+        clearAllStepTimeouts();
         isAnimating = true;
         currentState = 'A';
         container.setAttribute('aria-label', 'Hunterstar');
+
+        // Clean any leftover animation classes before starting
+        stage.querySelectorAll('.morph-char').forEach((el) => {
+            el.classList.remove('char-moving', 'char-dissolve', 'char-appear');
+        });
 
         // Step 1: Smooth shockwave & dissolve exclusive B
         const stageRect = stage.getBoundingClientRect();
@@ -476,7 +500,7 @@
         EXCLUSIVE_B.forEach((item, idx) => {
             const el = stage.querySelector('#char_' + item.id);
             if (!el) return;
-            setTimeout(() => {
+            setTrackedTimeout(() => {
                 const posB = positionsB[item.index];
                 el.style.transform = `translate3d(${posB.left}px, -12px, 0)`;
                 el.classList.add('char-dissolve');
@@ -484,7 +508,7 @@
         });
 
         // Step 2: Spotlight H U R S
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) el.classList.add('char-moving');
@@ -492,7 +516,7 @@
         }, 750);
 
         // Step 3: Smooth, slow expansion back to HUNTERSTAR positions (over 1250ms!)
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (!el) return;
@@ -502,7 +526,7 @@
         }, 1500);
 
         // Step 4: Materialize Hunterstar letters (N, T, E, T, A, R) & laser flare
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             triggerLaserFlare('A');
 
             EXCLUSIVE_A.forEach((item, idx) => {
@@ -511,7 +535,7 @@
                 const posA = positionsA[item.index];
                 el.style.transform = `translate3d(${posA.left}px, 14px, 0)`;
 
-                setTimeout(() => {
+                setTrackedTimeout(() => {
                     el.style.transform = `translate3d(${posA.left}px, 0, 0)`;
                     el.classList.add('char-appear');
                 }, 70 + idx * 50);
@@ -519,7 +543,7 @@
         }, 2750);
 
         // Step 5: Settle
-        setTimeout(() => {
+        setTrackedTimeout(() => {
             SHARED_LETTERS.forEach((item) => {
                 const el = stage.querySelector('#char_' + item.id);
                 if (el) el.classList.remove('char-moving');
@@ -562,7 +586,7 @@
         if (autoTimer) clearTimeout(autoTimer);
         const delay = currentState === 'A' ? HOLD_TIME_A : HOLD_TIME_B;
         autoTimer = setTimeout(() => {
-            if (!isPaused && !isAnimating) {
+            if (!isPaused && !isAnimating && !document.hidden) {
                 toggleIdentity(false);
             }
             scheduleNext();
@@ -572,6 +596,37 @@
     function restartAutoTimer() {
         if (autoTimer) clearTimeout(autoTimer);
         scheduleNext();
+    }
+
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            isPaused = true;
+            clearAllStepTimeouts();
+            if (autoTimer) {
+                clearTimeout(autoTimer);
+                autoTimer = null;
+            }
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+            particles = [];
+            if (ctx && canvas) {
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+            }
+            if (isAnimating) {
+                isAnimating = false;
+                applyStateImmediate(currentState);
+            }
+        } else {
+            isPaused = false;
+            clearAllStepTimeouts();
+            isAnimating = false;
+            measureLayout();
+            applyStateImmediate(currentState);
+            restartAutoTimer();
+        }
     }
 
     // Build DOM structure inside container
@@ -691,9 +746,30 @@
             }, 100);
         }
 
-        // Event listeners
+        // Tab visibility and focus handlers to prevent letter scrambling when focus is lost
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('blur', () => {
+            if (isAnimating) {
+                clearAllStepTimeouts();
+                isAnimating = false;
+                applyStateImmediate(currentState);
+            }
+        });
+        window.addEventListener('focus', () => {
+            if (!document.hidden && !isAnimating) {
+                applyStateImmediate(currentState);
+            }
+        });
+
+        // Event listeners with animation protection on resize
         window.addEventListener('resize', () => {
+            if (isAnimating) {
+                clearAllStepTimeouts();
+                isAnimating = false;
+            }
             measureLayout();
+            applyStateImmediate(currentState);
+            restartAutoTimer();
         }, { passive: true });
 
         // Click / Key to toggle
