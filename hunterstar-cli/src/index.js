@@ -6,6 +6,7 @@ import { runServerCommand } from './commands/server/index.js';
 import { showDashboard } from './commands/dashboard.js';
 import { runSync } from './commands/sync.js';
 import { runUpdate } from './commands/update.js';
+import { runConvert } from './commands/convert.js';
 
 export async function runCLI() {
     const rawArgs = process.argv.slice(2);
@@ -21,6 +22,9 @@ export async function runCLI() {
     switch (command) {
         case 'ai':
             await startAiChat({ noExec, verbose, turbo });
+            break;
+        case 'convert':
+            await runConvert(rawArgs.slice(1));
             break;
         case 'server':
             await runServerCommand(rawArgs.slice(1));
@@ -59,12 +63,13 @@ export async function runCLI() {
 
 function showHelp() {
     console.log(`
-\x1b[36mdYs? Hunterstar CLI v1.0.0\x1b[0m
+\x1b[36mdYs? Hunterstar CLI\x1b[0m
 
 \x1b[33mUsage:\x1b[0m hunterstar <command> [options]
 
 \x1b[32mCommands:\x1b[0m
   \x1b[36mai\x1b[0m       - Interactive AI Assistant (Uses Hunterstar Server Knowledge)
+  \x1b[36mconvert\x1b[0m  - Fast image converter (PNG, JPG, WebP, AVIF, TIFF)
   \x1b[36mserver\x1b[0m   - Detect and run frontend/backend servers (with optional tunneling)
   \x1b[36mdeploy\x1b[0m   - Deploy application to VPS
   \x1b[36mdoctor\x1b[0m   - Check system dependencies (Node, Git, etc.)

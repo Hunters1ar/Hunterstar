@@ -1,6 +1,6 @@
 {
   "name": "hunterstar",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Hunterstar Developer CLI",
   "main": "src/index.js",
   "bin": {
@@ -19,6 +19,7 @@
     "chalk": "^6.0.0",
     "inquirer": "^14.2.0",
     "ora": "^9.4.1",
+    "sharp": "^0.35.4",
     "ws": "^8.21.3"
   }
 }
