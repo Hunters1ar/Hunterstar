@@ -2,7 +2,7 @@ import inquirer from 'inquirer';
 import { startAiChat } from './ai.js';
 import { runDoctor } from './doctor.js';
 import { runServerCommand } from './server/index.js';
-import { runSync } from './sync.js';
+import { runGit } from './git.js';
 import { runUpdate } from './update.js';
 
 export async function showDashboard() {
@@ -26,9 +26,9 @@ export async function showDashboard() {
                 name: 'action',
                 message: 'What would you like to do?',
                 choices: [
-                    { name: '\uD83D\uDD0C Run frontend/backend servers', value: 'server' },
                     { name: '\uD83E\uDD16 Start AI Assistant', value: 'ai' },
-                    { name: '\uD83D\uDCE4 One-Command Git Sync', value: 'sync' },
+                    { name: '\uD83D\uDD0C Run frontend/backend servers', value: 'server' },
+                    { name: '\uD83D\uDE80 Deploy', value: 'deploy' },
                     { name: '\uD83E\uDE7A System Health Check (Doctor)', value: 'doctor' },
                     { name: '\u2B06\uFE0F  Update Hunterstar CLI', value: 'update' },
                     new inquirer.Separator(),
@@ -39,14 +39,15 @@ export async function showDashboard() {
         ]);
 
         switch (action) {
-            case 'server':
-                await runServerCommand([]);
-                break;
             case 'ai':
                 await startAiChat({ turbo: true });
                 break;
+            case 'server':
+                await runServerCommand([]);
+                break;
+            case 'deploy':
             case 'sync':
-                await runSync([]);
+                await runGit([]);
                 break;
             case 'doctor':
                 await runDoctor();
