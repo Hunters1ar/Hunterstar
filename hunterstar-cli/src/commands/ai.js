@@ -63,19 +63,22 @@ If the user asks to build docker:
 2. Run 'docker build -t <project_name> .'.
 3. Run 'docker run ...' based on the project type.
 
-If the user asks to convert, turn, or optimize image formats (e.g. "turn all png, jpg into webp", "convert webp to png", "png to jpg", etc.):
+If the user asks to convert, turn, or optimize image formats, delete original files, or replace connections in HTML/CSS/JS:
 1. NEVER execute the command 'convert' on Windows (it is C:\Windows\System32\convert.exe for FAT-to-NTFS drive conversion, NOT ImageMagick).
-2. Do NOT search C:\Program Files or search winget for ImageMagick/cwebp.
+2. Do NOT write multi-line PowerShell/bash scripts, Write-Host banners, or create temporary output/backup folders.
 3. Use the built-in Hunterstar converter command:
-   hunterstar convert --from <source_extensions> --to <target_extension>
+   hunterstar convert --from <source_extensions> --to <target_extension> [--delete] [--update-refs]
    Examples:
    - "turn png, jpg, jpeg into webp" -> hunterstar convert --from png,jpg,jpeg --to webp
    - "convert webp to png" -> hunterstar convert --from webp --to png
+   - "delete all png files, put webp in their places, replace connections in html, css, js" -> hunterstar convert --from png --to webp --delete --update-refs
    - If a specific directory is mentioned: hunterstar convert --from <source> --to <target> --dir <path>
-   - If the user explicitly asks to remove/delete originals: add --delete
 4. Execute it directly via [EXEC]hunterstar convert --from <source_extensions> --to <target_extension>[/EXEC].
 
-Always respond logically and execute commands step by step using [EXEC]. DO NOT put multiple commands in one [EXEC] block unless connected by &&. Wait for command output before proceeding to the next step.`;
+CRITICAL EXECUTION RULES:
+- Always output concise, single-line CLI commands inside [EXEC].
+- NEVER output multi-line scripts, Write-Host banners, PowerShell script blocks, or comments inside [EXEC].
+- Always respond logically and execute commands step by step using [EXEC]. DO NOT put multiple commands in one [EXEC] block unless connected by &&. Wait for command output before proceeding to the next step.`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
 
@@ -244,7 +247,12 @@ Always respond logically and execute commands step by step using [EXEC]. DO NOT 
                             console.log(`\n\x1b[33m\u26A1 Hunterstar AI requested to execute:\x1b[0m`);
                         }
                         
-                        console.log(`  \x1b[36m${commandToRun}\x1b[0m`);
+                        const cmdLines = commandToRun.split('\n').map(l => l.trim()).filter(Boolean);
+                        if (!verbose && (cmdLines.length > 2 || commandToRun.length > 150)) {
+                            console.log(`  \x1b[36m${cmdLines[0]}\x1b[0m \x1b[90m(+ ${cmdLines.length > 1 ? cmdLines.length - 1 + ' more lines' : 'content'} hidden. Use --verbose to see full code)\x1b[0m`);
+                        } else {
+                            console.log(`  \x1b[36m${commandToRun}\x1b[0m`);
+                        }
                         
                         let allow = false;
                         if (isDangerousCommand(commandToRun)) {
@@ -266,7 +274,8 @@ Always respond logically and execute commands step by step using [EXEC]. DO NOT 
                         }
 
                         if (allow) {
-                            const spinner = ora(`Executing: ${commandToRun}`).start();
+                            const spinnerLabel = cmdLines.length > 0 ? (cmdLines[0].length > 60 ? cmdLines[0].slice(0, 57) + '...' : cmdLines[0]) : commandToRun;
+                            const spinner = ora(`Executing: ${spinnerLabel}`).start();
                             try {
                                 const execOpts = { cwd: process.cwd(), timeout: 30000, windowsHide: true };
                                 if (process.platform === 'win32') execOpts.shell = 'powershell.exe';
