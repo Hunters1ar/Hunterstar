@@ -42,3 +42,9 @@ YoutubeBot/
 Thumbs.db
 .vercel
 .env*
+
+# C# desktop output
+opener-desktop/bin/
+opener-desktop/obj/
+opener-desktop/publish/
+*.csproj.user

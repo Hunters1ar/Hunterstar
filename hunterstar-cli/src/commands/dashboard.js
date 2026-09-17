@@ -1,3 +1,4 @@
+import fs from 'fs/promises';
 import inquirer from 'inquirer';
 import { startAiChat } from './ai.js';
 import { runDoctor } from './doctor.js';
@@ -7,6 +8,12 @@ import { runUpdate } from './update.js';
 import { HUNTERSTAR_LOGO, playLogoSpin, hunterstarTheme } from '../spinner.js';
 
 export async function showDashboard() {
+    let cliVersion = '2.0.1';
+    try {
+        const pkg = JSON.parse(await fs.readFile(new URL('../../package.json', import.meta.url), 'utf-8'));
+        if (pkg.version) cliVersion = pkg.version;
+    } catch {}
+
     const asciiLogo = `
   ___ ___               __                         __                
  /   |   \\ __ __  _____/  |_  ___________  _______/  |______ _______ 
@@ -23,10 +30,10 @@ export async function showDashboard() {
         console.log('\x1b[36m' + asciiLogo + '\x1b[0m');
 
         if (isFirstLoad) {
-            await playLogoSpin('HunterStar CLI  v2.0.0', 1, 40);
+            await playLogoSpin(`HunterStar CLI  v${cliVersion}`, 1, 40);
             isFirstLoad = false;
         } else {
-            console.log(`\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m \x1b[1mHunterStar CLI\x1b[0m \x1b[35mv2.0.0\x1b[0m`);
+            console.log(`\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m \x1b[1mHunterStar CLI\x1b[0m \x1b[35mv${cliVersion}\x1b[0m`);
         }
 
         console.log('\x1b[36m' + '═'.repeat(68) + '\x1b[0m');

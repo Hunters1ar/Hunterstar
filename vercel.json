@@ -7,6 +7,17 @@
       "has": [
         {
           "type": "host",
+          "value": "opener.hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
           "value": "queue.hunterstar.uz"
         }
       ],
@@ -48,61 +59,6 @@
     },
     {
       "source": "/accountqueue",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.hunterstar.uz"
-        }
-      ],
-      "destination": "/404.html",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "opener.hunterstar.uz"
-        }
-      ],
-      "destination": "/opener",
-      "permanent": false
-    },
-    {
-      "source": "/opener.html",
-      "has": [
-        {
-          "type": "host",
-          "value": "hunterstar.uz"
-        }
-      ],
-      "destination": "/404.html",
-      "permanent": false
-    },
-    {
-      "source": "/opener",
-      "has": [
-        {
-          "type": "host",
-          "value": "hunterstar.uz"
-        }
-      ],
-      "destination": "/404.html",
-      "permanent": false
-    },
-    {
-      "source": "/opener.html",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.hunterstar.uz"
-        }
-      ],
-      "destination": "/404.html",
-      "permanent": false
-    },
-    {
-      "source": "/opener",
       "has": [
         {
           "type": "host",
@@ -173,7 +129,21 @@
   "rewrites": [
     {
       "source": "/opener",
-      "destination": "/opener.html"
+      "destination": "/404.html"
+    },
+    {
+      "source": "/opener.html",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "opener.hunterstar.uz"
+        }
+      ],
+      "destination": "/404.html"
     },
     {
       "source": "/archives",

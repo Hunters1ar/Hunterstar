@@ -57,3 +57,11 @@ htmlcov
 hunterstar-cli/
 api/
 YoutubeBot/
+
+# Account Opener is a local desktop app only.
+opener-desktop/
+opener-launcher.js
+start-opener.cmd
+service-account.json
+**/service-account.json
+**/*-firebase-adminsdk-*.json
