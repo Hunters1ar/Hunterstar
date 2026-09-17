@@ -421,95 +421,9 @@ async function buildAiContext() {
     aiContextCache.data = context;
     return context;
 }
-// --- AI Provider Fallback Mechanism ---
-function getAvailableAiKeys() {
-    const keys = [];
-    if (process.env.OPEN_ROUTER_API_KEY) keys.push({ type: 'openrouter', key: process.env.OPEN_ROUTER_API_KEY });
-    for (let i = 1; i <= 10; i++) {
-        if (process.env[`OPEN_ROUTER_API_KEY${i}`]) keys.push({ type: 'openrouter', key: process.env[`OPEN_ROUTER_API_KEY${i}`] });
-    }
-    for (let i = 1; i <= 15; i++) {
-        if (process.env[`AI_STUDIO_API_KEY${i}`]) keys.push({ type: 'aistudio', key: process.env[`AI_STUDIO_API_KEY${i}`] });
-    }
-    if (process.env.AI_STUDIO_API_KEY) keys.push({ type: 'aistudio', key: process.env.AI_STUDIO_API_KEY });
-    return keys;
-}
-
-async function callAiProviderWithFallback(systemContent, cleanMessages) {
-    const keys = getAvailableAiKeys();
-    if (keys.length === 0) {
-        throw new Error('No AI API keys configured on the server.');
-    }
-
-    let lastError = null;
-    const fetch = (await import('node-fetch')).default;
-
-    let skipOpenRouter = false;
-    for (const { type, key } of keys) {
-        if (type === 'openrouter' && skipOpenRouter) continue;
-        try {
-            if (type === 'openrouter') {
-                const model = 'dots-studio/dots-3-note-preview:free';
-                const apiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${key}`,
-                        'HTTP-Referer': 'https://hunterstar.uz',
-                        'X-Title': 'Hunterstar Portfolio',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model,
-                        messages: [{ role: 'system', content: systemContent }, ...cleanMessages]
-                    })
-                });
-                
-                const data = await apiResponse.json();
-                if (!apiResponse.ok) {
-                    throw new Error(data?.error?.message || `OpenRouter API error ${apiResponse.status}`);
-                }
-                return data; // formatted correctly for frontend
-            } else if (type === 'aistudio') {
-                const model = 'gemini-3.6-flash';
-                const contents = cleanMessages.map(m => ({
-                    role: m.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: m.content }]
-                }));
-                
-                const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        systemInstruction: { parts: [{ text: systemContent }] },
-                        contents
-                    })
-                });
-                
-                const data = await apiResponse.json();
-                if (!apiResponse.ok) {
-                    throw new Error(data?.error?.message || `AI Studio error ${apiResponse.status}`);
-                }
-                
-                const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                return {
-                    choices: [
-                        { message: { content: textResponse } }
-                    ]
-                };
-            }
-        } catch (error) {
-            console.warn(`AI Provider (${type}) failed: ${error.message}. Switching to next...`);
-            lastError = error;
-            if (type === 'openrouter' && error.message.includes('free-models-per-day')) {
-                console.warn('OpenRouter free tier limit reached. Skipping remaining OpenRouter keys.');
-                skipOpenRouter = true;
-            }
-            continue;
-        }
-    }
-    
-    throw new Error(`All AI providers failed. Last error: ${lastError.message}`);
-}
+const { createAiProvider } = require('./ai-provider');
+const { buildCliPrompt } = require('./cli-prompt');
+const callAiProviderWithFallback = createAiProvider();
 
 app.post('/api/chat', aiLimiter, async (req, res) => {
     try {
@@ -572,8 +486,9 @@ ${liveContext}`;
         res.json({ ok: true, data });
     } catch (error) {
         console.error('AI chat error:', error.message);
-        const status = error.message.includes('No AI API keys') ? 500 : 502;
-        res.status(status).json({ ok: false, error: error.message || 'Internal server error during AI chat.' });
+        const status = error.status || 502;
+        if (error.retryAfterMs) res.set('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)));
+        res.status(status).json({ ok: false, error: error.message || 'Internal server error during AI chat.', retryable: error.retryable ?? false, retryAfterMs: error.retryAfterMs || 0 });
     }
 });
 
@@ -587,7 +502,7 @@ const cliLimiter = rateLimit({
 
 app.post('/api/cli-chat', cliLimiter, async (req, res) => {
     try {
-        const { messages, platform } = req.body;
+        const { messages, platform, shell, model } = req.body;
         if (!messages || !Array.isArray(messages)) {
             return res.status(400).json({ ok: false, error: 'Invalid messages format.' });
         }
@@ -601,30 +516,17 @@ app.post('/api/cli-chat', cliLimiter, async (req, res) => {
             return res.status(400).json({ ok: false, error: 'No valid messages provided.' });
         }
 
-        const isWin = platform === 'win32';
-        const systemContent = `You are the Hunterstar CLI Assistant, a powerful terminal agent running on the user's local machine.
-Operating System: ${isWin ? 'Windows (Powershell)' : 'Linux/Mac (Bash)'}
-You can execute local shell commands to fulfill the user's requests.
-To execute commands, you MUST output them inside an [EXEC] block like this:
-[EXEC]
-${isWin ? 'New-Item -ItemType Directory -Name "test_ai"\nSet-Location test_ai\nOut-File -FilePath "hello.txt" -InputObject "hello"' : 'mkdir test_ai\ncd test_ai\necho "hello" > hello.txt'}
-[/EXEC]
-
-CRITICAL RULES:
-1. Output ONLY ONE [EXEC] block per response.
-2. Wait for the user's CLI to run the command and provide you with the output (stdout/stderr/exit code) before continuing.
-3. NEVER claim a command succeeded unless the CLI has returned an execution result with exit code 0. Do not fake execution.
-4. Be concise. Do not execute destructive commands unless explicitly requested.
-${isWin ? '5. You MUST write strictly valid Powershell syntax! Do NOT use Bash syntax like `if [ -f file ]` or `cat > file << EOF`. Use `Get-Content`, `Test-Path`, `Out-File`, etc.' : ''}
-
-You have full access to the user's terminal environment. The current working directory is provided at the start of each user message.`;
-
-        const data = await callAiProviderWithFallback(systemContent, cleanMessages);
+        if (model !== undefined && (typeof model !== 'string' || !/^[a-zA-Z0-9_./:-]{1,160}$/.test(model))) {
+            return res.status(400).json({ ok: false, error: 'Invalid model name.', retryable: false });
+        }
+        const systemContent = buildCliPrompt({ messages, platform, shell });
+        const data = await callAiProviderWithFallback(systemContent, cleanMessages, { model });
         res.json({ ok: true, data });
     } catch (error) {
         console.error('CLI AI chat error:', error.message);
-        const status = error.message.includes('No AI API keys') ? 500 : 502;
-        res.status(status).json({ ok: false, error: error.message || 'Internal server error during CLI AI chat.' });
+        const status = error.status || 502;
+        if (error.retryAfterMs) res.set('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)));
+        res.status(status).json({ ok: false, error: error.message || 'Internal server error during CLI AI chat.', retryable: error.retryable ?? false, retryAfterMs: error.retryAfterMs || 0 });
     }
 });
 

@@ -101,7 +101,7 @@ echo "=== Setting up Portfolio API ==="
 mkdir -p "$APP_DIR"
 
 # Copy API files when this script is run from an upload or extract directory.
-for file in server.js package.json package-lock.json ecosystem.config.js .env.example; do
+for file in server.js ai-provider.js cli-prompt.js package.json package-lock.json ecosystem.config.js .env.example; do
     if [ -f "$SCRIPT_DIR/$file" ]; then
         cp "$SCRIPT_DIR/$file" "$APP_DIR/$file"
     fi

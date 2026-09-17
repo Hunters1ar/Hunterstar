@@ -1,0 +1,7 @@
+/app/
+/AccountCenter.exe
+/bin/
+/obj/
+/publish/
+*.csproj.user
+service-account.json

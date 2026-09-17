@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>AccountCenter</AssemblyName>
+    <Product>Hunterstar Account Center</Product>
+    <Title>Account Center</Title>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Web/favicon.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <DefaultItemExcludes>$(DefaultItemExcludes);app/**;publish/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.Firestore" Version="4.4.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Web/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- The SDK also adds WPF references; this app uses only WinForms. -->
+  <Target Name="RemoveUnusedWebViewWpfReference" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+  <!-- Native .NET entry point at the folder root; its embedded DLL path is relative. -->
+  <Target Name="CreateRootAccountCenter" AfterTargets="Publish" Condition="'$(CreateRootLauncher)' == 'true'">
+    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
+                   AppHostDestinationPath="$(MSBuildProjectDirectory)/AccountCenter.exe"
+                   AppBinaryName="app/AccountCenter.dll"
+                   IntermediateAssembly="$(TargetPath)"
+                   WindowsGraphicalUserInterface="true" />
+  </Target>
+</Project>

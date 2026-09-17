@@ -73,6 +73,8 @@ Invoke-Step { & ssh @sshOptions $vpsHost $setupCmd } 'SSH setup failed'
 
 $apiFiles = @(
     'api/server.js',
+    'api/ai-provider.js',
+    'api/cli-prompt.js',
     'api/package.json',
     'api/ecosystem.config.js',
     'api/.env.example',
