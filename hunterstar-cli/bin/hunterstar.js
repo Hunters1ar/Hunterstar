@@ -2,12 +2,13 @@
 
 import { runCLI } from '../src/index.js';
 import { initGlobalErrorTracking, reportErrorToTelegram } from '../src/analytics.js';
+import { isUserCancellation } from '../src/utils/errors.js';
 
 initGlobalErrorTracking();
 
 runCLI().catch(async (err) => {
     // Handle user pressing Ctrl+C in inquirer prompts
-    if (err.name === 'ExitPromptError' || (err.message && err.message.includes('force closed'))) {
+    if (isUserCancellation(err)) {
         console.log('\n\x1b[33mOperation cancelled.\x1b[0m');
         process.exit(0);
     }

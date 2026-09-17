@@ -1,0 +1,163 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { requestAi, AiRequestError, retryDelay } from '../src/utils/aiTransport.js';
+import { parseAiCommand } from '../src/utils/aiProtocol.js';
+import { isUserCancellation } from '../src/utils/errors.js';
+import { startAiChat, parseToolCall } from '../src/commands/ai.js';
+
+const success = content => new Response(JSON.stringify({ ok: true, data: { choices: [{ message: { content } }] } }));
+const platformInfo = { os: 'windows', osDisplayName: 'Windows', shell: 'powershell', shellPath: 'powershell.exe', isWindows: true, commandSeparator: ';' };
+
+test('HTML 504 retries the same request and returns the recovered answer', async () => {
+    const bodies = [], waits = [];
+    const answer = await requestAi('https://example.test', { messages: [{ role: 'user', content: 'hello' }] }, {
+        fetchImpl: async (_, options) => { bodies.push(options.body); return bodies.length === 1 ? new Response('<html>504</html>', { status: 504 }) : success('Recovered'); },
+        wait: async ms => waits.push(ms),
+    });
+    assert.equal(answer, 'Recovered');
+    assert.deepEqual(waits, [1000]);
+    assert.equal(bodies[0], bodies[1]);
+});
+
+test('429 honors retry-after header and legacy Gemini retry text', async () => {
+    for (const [headers, error, expected] of [
+        [{ 'Retry-After': '4' }, 'Too many messages', 4000],
+        [{}, 'Quota exceeded. Please retry in 23.440343911s.', 23440.343911],
+    ]) {
+        let calls = 0;
+        const waits = [];
+        await requestAi('https://example.test', {}, {
+            fetchImpl: async () => ++calls === 1 ? new Response(JSON.stringify({ ok: false, error }), { status: 429, headers }) : success('ok'),
+            wait: async ms => waits.push(ms),
+        });
+        assert.equal(waits[0], expected);
+    }
+    const now = Date.parse('2026-09-17T00:00:00Z');
+    assert.equal(retryDelay('Thu, 17 Sep 2026 00:00:05 GMT', now), 5000);
+});
+
+test('long cooldown, authentication, and configuration failures do not retry', async () => {
+    for (const response of [
+        new Response('{}', { status: 429, headers: { 'Retry-After': '3600' } }),
+        new Response('{}', { status: 401 }),
+        new Response(JSON.stringify({ ok: false, retryable: false, error: 'Invalid model' }), { status: 503 }),
+    ]) {
+        let calls = 0;
+        await assert.rejects(requestAi('https://example.test', {}, { fetchImpl: async () => { calls++; return response; }, wait: async () => assert.fail('must not wait') }), AiRequestError);
+        assert.equal(calls, 1);
+    }
+});
+
+test('invalid/empty replies have a finite retry budget', async () => {
+    for (const body of ['<html>bad</html>', '{invalid', '{"ok":true,"data":{}}', '{"ok":true,"data":{"choices":[{"message":{"content":""}}]}}']) {
+        let calls = 0;
+        await assert.rejects(requestAi('https://example.test', {}, { fetchImpl: async () => { calls++; return new Response(body); }, wait: async () => {} }), AiRequestError);
+        assert.equal(calls, 3);
+    }
+});
+
+test('timeout aborts fetch and body reads; retries stay bounded', async () => {
+    for (const duringBody of [false, true]) {
+        let calls = 0;
+        await assert.rejects(requestAi('https://example.test', {}, {
+            timeoutMs: 5, maxAttempts: 2, wait: async () => {},
+            fetchImpl: async (_, { signal }) => {
+                calls++;
+                const stalled = () => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true }));
+                return duringBody ? { text: stalled } : stalled();
+            },
+        }), /timed out/);
+        assert.equal(calls, 2);
+    }
+});
+
+test('malformed, multiple, mixed, and unknown tool calls cannot partially execute', () => {
+    for (const text of ['[EXEC]git status', '[EXEC][/EXEC]', '[EXEC]pwd[/EXEC][EXEC]ls[/EXEC]', '<invoke name="unknown"></invoke>']) {
+        assert.ok(parseAiCommand(text).error);
+    }
+    for (const text of ['<invoke name="exec"><parameter name="command">git status', '<invoke name="exec">pwd</invoke><invoke name="exec">ls</invoke>', '<invoke name="exec">pwd</invoke>[EXEC]pwd[/EXEC]', '<invoke name="exec"><parameter name="command">pwd</invoke>']) {
+        assert.equal(parseToolCall(text, platformInfo), null);
+    }
+    const parsed = parseToolCall('<invoke name="read_file"><parameter name="path">$(whoami)\'file</parameter></invoke>', platformInfo);
+    assert.equal(parsed.command, "Get-Content -LiteralPath '$(whoami)''file' -TotalCount 200");
+});
+
+test('retry after an executed command preserves results without rerunning it', async () => {
+    const inputs = ['inspect this folder', '/retry', '/exit'];
+    const requests = [];
+    let executions = 0;
+    await startAiChat({ turbo: true }, {
+        platformInfo, ask: async () => inputs.shift() ?? assert.fail('unexpected prompt'),
+        execute: async () => { executions++; return { stdout: 'files listed', stderr: '' }; },
+        request: async (_, payload) => {
+            requests.push(structuredClone(payload));
+            if (requests.length === 1) return '[EXEC]Get-ChildItem -Name[/EXEC]';
+            if (requests.length === 2) throw new AiRequestError('Gateway timed out', { retryable: true });
+            return 'Folder inspected.';
+        },
+    });
+    assert.equal(executions, 1);
+    assert.deepEqual(requests[1].messages, requests[2].messages);
+    assert.match(requests[2].messages.at(-1).content, /files listed/);
+});
+
+test('unknown XML is repaired automatically, then execution continues to final answer', async () => {
+    const inputs = ['inspect', '/exit'];
+    let calls = 0, executions = 0;
+    await startAiChat({ turbo: true }, {
+        platformInfo, ask: async () => inputs.shift() ?? assert.fail('unexpected prompt'),
+        execute: async () => { executions++; return { stdout: 'ok', stderr: '' }; },
+        request: async () => ['<invoke name="unsupported">x</invoke>', '[EXEC]Get-Location[/EXEC]', 'Done'][calls++],
+    });
+    assert.equal(calls, 3);
+    assert.equal(executions, 1);
+});
+
+test('repeated protocol errors stop after two repair attempts', async () => {
+    let calls = 0;
+    const inputs = ['inspect', '/exit'];
+    await startAiChat({}, { platformInfo, ask: async () => inputs.shift() ?? assert.fail('unexpected prompt'), request: async () => { calls++; return '<invoke name="unknown">x</invoke>'; }, execute: async () => assert.fail('must not execute') });
+    assert.equal(calls, 3);
+});
+
+test('no-exec mode never executes XML or EXEC commands', async () => {
+    for (const reply of ['[EXEC]Get-Location[/EXEC]', '<invoke name="exec">Get-Location</invoke>']) {
+        const inputs = ['inspect', '/exit'];
+        await startAiChat({ noExec: true, turbo: true }, { platformInfo, ask: async () => inputs.shift(), request: async () => reply, execute: async () => assert.fail('must not execute') });
+    }
+});
+
+test('Ctrl+C during command approval escapes the API catch as cancellation', async () => {
+    const error = Object.assign(new Error('User force closed'), { name: 'ExitPromptError' });
+    let prompts = 0;
+    await assert.rejects(startAiChat({}, {
+        platformInfo, ask: async () => { if (++prompts > 1) throw error; return 'inspect'; },
+        request: async () => '[EXEC]Get-Location[/EXEC]', execute: async () => assert.fail('must not execute'),
+    }), e => e === error);
+    assert.equal(isUserCancellation(error), true);
+    assert.equal(isUserCancellation(new Error('bug')), false);
+});
+
+test('dashboard uses a prompt type registered by installed Inquirer', async () => {
+    const { default: inquirer } = await import('inquirer');
+    const source = await fs.readFile(new URL('../src/commands/dashboard.js', import.meta.url), 'utf8');
+    for (const [, type] of source.matchAll(/type:\s*'([^']+)'/g)) assert.ok(type in inquirer.prompt.prompts, type);
+});
+
+test('supported XML requests approval in turbo mode and continues with its result', async () => {
+    const inputs = ['inspect', 'y', '/exit'];
+    const requests = [];
+    let executions = 0;
+    await startAiChat({ turbo: true }, {
+        platformInfo, ask: async () => inputs.shift() ?? assert.fail('unexpected prompt'),
+        execute: async command => { executions++; assert.match(command, /Get-ChildItem/); return { stdout: 'a.txt', stderr: '' }; },
+        request: async (_, payload) => {
+            requests.push(structuredClone(payload));
+            return requests.length === 1 ? '<dots_function_call><invoke name="glob"><parameter name="pattern">**/*</parameter></invoke></dots_function_call>' : 'Done';
+        },
+    });
+    assert.equal(executions, 1);
+    assert.match(requests[1].messages.at(-1).content, /a.txt/);
+    assert.equal(inputs.length, 0);
+});

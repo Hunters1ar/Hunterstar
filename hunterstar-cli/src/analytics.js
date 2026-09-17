@@ -1,7 +1,9 @@
 import https from 'https';
 import { getConfigValue } from './utils/configManager.js';
+import { isUserCancellation } from './utils/errors.js';
 
 export async function reportErrorToTelegram(error, context = '') {
+    if (isUserCancellation(error)) return;
     const botToken = process.env.ANALYTICS_BOT || getConfigValue('analytics-bot');
     const chatId = process.env.ANALYTICS_CHAT_ID || getConfigValue('analytics-chat-id');
 
@@ -41,6 +43,7 @@ export async function reportErrorToTelegram(error, context = '') {
             });
 
             req.on('error', (e) => reject(e));
+            req.setTimeout(5000, () => req.destroy(new Error('Analytics request timed out')));
             req.write(payload);
             req.end();
         });
@@ -52,12 +55,14 @@ export async function reportErrorToTelegram(error, context = '') {
 
 export function initGlobalErrorTracking() {
     process.on('uncaughtException', async (error) => {
+        if (isUserCancellation(error)) process.exit(0);
         console.error('\n\x1b[31m[Fatal Error]\x1b[0m', error.message);
         await reportErrorToTelegram(error, 'Uncaught Exception (CLI Crash)');
         process.exit(1);
     });
 
     process.on('unhandledRejection', async (reason, promise) => {
+        if (isUserCancellation(reason)) return;
         console.error('\n\x1b[31m[Unhandled Promise Rejection]\x1b[0m', reason);
         await reportErrorToTelegram(reason, 'Unhandled Rejection');
     });
