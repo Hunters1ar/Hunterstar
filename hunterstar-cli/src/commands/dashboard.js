@@ -8,7 +8,7 @@ import { runUpdate } from './update.js';
 import { HUNTERSTAR_LOGO, playLogoSpin, hunterstarTheme } from '../spinner.js';
 
 export async function showDashboard() {
-    let cliVersion = '2.0.1';
+    let cliVersion = '2.0.2';
     try {
         const pkg = JSON.parse(await fs.readFile(new URL('../../package.json', import.meta.url), 'utf-8'));
         if (pkg.version) cliVersion = pkg.version;
