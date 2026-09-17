@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import util from 'util';
 import inquirer from 'inquirer';
-import { createSpinner } from '../spinner.js';
+import { createSpinner, hunterstarTheme } from '../spinner.js';
 import chalk from 'chalk';
 import { detectPlatform } from '../utils/platform.js';
 
@@ -153,6 +153,7 @@ export async function runGit(args = []) {
             type: 'input',
             name: 'repoLink',
             message: chalk.cyan('Please enter your GitHub repository link:'),
+            theme: hunterstarTheme,
             validate: (input) => {
                 if (!input.trim()) return 'Repository link cannot be empty.';
                 return true;
@@ -174,6 +175,7 @@ export async function runGit(args = []) {
         type: 'input',
         name: 'username',
         message: chalk.cyan('Please send your username:'),
+        theme: hunterstarTheme,
         validate: (input) => input.trim() ? true : 'Username cannot be empty.'
     }]);
 

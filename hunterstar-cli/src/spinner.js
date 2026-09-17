@@ -52,6 +52,14 @@ export async function playLogoSpin(text = 'HunterStar CLI', rounds = 1, delayMs 
   process.stdout.write(`\r\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m \x1b[1m${text}\x1b[0m\n`);
 }
 
+export const hunterstarTheme = {
+  prefix: {
+    idle: `\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m`,
+    done: `\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m`,
+  },
+  spinner: hunterstarSpinner,
+};
+
 export default {
   HUNTERSTAR_LOGO,
   HUNTERSTAR_LOGO_SINGLE,
@@ -59,4 +67,5 @@ export default {
   hunterstarSpinner,
   createSpinner,
   playLogoSpin,
+  hunterstarTheme,
 };

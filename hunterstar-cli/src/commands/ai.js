@@ -19,7 +19,7 @@ function renderMarkdown(text) {
 }
 
 import inquirer from 'inquirer';
-import { createSpinner, HUNTERSTAR_LOGO } from '../spinner.js';
+import { createSpinner, HUNTERSTAR_LOGO, hunterstarTheme } from '../spinner.js';
 import { detectPlatform, getShellGuidance } from '../utils/platform.js';
 
 // ...
@@ -37,7 +37,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
             type: 'input',
             name: 'ans',
             message: query,
-            prefix: ''
+            theme: hunterstarTheme,
         }]);
         return ans;
     };

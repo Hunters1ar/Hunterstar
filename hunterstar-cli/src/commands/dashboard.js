@@ -4,13 +4,23 @@ import { runDoctor } from './doctor.js';
 import { runServerCommand } from './server/index.js';
 import { runGit } from './git.js';
 import { runUpdate } from './update.js';
-import { HUNTERSTAR_LOGO, playLogoSpin } from '../spinner.js';
+import { HUNTERSTAR_LOGO, playLogoSpin, hunterstarTheme } from '../spinner.js';
 
 export async function showDashboard() {
+    const asciiLogo = `
+  ___ ___               __                         __                
+ /   |   \\ __ __  _____/  |_  ___________  _______/  |______ _______ 
+/    ~    \\  |  \\/    \\   __\\/ __ \\_  __ \\/  ___/\\   __\\__  \\\\_  __ \\
+\\    Y    /  |  /   |  \\  | \\  ___/|  | \\/\\___ \\  |  |  / __ \\|  | \\/
+ \\___|_  /|____/|___|  /__|  \\___  >__|  /____  > |__| (____  /__|   
+       \\/            \\/          \\/           \\/            \\/       
+`;
+
     let isFirstLoad = true;
 
     while (true) {
         console.clear();
+        console.log('\x1b[36m' + asciiLogo + '\x1b[0m');
 
         if (isFirstLoad) {
             await playLogoSpin('HunterStar CLI  v2.0.0', 1, 40);
@@ -19,7 +29,7 @@ export async function showDashboard() {
             console.log(`\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m \x1b[1mHunterStar CLI\x1b[0m \x1b[35mv2.0.0\x1b[0m`);
         }
 
-        console.log('\x1b[36m' + '─'.repeat(55) + '\x1b[0m');
+        console.log('\x1b[36m' + '═'.repeat(68) + '\x1b[0m');
         console.log(`\x1b[90mModern Full-Stack & AI Assistant Platform\x1b[0m\n`);
 
         const { action } = await inquirer.prompt([
@@ -27,6 +37,7 @@ export async function showDashboard() {
                 type: 'select',
                 name: 'action',
                 message: 'What would you like to do?',
+                theme: hunterstarTheme,
                 choices: [
                     { name: '\uD83E\uDD16 Start AI Assistant', value: 'ai' },
                     { name: '\uD83D\uDD0C Run frontend/backend servers', value: 'server' },
@@ -64,6 +75,6 @@ export async function showDashboard() {
         }
         
         console.log();
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to return to menu...' }]);
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to return to menu...', theme: hunterstarTheme }]);
     }
 }
