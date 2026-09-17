@@ -1,7 +1,12 @@
 import readline from 'readline';
 import { exec } from 'child_process';
 import util from 'util';
+import fs from 'fs';
+import path from 'path';
+import inquirer from 'inquirer';
 import { loadConfig, setConfigValue, getConfigValue } from '../utils/configManager.js';
+import { createSpinner, HUNTERSTAR_LOGO, hunterstarTheme } from '../spinner.js';
+import { detectPlatform, getShellGuidance } from '../utils/platform.js';
 
 const execPromise = util.promisify(exec);
 
@@ -18,11 +23,119 @@ function renderMarkdown(text) {
     return result;
 }
 
-import inquirer from 'inquirer';
-import { createSpinner, HUNTERSTAR_LOGO, hunterstarTheme } from '../spinner.js';
-import { detectPlatform, getShellGuidance } from '../utils/platform.js';
+function decodeXmlEntities(str) {
+    if (!str) return '';
+    return str
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+}
 
-// ...
+function parseToolCall(aiMsg, platformInfo) {
+    if (!aiMsg) return null;
+
+    // Matches <invoke name="...">...</invoke> or <function_call name="...">...</function_call>
+    // inside or outside <dots_function_call>
+    const invokeRegex = /<(?:invoke|function_call)\s+name=["']([^"']+)["']\s*>([\s\S]*?)(?:<\/(?:invoke|function_call)>|$)/i;
+    const invokeMatch = aiMsg.match(invokeRegex);
+
+    if (!invokeMatch) return null;
+
+    const toolName = invokeMatch[1].trim().toLowerCase();
+    const body = invokeMatch[2];
+
+    const params = {};
+    const paramRegex = /<parameter\s+name=["']([^"']+)["']\s*>([\s\S]*?)(?:<\/parameter>|$)/gi;
+    let pMatch;
+    while ((pMatch = paramRegex.exec(body)) !== null) {
+        params[pMatch[1].trim().toLowerCase()] = decodeXmlEntities(pMatch[2].trim());
+    }
+
+    // Fallback: If no <parameter> tag was found inside invoke, treat body as command/param
+    if (Object.keys(params).length === 0 && body.trim()) {
+        params['command'] = decodeXmlEntities(body.trim());
+    }
+
+    let command = null;
+    let isSupported = true;
+
+    if (['exec', 'bash', 'sh', 'shell', 'powershell', 'cmd', 'run', 'terminal'].includes(toolName)) {
+        command = params.command || params.cmd || Object.values(params)[0] || '';
+    } else if (['glob', 'find_files', 'list_files', 'ls', 'dir'].includes(toolName)) {
+        const pattern = params.pattern || params.path || '';
+        if (platformInfo.shell === 'powershell') {
+            if (!pattern || pattern === '**/*' || pattern === '*' || pattern === '**') {
+                command = 'Get-ChildItem -Path . -Recurse -File -Name | Select-Object -First 100';
+            } else {
+                command = `Get-ChildItem -Path . -Recurse -Filter "${pattern}" -Name | Select-Object -First 100`;
+            }
+        } else if (platformInfo.shell === 'cmd') {
+            command = 'dir /s /b';
+        } else {
+            if (!pattern || pattern === '**/*' || pattern === '*' || pattern === '**') {
+                command = 'find . -maxdepth 4 -not -path "*/.*"';
+            } else {
+                command = `find . -name "${pattern}" -not -path "*/.*"`;
+            }
+        }
+    } else if (['read_file', 'view_file', 'cat', 'read'].includes(toolName)) {
+        const filePath = params.path || params.file || params.filename || '';
+        if (platformInfo.shell === 'powershell') {
+            command = `Get-Content -Path "${filePath}" -TotalCount 200`;
+        } else if (platformInfo.shell === 'cmd') {
+            command = `type "${filePath}"`;
+        } else {
+            command = `head -n 200 "${filePath}"`;
+        }
+    } else if (['grep', 'search', 'grep_search'].includes(toolName)) {
+        const pattern = params.pattern || params.query || '';
+        const targetPath = params.path || '.';
+        if (platformInfo.shell === 'powershell') {
+            command = `Get-ChildItem -Recurse -File | Select-String -Pattern "${pattern}" | Select-Object -First 50`;
+        } else {
+            command = `grep -rnI "${pattern}" "${targetPath}" | head -n 50`;
+        }
+    } else {
+        isSupported = false;
+    }
+
+    return {
+        toolName,
+        params,
+        command: command ? command.trim() : null,
+        isSupported
+    };
+}
+
+function cleanAiDisplayText(text) {
+    if (!text) return '';
+    return text
+        .replace(/<dots_function_call>[\s\S]*?(?:<\/dots_function_call>|$)/gi, '')
+        .replace(/<(?:invoke|function_call)[\s\S]*?(?:<\/(?:invoke|function_call)>|$)/gi, '')
+        .replace(/\[EXEC\][\s\S]*?(?:\[\/EXEC\]|$)/gi, '')
+        .trim();
+}
+
+function getExtendedPath(platformInfo) {
+    let envPath = process.env.PATH || '';
+    if (!platformInfo.isWindows) return envPath;
+
+    const candidateDirs = [
+        'C:\\Program Files\\Git\\usr\\bin',
+        'C:\\Program Files (x86)\\Git\\usr\\bin',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'usr', 'bin')
+    ];
+
+    for (const dir of candidateDirs) {
+        if (dir && fs.existsSync(dir) && !envPath.toLowerCase().includes(dir.toLowerCase())) {
+            envPath = `${dir};${envPath}`;
+            break;
+        }
+    }
+    return envPath;
+}
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}) {
     const platformInfo = detectPlatform();
     console.log('\x1b[35mHunterstar AI CLI Initialized (Agent Mode).\x1b[0m');
@@ -81,9 +194,13 @@ If the user asks to convert, turn, or optimize image formats, delete original fi
 4. Execute it directly via [EXEC]hunterstar convert --from <source_extensions> --to <target_extension>[/EXEC].
 
 CRITICAL EXECUTION RULES:
-- Always output concise, single-line CLI commands inside [EXEC].
-- NEVER output multi-line scripts, Write-Host banners, PowerShell script blocks, or comments inside [EXEC].
-- Always respond logically and execute commands step by step using [EXEC]. DO NOT put multiple commands in one [EXEC] block unless connected by &&. Wait for command output before proceeding to the next step.`;
+- When executing system commands or inspecting files, wrap the shell command inside [EXEC]command[/EXEC].
+- Do not output multi-line scripts, Write-Host banners, PowerShell script blocks, or comments inside [EXEC].
+- On Windows (${platformInfo.shell}):
+  - For searching text: [EXEC]Get-ChildItem -Recurse -File | Select-String -Pattern "..."[/EXEC] or grep if available.
+  - For finding files: [EXEC]Get-ChildItem -Recurse -Name[/EXEC] or [EXEC]Get-ChildItem -Filter "*.ext" -Recurse[/EXEC].
+  - For reading files: [EXEC]Get-Content -Path "..." -TotalCount 100[/EXEC].
+- Always output concise, single-line commands and execute commands step by step. Wait for command output before proceeding to the next step.`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
 
@@ -218,25 +335,46 @@ CRITICAL EXECUTION RULES:
                         console.log(`\x1b[90m[DEBUG] Raw AI Response length: ${aiMsg.length}\x1b[0m`);
                     }
 
-                    // 1. Check for explicit [EXEC] request
-                    const execMatch = aiMsg.match(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/);
-                    
-                    // 2. Check for markdown code blocks (as suggestions)
-                    const mdCommandMatch = !execMatch ? aiMsg.match(/```(?:bash|cmd|powershell|sh)\n([\s\S]*?)\n```/) : null;
+                    // 1. Check for XML tool call (e.g. <dots_function_call> or <invoke>)
+                    const toolCall = parseToolCall(aiMsg, platformInfo);
 
-                    // Display text before the command
-                    let normalText = aiMsg;
+                    // 2. Check for explicit [EXEC] request
+                    const execMatch = !toolCall ? aiMsg.match(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/) : null;
+                    
+                    // 3. Check for markdown code blocks (as suggestions)
+                    const mdCommandMatch = (!toolCall && !execMatch) ? aiMsg.match(/```(?:bash|cmd|powershell|sh)\n([\s\S]*?)\n```/) : null;
+
+                    let normalText = '';
                     let commandToRun = null;
                     let isSuggestion = false;
 
-                    if (execMatch) {
+                    if (toolCall) {
+                        normalText = cleanAiDisplayText(aiMsg);
+                        if (toolCall.isSupported && toolCall.command) {
+                            commandToRun = toolCall.command.trim();
+                            if (verbose) console.log(`\x1b[90m[DEBUG] Execution detected: yes (Tool call: ${toolCall.toolName})\x1b[0m`);
+                        } else {
+                            if (verbose) console.log(`\x1b[90m[DEBUG] Unsupported tool call: ${toolCall.toolName}\x1b[0m`);
+                            if (normalText) {
+                                console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
+                            }
+                            messages.push({
+                                role: 'user',
+                                content: `[SYSTEM NOTICE] Tool '${toolCall.toolName}' is not supported. Please execute shell commands directly using [EXEC]command[/EXEC].`
+                            });
+                            continue;
+                        }
+                    } else if (execMatch) {
                         commandToRun = execMatch[1].trim();
-                        normalText = aiMsg.split(/\[EXEC\]/)[0].trim();
+                        normalText = cleanAiDisplayText(aiMsg);
                         if (verbose) console.log('\x1b[90m[DEBUG] Execution detected: yes ([EXEC] block)\x1b[0m');
                     } else if (mdCommandMatch) {
                         commandToRun = mdCommandMatch[1].trim();
+                        normalText = aiMsg;
                         if (verbose) console.log('\x1b[90m[DEBUG] Markdown command suggestion detected.\x1b[0m');
                         isSuggestion = true;
+                    } else {
+                        normalText = cleanAiDisplayText(aiMsg);
                     }
 
                     if (normalText) {
@@ -286,7 +424,13 @@ CRITICAL EXECUTION RULES:
                             const spinnerLabel = cmdLines.length > 0 ? (cmdLines[0].length > 60 ? cmdLines[0].slice(0, 57) + '...' : cmdLines[0]) : commandToRun;
                             const spinner = createSpinner(`Executing: ${spinnerLabel}`).start();
                             try {
-                                const execOpts = { cwd: process.cwd(), timeout: 30000, windowsHide: true, shell: platformInfo.shellPath };
+                                const execOpts = { 
+                                    cwd: process.cwd(), 
+                                    timeout: 30000, 
+                                    windowsHide: true, 
+                                    shell: platformInfo.shellPath,
+                                    env: { ...process.env, PATH: getExtendedPath(platformInfo) }
+                                };
                                 const { stdout, stderr } = await execPromise(commandToRun, execOpts);
                                 
                                 spinner.succeed(`Command succeeded.`);
@@ -315,9 +459,22 @@ CRITICAL EXECUTION RULES:
                                 
                                 if (verbose) console.log(`\x1b[90m[DEBUG] Exit code: 0\x1b[0m`);
 
+                                const responseText = safeStdout || safeStderr || 'Command succeeded with no output.';
+                                const resultPayload = toolCall ? 
+`<dots_function_response>
+<response name="${toolCall.toolName}">
+${responseText}
+</response>
+</dots_function_response>
+
+[EXECUTION RESULT]
+${JSON.stringify(resultObj, null, 2)}`
+:
+`[EXECUTION RESULT]\n${JSON.stringify(resultObj, null, 2)}`;
+
                                 messages.push({ 
                                     role: 'user', 
-                                    content: `[EXECUTION RESULT]\n${JSON.stringify(resultObj, null, 2)}`
+                                    content: resultPayload
                                 });
                                 // Loop continues to send result
                             } catch (execError) {
@@ -349,26 +506,49 @@ CRITICAL EXECUTION RULES:
 
                                 if (verbose) console.log(`\x1b[90m[DEBUG] Exit code: ${resultObj.exitCode}\x1b[0m`);
 
+                                const errResponseText = safeStderr || safeStdout || execError.message || `Command failed with exit code ${resultObj.exitCode}.`;
+                                const resultPayload = toolCall ? 
+`<dots_function_response>
+<response name="${toolCall.toolName}">
+${errResponseText}
+</response>
+</dots_function_response>
+
+[EXECUTION RESULT]
+${JSON.stringify(resultObj, null, 2)}`
+:
+`[EXECUTION RESULT]\n${JSON.stringify(resultObj, null, 2)}`;
+
                                 messages.push({ 
                                     role: 'user', 
-                                    content: `[EXECUTION RESULT]\n${JSON.stringify(resultObj, null, 2)}`
+                                    content: resultPayload
                                 });
                             }
                         } else {
                             console.log('\n\x1b[31mCommand denied.\x1b[0m\n');
                             if (!isSuggestion) {
-                                // If it was an explicit EXEC, tell the AI it was denied
                                 const rejectObj = {
                                     command: commandToRun,
                                     approved: false,
                                     reason: "user_denied"
                                 };
+                                const rejectPayload = toolCall ?
+`<dots_function_response>
+<response name="${toolCall.toolName}">
+Error: User denied execution of this command.
+</response>
+</dots_function_response>
+
+[EXECUTION RESULT]
+${JSON.stringify(rejectObj, null, 2)}`
+:
+`[EXECUTION RESULT]\n${JSON.stringify(rejectObj, null, 2)}`;
+
                                 messages.push({ 
                                     role: 'user', 
-                                    content: `[EXECUTION RESULT]\n${JSON.stringify(rejectObj, null, 2)}`
+                                    content: rejectPayload
                                 });
                             } else {
-                                // If it was just a markdown suggestion and user didn't run it, just wait for user input
                                 isProcessing = false;
                             }
                         }
