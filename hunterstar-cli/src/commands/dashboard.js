@@ -4,21 +4,23 @@ import { runDoctor } from './doctor.js';
 import { runServerCommand } from './server/index.js';
 import { runGit } from './git.js';
 import { runUpdate } from './update.js';
+import { HUNTERSTAR_LOGO, playLogoSpin } from '../spinner.js';
 
 export async function showDashboard() {
-    const logo = `
-  ___ ___               __                         __                
- /   |   \\ __ __  _____/  |_  ___________  _______/  |______ _______ 
-/    ~    \\  |  \\/    \\   __\\/ __ \\_  __ \\/  ___/\\   __\\__  \\\\_  __ \\
-\\    Y    /  |  /   |  \\  | \\  ___/|  | \\/\\___ \\  |  |  / __ \\|  | \\/
- \\___|_  /|____/|___|  /__|  \\___  >__|  /____  > |__| (____  /__|   
-       \\/            \\/          \\/           \\/            \\/       
-`;
+    let isFirstLoad = true;
 
     while (true) {
         console.clear();
-        console.log('\x1b[36m' + logo + '\x1b[0m');
-        console.log('\x1b[36m' + '='.repeat(70) + '\x1b[0m\n');
+
+        if (isFirstLoad) {
+            await playLogoSpin('HunterStar CLI  v2.0.0', 1, 40);
+            isFirstLoad = false;
+        } else {
+            console.log(`\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m \x1b[1mHunterStar CLI\x1b[0m \x1b[35mv2.0.0\x1b[0m`);
+        }
+
+        console.log('\x1b[36m' + '─'.repeat(55) + '\x1b[0m');
+        console.log(`\x1b[90mModern Full-Stack & AI Assistant Platform\x1b[0m\n`);
 
         const { action } = await inquirer.prompt([
             {
@@ -56,7 +58,7 @@ export async function showDashboard() {
                 await runUpdate();
                 break;
             case 'exit':
-                console.log('\x1b[32mGoodbye!\x1b[0m');
+                console.log(`\n\x1b[32m${HUNTERSTAR_LOGO} Goodbye!\x1b[0m\n`);
                 process.exit(0);
                 return;
         }

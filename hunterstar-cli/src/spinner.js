@@ -38,10 +38,25 @@ export function createSpinner(textOrOptions, options = {}) {
   });
 }
 
+export async function playLogoSpin(text = 'HunterStar CLI', rounds = 1, delayMs = 45) {
+  if (!process.stdout.isTTY) {
+    process.stdout.write(`${HUNTERSTAR_LOGO} ${text}\n`);
+    return;
+  }
+  for (let r = 0; r < rounds; r++) {
+    for (let f = 0; f < SPIN_FRAME_COUNT; f++) {
+      process.stdout.write(`\r\x1b[36m${HUNTERSTAR_SPIN_FRAMES[f]}\x1b[0m \x1b[1m${text}\x1b[0m`);
+      await new Promise(res => setTimeout(res, delayMs));
+    }
+  }
+  process.stdout.write(`\r\x1b[36m${HUNTERSTAR_LOGO}\x1b[0m \x1b[1m${text}\x1b[0m\n`);
+}
+
 export default {
   HUNTERSTAR_LOGO,
   HUNTERSTAR_LOGO_SINGLE,
   HUNTERSTAR_SPIN_FRAMES,
   hunterstarSpinner,
   createSpinner,
+  playLogoSpin,
 };
