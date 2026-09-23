@@ -6,7 +6,8 @@ import util from 'util';
 import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
-import { loadConfig, setConfigValue, getConfigValue, applyPreset } from '../utils/configManager.js';
+import { loadConfig, setConfigValue, getConfigValue, applyPreset, FAST_API_URL, HEAVY_API_URL, API_KEY } from '../utils/configManager.js';
+import { classifyPromptTier } from '../utils/aiRouter.js';
 import { createSpinner, HUNTERSTAR_LOGO, hunterstarTheme } from '../spinner.js';
 import { detectPlatform, getShellGuidance } from '../utils/platform.js';
 import {
@@ -261,10 +262,13 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     const request = runtime.request || requestAi;
     const execute = runtime.execute || execPromise;
     const currentProv = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : 'cloud');
-    const provLabel = currentProv === 'own' ? 'Own AI (Qwen3-Coder-30B)' : 'Hunterstar Cloud';
+    const currentTier = (getConfigValue('tier') || 'auto').toUpperCase();
+    const provLabel = currentProv === 'own' 
+        ? `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 35B 🧠 | Tier: ${currentTier})` 
+        : 'Hunterstar Cloud';
     console.log('\x1b[35mHunterstar AI CLI Initialized (Agent Mode).\x1b[0m');
     console.log(`\x1b[90m[Provider: ${provLabel} | System: ${platformInfo.osDisplayName} | Shell: ${platformInfo.shell} | Chaining: "${platformInfo.commandSeparator}"]\x1b[0m`);
-    console.log('Type \x1b[31m"/exit"\x1b[0m to quit, \x1b[33m"/clear"\x1b[0m to reset, \x1b[36m"/provider <own|cloud>"\x1b[0m to switch AI, or \x1b[36m"/learn <rule>"\x1b[0m to teach.');
+    console.log('Type \x1b[31m"/exit"\x1b[0m to quit, \x1b[33m"/clear"\x1b[0m to reset, \x1b[36m"/tier <auto|fast|heavy>"\x1b[0m to switch tier, or \x1b[36m"/provider <own|cloud>"\x1b[0m.');
     if (noExec) console.log('\x1b[33m[NO-EXEC MODE ACTIVE]\x1b[0m Command execution is disabled.');
     if (turbo) console.log('\x1b[33m[\u26A1 TURBO MODE ACTIVE]\x1b[0m Safe commands will be auto-executed.\n');
     else console.log();
@@ -356,6 +360,44 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
             continue;
         }
 
+        if (trimmed.toLowerCase().startsWith('/tier')) {
+            const args = trimmed.split(' ').slice(1);
+            if (args.length === 1 && ['auto', 'fast', 'heavy'].includes(args[0].toLowerCase())) {
+                const t = args[0].toLowerCase();
+                setConfigValue('tier', t);
+                console.log(`\x1b[32m\u2713 AI Tier set to:\x1b[0m ${t.toUpperCase()}`);
+                if (t === 'fast') console.log('  \x1b[90mAll prompts routed to Fast Chat Tier (Qwen2.5-1.5B @ /fast/)\x1b[0m\n');
+                else if (t === 'heavy') console.log('  \x1b[90mAll prompts routed to Heavy Coding Tier (Qwen3.6-35B-A3B @ /v1/)\x1b[0m\n');
+                else console.log('  \x1b[90mIntelligent dual routing: casual chatter -> Fast, code/debug/multi-line -> Heavy\x1b[0m\n');
+            } else {
+                const curTier = (getConfigValue('tier') || 'auto').toUpperCase();
+                console.log(`Current AI Tier: \x1b[36m${curTier}\x1b[0m`);
+                console.log('Usage: /tier <auto|fast|heavy>');
+                console.log('  \x1b[33mauto\x1b[0m  - Intelligent dual routing (Fast for casual, Heavy for code/debug)');
+                console.log('  \x1b[33mfast\x1b[0m  - Fast Chat Tier (Qwen2.5-1.5B on port 8081)');
+                console.log('  \x1b[33mheavy\x1b[0m - Heavy Coding Tier (Qwen3.6-35B-A3B on port 8080)\n');
+            }
+            continue;
+        }
+
+        if (trimmed.toLowerCase() === '/fast') {
+            setConfigValue('tier', 'fast');
+            console.log('\x1b[32m\u2713 AI Tier set to:\x1b[0m FAST (Qwen2.5-1.5B @ /fast/)\n');
+            continue;
+        }
+
+        if (trimmed.toLowerCase() === '/heavy') {
+            setConfigValue('tier', 'heavy');
+            console.log('\x1b[32m\u2713 AI Tier set to:\x1b[0m HEAVY (Qwen3.6-35B-A3B @ /v1/)\n');
+            continue;
+        }
+
+        if (trimmed.toLowerCase() === '/auto') {
+            setConfigValue('tier', 'auto');
+            console.log('\x1b[32m\u2713 AI Tier set to:\x1b[0m AUTO (Intelligent Dual Routing)\n');
+            continue;
+        }
+
         if (trimmed.toLowerCase().startsWith('/provider')) {
             const args = trimmed.split(' ').slice(1);
             if (args.length === 1) {
@@ -437,11 +479,32 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const apiUrl = process.env.HUNTERSTAR_API_URL || configUrl || 'https://api.hunterstar.uz';
                 const baseUrl = apiUrl.replace(/\/+$/, '');
                 const provider = getConfigValue('api-provider') || (apiUrl.includes('moonlightsoldiers') || apiUrl.includes('/v1') ? 'own' : 'cloud');
-                const apiKey = process.env.HUNTERSTAR_API_KEY || getConfigValue('api-key') || (provider === 'own' ? 'hunterella@152634879man' : null);
+                const apiKey = process.env.HUNTERSTAR_API_KEY || getConfigValue('api-key') || (provider === 'own' ? API_KEY : null);
                 const isDirectOpenAi = provider === 'own' || baseUrl.includes('/v1') || baseUrl.includes('moonlightsoldiers');
 
                 let endpoint;
-                if (isDirectOpenAi) {
+                let activeModel = getConfigValue('model') || 'Qwen3-Coder-30B';
+                let routedTier = null;
+                let routingReason = '';
+
+                if (provider === 'own' || baseUrl.includes('moonlightsoldiers')) {
+                    const tierSetting = getConfigValue('tier') || 'auto';
+                    const fastUrl = getConfigValue('fast-api-url') || FAST_API_URL;
+                    const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
+                    const route = classifyPromptTier(trimmed, {
+                        messages,
+                        forcedTier: tierSetting,
+                        steps,
+                        fastUrl,
+                        heavyUrl
+                    });
+                    routedTier = route.tier;
+                    routingReason = route.reason;
+                    endpoint = route.endpoint;
+                    activeModel = (getConfigValue('model') && getConfigValue('model') !== 'auto')
+                        ? getConfigValue('model')
+                        : route.model;
+                } else if (isDirectOpenAi) {
                     if (baseUrl.endsWith('/chat/completions')) {
                         endpoint = baseUrl;
                     } else if (baseUrl.endsWith('/v1')) {
@@ -452,11 +515,18 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 } else {
                     endpoint = baseUrl.endsWith('/api/cli-chat') ? baseUrl : `${baseUrl}/api/cli-chat`;
                 }
+
+                if (routedTier === 'fast') {
+                    thinkingSpinner.text = '⚡ Fast AI streaming...';
+                } else if (routedTier === 'heavy') {
+                    thinkingSpinner.text = 'AI is thinking...';
+                }
                 
                 if (verbose) {
                     thinkingSpinner.stop();
-                    console.log(`\x1b[90m[DEBUG] Provider: ${provider}\x1b[0m`);
+                    console.log(`\x1b[90m[DEBUG] Provider: ${provider}${routedTier ? ` (Tier: ${routedTier.toUpperCase()} - ${routingReason})` : ''}\x1b[0m`);
                     console.log(`\x1b[90m[DEBUG] API URL: ${endpoint}\x1b[0m`);
+                    console.log(`\x1b[90m[DEBUG] Model: ${activeModel}\x1b[0m`);
                     console.log(`\x1b[90m[DEBUG] Requesting...\x1b[0m`);
                     thinkingSpinner.start();
                 }
@@ -466,7 +536,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
 
                 const payload = isDirectOpenAi ? {
                     messages,
-                    model: getConfigValue('model') || 'Qwen3-Coder-30B',
+                    model: activeModel,
                     max_tokens: maxTokens,
                     max_completion_tokens: maxTokens,
                     stream: true,
@@ -488,6 +558,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 let accumulatedThinking = '';
                 let hasStartedReasoning = false;
                 let hasStartedContent = false;
+                let streamedDirectly = false;
 
                 const onReasoningToken = (token) => {
                     if (!hasStartedReasoning) {
@@ -502,7 +573,22 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     process.stdout.write(token);
                 };
 
-                const onContentToken = () => {
+                const onContentToken = (token) => {
+                    if (routedTier === 'fast') {
+                        if (!hasStartedContent) {
+                            hasStartedContent = true;
+                            if (thinkingSpinner.isSpinning) {
+                                thinkingSpinner.stop();
+                            }
+                            process.stdout.write(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m(Fast Chat)\x1b[0m\n\n`);
+                            streamedDirectly = true;
+                        }
+                        if (token) {
+                            process.stdout.write(token);
+                        }
+                        return;
+                    }
+
                     if (hasStartedReasoning && !hasStartedContent) {
                         hasStartedContent = true;
                         thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
@@ -528,6 +614,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         }
                         hasStartedReasoning = false;
                         hasStartedContent = false;
+                        streamedDirectly = false;
                         thinkingSpinner.text = `API busy; retry ${attempt}/${maxAttempts} in ${Math.ceil(delay / 1000)}s...`;
                         if (!thinkingSpinner.isSpinning) thinkingSpinner.start();
                     },
@@ -569,9 +656,18 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
 
                     const totalDurationSec = ((Date.now() - requestStartTime) / 1000).toFixed(1);
                     const thinkSec = thinkingDurationMs > 0 ? (thinkingDurationMs / 1000).toFixed(1) : null;
-                    const timeBadge = thinkSec ? `(${totalDurationSec}s · thought ${thinkSec}s)` : `(${totalDurationSec}s)`;
+                    
+                    let tierTag = '';
+                    if (routedTier === 'fast') tierTag = ' · Fast';
+                    else if (routedTier === 'heavy') tierTag = ' · MoE';
 
-                    if (normalText && !onlyHadReasoning) {
+                    const timeBadge = thinkSec 
+                        ? `(${totalDurationSec}s · thought ${thinkSec}s${tierTag})` 
+                        : `(${totalDurationSec}s${tierTag})`;
+
+                    if (streamedDirectly) {
+                        process.stdout.write(`\n\x1b[90m${timeBadge}\x1b[0m\n\n`);
+                    } else if (normalText && !onlyHadReasoning) {
                         console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m${timeBadge}\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
                     }
 

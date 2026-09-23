@@ -29,7 +29,7 @@ export async function runConfig(args) {
         const target = args[1];
         if (!target) {
             console.log('\n\x1b[36mAvailable AI Presets:\x1b[0m');
-            console.log('  \x1b[33mown\x1b[0m   - Your self-hosted AI (Qwen3-Coder-30B @ api.moonlightsoldiers.xyz)');
+            console.log('  \x1b[33mown\x1b[0m   - Self-hosted AI Dual Routing (Fast 1.5B @ /fast/ + Heavy 35B MoE @ /v1/)');
             console.log('  \x1b[33mcloud\x1b[0m - Official Hunterstar Cloud AI (api.hunterstar.uz)\n');
             console.log('Usage: hunterstar config preset <own|cloud>\n');
             return;
@@ -37,8 +37,9 @@ export async function runConfig(args) {
         const res = applyPreset(target);
         if (res) {
             console.log(`\x1b[32m\u2713 Applied AI preset:\x1b[0m ${res.name}`);
-            console.log(`  \x1b[90mEndpoint: ${res.preset['api-url']}\x1b[0m`);
-            console.log(`  \x1b[90mModel:    ${res.preset['model']}\x1b[0m\n`);
+            console.log(`  \x1b[90mHeavy Endpoint: ${res.preset['heavy-api-url'] || res.preset['api-url']}\x1b[0m`);
+            if (res.preset['fast-api-url']) console.log(`  \x1b[90mFast Endpoint:  ${res.preset['fast-api-url']}\x1b[0m`);
+            console.log(`  \x1b[90mRouting Tier:   ${res.preset['tier'] || 'auto'}\x1b[0m\n`);
         } else {
             console.log(`\x1b[31mUnknown preset:\x1b[0m ${target}. Choose "own" or "cloud".`);
         }

@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { FAST_API_URL, HEAVY_API_URL, API_KEY } from './aiRouter.js';
+
+export { FAST_API_URL, HEAVY_API_URL, API_KEY };
 
 export function getConfigDir() {
     let configDir;
@@ -27,9 +30,12 @@ const CONFIG_PATH = getConfigFilePath();
 export const AI_PRESETS = {
     own: {
         'api-provider': 'own',
-        'api-url': 'https://api.moonlightsoldiers.xyz/v1/chat/completions',
-        'api-key': 'hunterella@152634879man',
+        'api-url': HEAVY_API_URL,
+        'fast-api-url': FAST_API_URL,
+        'heavy-api-url': HEAVY_API_URL,
+        'api-key': API_KEY,
         'model': 'Qwen3-Coder-30B',
+        'tier': 'auto',
         'max_tokens': 8192
     },
     cloud: {
@@ -37,6 +43,7 @@ export const AI_PRESETS = {
         'api-url': 'https://api.hunterstar.uz',
         'api-key': '',
         'model': 'dots-studio/dots-3-note-preview:free',
+        'tier': 'cloud',
         'max_tokens': 8192
     }
 };
@@ -45,6 +52,9 @@ const DEFAULT_CONFIG = {
     'api-provider': 'cloud',
     'api-url': 'https://api.hunterstar.uz',
     'model': 'dots-studio/dots-3-note-preview:free',
+    'tier': 'auto',
+    'fast-api-url': FAST_API_URL,
+    'heavy-api-url': HEAVY_API_URL,
     'max_tokens': 8192
 };
 
@@ -72,7 +82,14 @@ export function loadConfig() {
     try {
         const fileContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
         const parsed = JSON.parse(fileContent);
-        return { ...DEFAULT_CONFIG, ...parsed };
+        const merged = { ...DEFAULT_CONFIG, ...parsed };
+        if (merged['api-provider'] === 'own' || merged['api-url']?.includes('moonlightsoldiers')) {
+            if (!merged['fast-api-url']) merged['fast-api-url'] = FAST_API_URL;
+            if (!merged['heavy-api-url']) merged['heavy-api-url'] = HEAVY_API_URL;
+            if (!merged['api-key']) merged['api-key'] = API_KEY;
+            if (!merged['tier']) merged['tier'] = 'auto';
+        }
+        return merged;
     } catch (err) {
         console.error('\x1b[31m[Config Error]\x1b[0m Could not read config file, using defaults.', err.message);
         return { ...DEFAULT_CONFIG };

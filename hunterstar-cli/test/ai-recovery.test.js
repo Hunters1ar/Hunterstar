@@ -368,5 +368,52 @@ test('calculateVisualRows accurately computes line and wrap counts for thinking 
     assert.equal(calculateVisualRows('\x1b[90m' + 'a'.repeat(80) + '\x1b[0m', 80), 1);
 });
 
+test('classifyPromptTier intelligently routes casual chatter to fast tier and coding/debug to heavy tier', async () => {
+    const { classifyPromptTier, FAST_API_URL, HEAVY_API_URL, FAST_MODEL, HEAVY_MODEL } = await import('../src/utils/aiRouter.js');
+
+    assert.equal(FAST_API_URL, 'https://api.moonlightsoldiers.xyz/fast/v1/chat/completions');
+    assert.equal(HEAVY_API_URL, 'https://api.moonlightsoldiers.xyz/v1/chat/completions');
+
+    // Casual chatter -> fast
+    const chat1 = classifyPromptTier('hello there, how are you?');
+    assert.equal(chat1.tier, 'fast');
+    assert.equal(chat1.endpoint, FAST_API_URL);
+    assert.equal(chat1.model, FAST_MODEL);
+
+    const chat2 = classifyPromptTier('tell me a joke');
+    assert.equal(chat2.tier, 'fast');
+
+    // Code task -> heavy
+    const code1 = classifyPromptTier('write a python script to ping 8.8.8.8');
+    assert.equal(code1.tier, 'heavy');
+    assert.equal(code1.endpoint, HEAVY_API_URL);
+    assert.equal(code1.model, HEAVY_MODEL);
+
+    // Debugging request -> heavy
+    const debug1 = classifyPromptTier('fix this bug where undefined is not a function');
+    assert.equal(debug1.tier, 'heavy');
+
+    // Multi-line prompt -> heavy
+    const multiline = classifyPromptTier('const a = 10;\nconst b = 20;');
+    assert.equal(multiline.tier, 'heavy');
+
+    // Active tool/agent execution context -> heavy
+    const agentStep = classifyPromptTier('hello', { steps: 2 });
+    assert.equal(agentStep.tier, 'heavy');
+
+    const agentMsg = classifyPromptTier('looks good', {
+        messages: [{ role: 'user', content: '[EXECUTION RESULT]\n{"success": true}' }]
+    });
+    assert.equal(agentMsg.tier, 'heavy');
+
+    // Manual overrides
+    const forcedFast = classifyPromptTier('write complex compiler AST in rust', { forcedTier: 'fast' });
+    assert.equal(forcedFast.tier, 'fast');
+
+    const forcedHeavy = classifyPromptTier('hi', { forcedTier: 'heavy' });
+    assert.equal(forcedHeavy.tier, 'heavy');
+});
+
+
 
 
