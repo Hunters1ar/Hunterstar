@@ -1,6 +1,6 @@
 {
   "name": "hunterstar",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "description": "Hunterstar Developer CLI",
   "main": "src/index.js",
   "bin": {
@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "scripts": {
-    "test": "node test/spinner.test.js && node test/ai-toolcall.test.js && node --test test/ai-recovery.test.js"
+    "test": "node test/spinner.test.js && node test/ai-toolcall.test.js && node --test test/persona.test.js && node --test test/ai-recovery.test.js"
   },
   "engines": {
     "node": ">=21.0.0"

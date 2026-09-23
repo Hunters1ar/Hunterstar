@@ -165,3 +165,14 @@ export function classifyPromptTier(prompt, {
         label: 'Fast Chat Tier (1.5B)'
     };
 }
+
+export {
+    detectPersonaRequest,
+    teachPersona,
+    buildPersonaPrompt,
+    loadPersonaFromCache,
+    savePersonaToCache,
+    listCachedPersonas,
+    validatePersonaSpec
+} from './personaManager.js';
+

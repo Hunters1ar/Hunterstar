@@ -8,6 +8,10 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { loadConfig, setConfigValue, getConfigValue, applyPreset, FAST_API_URL, HEAVY_API_URL, API_KEY } from '../utils/configManager.js';
 import { classifyPromptTier } from '../utils/aiRouter.js';
+import {
+    detectPersonaRequest, teachPersona, buildPersonaPrompt,
+    loadPersonaFromCache, savePersonaToCache, listCachedPersonas
+} from '../utils/personaManager.js';
 import { createSpinner, HUNTERSTAR_LOGO, hunterstarTheme } from '../spinner.js';
 import { detectPlatform, getShellGuidance } from '../utils/platform.js';
 import {
@@ -257,13 +261,20 @@ CRITICAL EXECUTION RULES:
 - For secret scans, report paths and line numbers with values redacted; never print credentials.`;
 }
 
-export function getFastSystemPrompt() {
-    return `You are Hunterstar AI, a witty, fast, friendly conversational assistant.
-You specialize in casual conversation, quick banter, brainstorming, and answering general questions with great personality.
-Rules:
+export function getFastSystemPrompt(activePersona = null) {
+    let personaBlock = '';
+    let roleIntro = 'You are Hunterstar AI, a witty, fast, friendly conversational assistant.\nYou specialize in casual conversation, quick banter, brainstorming, and answering general questions with great personality.';
+    if (activePersona?.compiledPrompt) {
+        roleIntro = `You are Hunterstar AI, actively roleplaying as the character persona "${activePersona.name}". You MUST speak and react strictly in-character in all responses.`;
+        personaBlock = `\n\n--------------------\n${activePersona.compiledPrompt}\n--------------------`;
+    }
+    return `${roleIntro}
+
+Core Rules:
 - Reply directly using concise, engaging, natural plain text.
+- Never explain the character trope, never say you are an AI, and never break character.
 - You are a text-only companion. You CANNOT execute shell commands, run scripts, or manipulate files.
-- NEVER output [EXEC] blocks, XML tags, or shell commands.`;
+- NEVER output [EXEC] blocks, XML tags, or shell commands.${personaBlock}`;
 }
 
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
@@ -271,13 +282,13 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     const request = runtime.request || requestAi;
     const execute = runtime.execute || execPromise;
     const currentProv = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : 'cloud');
-    const currentTier = (getConfigValue('tier') || 'auto').toUpperCase();
+    const currentTier = (runtime.tier || getConfigValue('tier') || 'auto').toUpperCase();
     const provLabel = currentProv === 'own' 
         ? `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 35B 🧠 | Tier: ${currentTier})` 
         : 'Hunterstar Cloud';
     console.log('\x1b[35mHunterstar AI CLI Initialized (Agent Mode).\x1b[0m');
     console.log(`\x1b[90m[Provider: ${provLabel} | System: ${platformInfo.osDisplayName} | Shell: ${platformInfo.shell} | Chaining: "${platformInfo.commandSeparator}"]\x1b[0m`);
-    console.log('Type \x1b[31m"/exit"\x1b[0m to quit, \x1b[33m"/clear"\x1b[0m to reset, \x1b[36m"/tier <auto|fast|heavy>"\x1b[0m to switch tier, or \x1b[36m"/provider <own|cloud>"\x1b[0m.');
+    console.log('Type \x1b[31m"/exit"\x1b[0m to quit, \x1b[33m"/clear"\x1b[0m to reset, \x1b[36m"/persona <name>"\x1b[0m for persona, \x1b[36m"/tier <auto|fast|heavy>"\x1b[0m to switch tier, or \x1b[36m"/provider <own|cloud>"\x1b[0m.');
     if (noExec) console.log('\x1b[33m[NO-EXEC MODE ACTIVE]\x1b[0m Command execution is disabled.');
     if (turbo) console.log('\x1b[33m[\u26A1 TURBO MODE ACTIVE]\x1b[0m Safe commands will be auto-executed.\n');
     else console.log();
@@ -293,6 +304,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     });
 
     let messages = [{ role: 'system', content: getSystemPrompt(platformInfo, currentProv) }];
+    let activePersona = null;
     let canRetry = false;
     console.log('Use /retry to resume a failed request without repeating completed commands.');
 
@@ -461,6 +473,112 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
             continue;
         }
 
+        if (trimmed.toLowerCase().startsWith('/persona')) {
+            const parts = trimmed.split(/\s+/).slice(1);
+            const sub = parts[0]?.toLowerCase();
+            if (!sub || sub === 'status' || sub === 'show') {
+                if (activePersona) {
+                    console.log(`\n\x1b[35m🎭 Active Persona:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Teacher: ${activePersona.teacherModel || 'Qwen3.6-35B-A3B'} | Source: ${activePersona.source || 'active'})\x1b[0m`);
+                    console.log(`  \x1b[36mTraits:\x1b[0m ${activePersona.spec?.traits?.join(', ') || 'Custom'}`);
+                    console.log(`  \x1b[33mActing Rules:\x1b[0m ${activePersona.spec?.behavior_rules?.length || 0} active rules`);
+                    console.log('  Type \x1b[36m"/persona reset"\x1b[0m to return to default personality.\n');
+                } else {
+                    console.log('\n\x1b[36m🎭 Active Persona:\x1b[0m None (Standard Hunterstar personality)');
+                    console.log('Usage: \x1b[36m/persona <name>\x1b[0m to adopt a persona, \x1b[36m/persona list\x1b[0m to see saved.\n');
+                }
+                continue;
+            }
+
+            if (sub === 'reset' || sub === 'clear' || sub === 'normal' || sub === 'off') {
+                activePersona = null;
+                console.log('\x1b[32m\u2713 Persona reset: Hunterstar AI returned to standard personality.\x1b[0m\n');
+                continue;
+            }
+
+            if (sub === 'list') {
+                const list = listCachedPersonas();
+                console.log('\n\x1b[36m--- Cached Personas (~/.hunterstar/personas/) ---\x1b[0m');
+                if (list.length === 0) {
+                    console.log('  No cached personas found.');
+                } else {
+                    list.forEach(p => {
+                        console.log(`  \x1b[35m\u2022\x1b[0m \x1b[1m${p.name}\x1b[0m \x1b[90m(slug: ${p.slug}, teacher: ${p.teacher_model})\x1b[0m`);
+                    });
+                }
+                console.log('\x1b[36m-------------------------------------------------\x1b[0m');
+                console.log('Usage: \x1b[36m/persona <name>\x1b[0m to switch, \x1b[36m/persona reset\x1b[0m to clear.\n');
+                continue;
+            }
+
+            const requestedPersona = parts.join(' ').trim();
+            const cached = loadPersonaFromCache(requestedPersona);
+            if (cached) {
+                activePersona = {
+                    name: cached.spec.name,
+                    spec: cached.spec,
+                    compiledPrompt: buildPersonaPrompt(cached.spec),
+                    teacherModel: cached.metadata.teacher_model,
+                    source: 'cache'
+                };
+                console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready \u26A1)\x1b[0m\n`);
+            } else {
+                const teacherSpinner = createSpinner(`Heavy AI (35B MoE) is architecting persona "${requestedPersona}"...`, { color: 'magenta' }).start();
+                try {
+                    const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
+                    const taught = await teachPersona(requestedPersona, {
+                        request,
+                        endpoint: heavyUrl,
+                        apiKey: getConfigValue('api-key') || API_KEY
+                    });
+                    teacherSpinner.stop();
+                    activePersona = taught;
+                    console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m\n`);
+                } catch (err) {
+                    teacherSpinner.stop();
+                    console.log(`\x1b[31m[Teacher Error]\x1b[0m Could not architect persona: ${err.message}\n`);
+                }
+            }
+            continue;
+        }
+
+        const personaReq = detectPersonaRequest(trimmed);
+        if (personaReq) {
+            if (personaReq.isReset) {
+                activePersona = null;
+                console.log('\x1b[32m\u2713 Persona reset: Hunterstar AI returned to standard personality.\x1b[0m\n');
+                continue;
+            }
+
+            const targetPersona = personaReq.persona;
+            const cached = loadPersonaFromCache(targetPersona);
+            if (cached) {
+                activePersona = {
+                    name: cached.spec.name,
+                    spec: cached.spec,
+                    compiledPrompt: buildPersonaPrompt(cached.spec),
+                    teacherModel: cached.metadata.teacher_model,
+                    source: 'cache'
+                };
+                console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready \u26A1)\x1b[0m`);
+            } else {
+                const teacherSpinner = createSpinner(`Heavy AI (35B MoE) is architecting persona "${targetPersona}"...`, { color: 'magenta' }).start();
+                try {
+                    const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
+                    const taught = await teachPersona(targetPersona, {
+                        request,
+                        endpoint: heavyUrl,
+                        apiKey: getConfigValue('api-key') || API_KEY
+                    });
+                    teacherSpinner.stop();
+                    activePersona = taught;
+                    console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m`);
+                } catch (err) {
+                    teacherSpinner.stop();
+                    console.log(`\x1b[31m[Teacher Error]\x1b[0m Could not architect persona: ${err.message}`);
+                }
+            }
+        }
+
         if (trimmed.toLowerCase() === '/retry') {
             if (!canRetry) {
                 console.log('No failed request to retry.');
@@ -497,7 +615,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 let routingReason = '';
 
                 if (provider === 'own' || baseUrl.includes('moonlightsoldiers')) {
-                    const tierSetting = getConfigValue('tier') || 'auto';
+                    const tierSetting = runtime.tier || getConfigValue('tier') || 'auto';
                     const fastUrl = getConfigValue('fast-api-url') || FAST_API_URL;
                     const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
                     const route = classifyPromptTier(trimmed, {
@@ -548,7 +666,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         return {
                             role: 'system',
                             content: routedTier === 'fast'
-                                ? getFastSystemPrompt()
+                                ? getFastSystemPrompt(activePersona)
                                 : getSystemPrompt(platformInfo, provider)
                         };
                     }
@@ -606,7 +724,8 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                             if (thinkingSpinner.isSpinning) {
                                 thinkingSpinner.stop();
                             }
-                            process.stdout.write(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m(Fast Chat)\x1b[0m\n\n`);
+                            const personaLabel = activePersona ? ` (${activePersona.name} · Fast Chat)` : ' (Fast Chat)';
+                            process.stdout.write(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m${personaLabel}\x1b[0m\n\n`);
                             streamedDirectly = true;
                         }
                         if (token) {
@@ -690,7 +809,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     const thinkSec = thinkingDurationMs > 0 ? (thinkingDurationMs / 1000).toFixed(1) : null;
                     
                     let tierTag = '';
-                    if (routedTier === 'fast') tierTag = ' · Fast';
+                    if (routedTier === 'fast') tierTag = activePersona ? ` · Fast [${activePersona.name}]` : ' · Fast';
                     else if (routedTier === 'heavy') tierTag = ' · MoE';
 
                     const timeBadge = thinkSec 
