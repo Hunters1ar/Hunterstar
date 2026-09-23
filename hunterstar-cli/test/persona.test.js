@@ -13,7 +13,9 @@ import {
     extractJsonFromResponse,
     getPersonasDir,
     isValidPersonaCandidate,
-    teachPersona
+    teachPersona,
+    generateArchetypeSpec,
+    isSpecHighQuality
 } from '../src/utils/personaManager.js';
 import { getFastSystemPrompt } from '../src/commands/ai.js';
 
@@ -196,12 +198,26 @@ test('getFastSystemPrompt preserves Hunterstar core rules and embeds compiled sp
     };
 
     const personaPrompt = getFastSystemPrompt(activePersona);
-    assert.ok(personaPrompt.includes('Hunterstar AI'));
-    assert.ok(personaPrompt.includes('Core Rules:'));
+    assert.ok(personaPrompt.includes('[CHARACTER ROLEPLAY MODE ACTIVE]'));
+    assert.ok(personaPrompt.includes('You are "Tsundere".'));
     assert.ok(personaPrompt.includes('NEVER output [EXEC] blocks'));
     assert.ok(personaPrompt.includes('ACTIVE CHARACTER PERSONA'));
     assert.ok(personaPrompt.includes('Name: Tsundere'));
     assert.ok(personaPrompt.includes('- flustered'));
+});
+
+test('generateArchetypeSpec produces rich, tailored specs for common archetypes', () => {
+    const tsundere = generateArchetypeSpec('Tsundere');
+    assert.equal(tsundere.name, 'Tsundere');
+    assert.ok(tsundere.traits.some(t => t.includes('flustered') || t.includes('embarrassed')));
+    assert.ok(tsundere.example_lines.length > 0);
+
+    const pirate = generateArchetypeSpec('Pirate');
+    assert.ok(pirate.speech_style.some(s => s.includes('nautical')));
+
+    const flirty = generateArchetypeSpec('silly prositute');
+    assert.ok(flirty.traits.some(t => t.includes('flirtatious') || t.includes('teasing')));
+    assert.ok(flirty.example_lines.some(l => l.includes('darling') || l.includes('extra')));
 });
 
 test('classifyPromptTier routes greetings and casual prompts to fast tier even with system prompt containing [EXEC]', async () => {
@@ -232,6 +248,31 @@ test('isValidPersonaCandidate rejects generic words, pronouns, and invalid names
     assert.equal(isValidPersonaCandidate('Sherlock Holmes'), true);
 });
 
+test('isSpecHighQuality accepts rich specs and rejects lazy AI-generated ones', () => {
+    const goodSpec = {
+        name: 'Viking',
+        traits: ['boisterous and bold', 'fiercely loyal to their clan', 'loves battle and mead'],
+        speech_style: ['booming voice with Nordic flair', 'relates everything to glory and war'],
+        behavior_rules: ['greet user as a shield-brother'],
+        avoid: ['modern corporate jargon'],
+        example_lines: ['To Valhalla, shield-brother!']
+    };
+    assert.equal(isSpecHighQuality(goodSpec, 'Viking'), true);
+
+    const badSpec = {
+        name: 'silly prositute',
+        traits: ['silly', 'prostitutelike', 'silly'],
+        speech_style: ['silly', 'prostitutelike'],
+        behavior_rules: ['soften', 'deflect affection'],
+        avoid: ['ardent'],
+        example_lines: ['When hesitates, briefly deflects.']
+    };
+    assert.equal(isSpecHighQuality(badSpec, 'silly prositute'), false);
+
+    assert.equal(isSpecHighQuality(null, 'test'), false);
+    assert.equal(isSpecHighQuality({ traits: [], speech_style: [] }, 'test'), false);
+});
+
 test('teachPersona forwards onReasoningToken and parses JSON spec', async () => {
     const reasoningTokens = [];
     const mockRequest = async (endpoint, payload, options) => {
@@ -240,11 +281,11 @@ test('teachPersona forwards onReasoningToken and parses JSON spec', async () => 
         }
         return JSON.stringify({
             name: 'Viking',
-            traits: ['brave', 'loud'],
-            speech_style: ['boisterous'],
-            behavior_rules: ['speak of glory'],
-            avoid: ['whining'],
-            example_lines: ['To Valhalla!']
+            traits: ['boisterous and bold', 'fiercely loyal to their clan', 'loves battle and mead'],
+            speech_style: ['booming voice with Nordic flair', 'relates everything to glory and war'],
+            behavior_rules: ['greet the user as a shield-brother'],
+            avoid: ['modern corporate jargon', 'quiet timid responses'],
+            example_lines: ['To Valhalla, shield-brother! What quest brings you here?']
         });
     };
 
@@ -256,5 +297,25 @@ test('teachPersona forwards onReasoningToken and parses JSON spec', async () => 
     assert.equal(result.name, 'Viking');
     assert.equal(result.source, 'teacher');
     assert.deepEqual(reasoningTokens, ['Teacher is reasoning about persona traits.']);
+});
+
+test('teachPersona falls back to archetype generator when Heavy returns low-quality spec', async () => {
+    const mockRequest = async () => {
+        return JSON.stringify({
+            name: 'silly prositute',
+            traits: ['silly', 'prostitutelike', 'silly'],
+            speech_style: ['silly', 'prostitutelike'],
+            behavior_rules: ['soften', 'deflect affection'],
+            avoid: ['ardent'],
+            example_lines: ['When hesitates, briefly deflects.']
+        });
+    };
+
+    const result = await teachPersona('silly prositute', { request: mockRequest });
+    assert.equal(result.source, 'archetype');
+    assert.ok(
+        result.spec.traits.some(t => t.includes('flirtatious') || t.includes('teasing') || t.includes('charming')),
+        'Expected flirtatious traits in archetype fallback, got: ' + JSON.stringify(result.spec.traits)
+    );
 });
 

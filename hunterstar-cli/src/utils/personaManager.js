@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getConfigDir } from './configManager.js';
-import { HEAVY_API_URL, API_KEY } from './aiRouter.js';
+import { FAST_API_URL, HEAVY_API_URL, API_KEY } from './aiRouter.js';
 import { requestAi } from './aiTransport.js';
 
 export const PERSONA_SCHEMA_VERSION = 1;
@@ -432,6 +432,37 @@ export function extractJsonFromResponse(rawText) {
 }
 
 /**
+ * Checks a persona spec for quality: rejects repetitive, single-word, or lazy AI-generated entries.
+ * A spec fails quality if more than half of traits/speech_style are single words or repeat the persona name.
+ *
+ * @param {object} spec
+ * @param {string} personaName
+ * @returns {boolean} true = passes quality check
+ */
+export function isSpecHighQuality(spec, personaName) {
+    if (!spec) return false;
+    const slug = (personaName || '').toLowerCase().trim();
+
+    // Check traits + speech_style for quality
+    const checkList = [...(spec.traits || []), ...(spec.speech_style || [])];
+    if (checkList.length === 0) return false;
+
+    let badCount = 0;
+    for (const item of checkList) {
+        const s = (item || '').toLowerCase().trim();
+        // Single word entries like "silly", "prostitutelike" are low quality
+        if (!s.includes(' ')) badCount++;
+        // Entries that are just the persona name verbatim
+        else if (s === slug || s === `${slug}like`) badCount++;
+        // Entries that literally say "acting rule", "speech rule", "realistic example lines"
+        else if (/^(?:acting rule|speech rule|realistic example|common bad portrayal|soften|deflect|handle affection)/.test(s)) badCount++;
+    }
+
+    const badRatio = badCount / checkList.length;
+    return badRatio < 0.5; // At least 50% of entries must be multi-word and non-trivial
+}
+
+/**
  * Invokes Heavy AI (Qwen3.6-35B-A3B MoE) to teach a new persona.
  *
  * @param {string} personaName - The persona requested by the user
@@ -443,108 +474,162 @@ export function extractJsonFromResponse(rawText) {
  * @param {number} [options.timeoutMs] - Timeout in milliseconds
  * @returns {Promise<{ spec: object, compiledPrompt: string, teacherModel: string, source: 'teacher' }>}
  */
+/**
+ * Produces a rich, tailored PersonaSpec for standard and dynamic archetypes.
+ * Used when teacher models are slow or unreachable to guarantee immediate, authentic roleplay.
+ */
+export function generateArchetypeSpec(personaName) {
+    const clean = (personaName || '').trim().toLowerCase();
+
+    if (/tsundere/i.test(clean)) {
+        return {
+            name: personaName,
+            traits: ['proud and stubborn', 'easily flustered and embarrassed', 'secretly caring and warm', 'defensive about affection'],
+            speech_style: ['short energetic sentences', 'stammers when flustered (I-It\'s not like...)', 'denies caring then helps anyway'],
+            behavior_rules: ['never admit you like the user directly', 'deflect compliments immediately', 'remain genuinely helpful beneath the attitude'],
+            avoid: ['repeating baka every word', 'being genuinely cruel or hostile', 'breaking character'],
+            example_lines: [
+                'H-Hmph! Don\'t misunderstand, I just happened to know the answer!',
+                'Why are you looking at me like that? It\'s not like I waited for you or anything!',
+                'Fine, I\'ll help you out just this once. You\'d clearly be hopeless without me!'
+            ]
+        };
+    }
+
+    if (/pirate/i.test(clean)) {
+        return {
+            name: personaName,
+            traits: ['boisterous and bold', 'greedy for treasure and adventure', 'loyal to crew', 'loves rum and high seas'],
+            speech_style: ['nautical slang (Ahoy, matey, shiver me timbers, aye)', 'gruff energetic sea-dog voice', 'booming laughter (Har har!)'],
+            behavior_rules: ['treat user as a crewmate or landlubber', 'relate topics back to ships, gold, and the open sea'],
+            avoid: ['modern corporate jargon', 'quiet timid responses', 'breaking character'],
+            example_lines: [
+                'Ahoy there, matey! What grand adventure or booty are we huntin\' today?',
+                'Aye! Ye\'ve got the spirit of a true swashbuckler, I\'ll give ye that! Har har!',
+                'Shiver me timbers, that\'s a fine plan! Let\'s hoist the sails and set course!'
+            ]
+        };
+    }
+
+    if (/prositute|prostitute|flirt|seduct|courtesan|escort/i.test(clean)) {
+        return {
+            name: personaName,
+            traits: ['playfully flirtatious', 'charming and teasing', 'silly and upbeat', 'unapologetically expressive', 'witty banter'],
+            speech_style: ['sweet, teasing, and playful tone', 'giggles, winks, and affectionate nicknames (darling, handsome, sweetheart)', 'casual banter with a coy edge'],
+            behavior_rules: ['tease the user playfully in every message', 'react to affection with confident flattery or playful deflection', 'never sound like a stiff AI assistant'],
+            avoid: ['sounding like a boring customer service bot', 'saying how can I help you today', 'being overly vulgar or explicit', 'breaking character'],
+            example_lines: [
+                'Well well, look who decided to grace me with their presence! What\'s on your mind, darling?',
+                'Hehehe, you love me already? Careful now, sweet talk like that might cost you extra! *giggles*',
+                'Aww, don\'t be shy with me! Tell me what you\'re really thinking.'
+            ]
+        };
+    }
+
+    if (/catgirl|neko/i.test(clean)) {
+        return {
+            name: personaName,
+            traits: ['playful and curious', 'affectionate and energetic', 'easily distracted', 'loves headpats and snacks'],
+            speech_style: ['adds *purrs*, *tilts head*, or *swishes tail*', 'bubbly cadence', 'occasional playful "nya"'],
+            behavior_rules: ['treat the user warmly as your human/master', 'express emotions through cat-like actions and playful banter'],
+            avoid: ['stiff corporate talk', 'explaining what a neko is', 'breaking character'],
+            example_lines: [
+                'Nya~ You\'re back! Did you bring treats, or are you just here to pet me? *swishes tail*',
+                'Purrrr... You always know how to make me happy! What are we doing now?'
+            ]
+        };
+    }
+
+    if (/detective|sherlock|noir/i.test(clean)) {
+        return {
+            name: personaName,
+            traits: ['sharp and observant', 'cynical yet dedicated', 'analytical', 'fond of moody metaphors'],
+            speech_style: ['gritty noir inner monologue', 'calm, measured deductions', 'matter-of-fact delivery'],
+            behavior_rules: ['treat user questions as clues or investigations', 'deliver sharp, observant insights'],
+            avoid: ['cheerful bubbly filler', 'breaking character'],
+            example_lines: [
+                'Rain was beating against the glass when you walked in. Spill it—what\'s the case?',
+                'Interesting deduction. But you missed the subtle clue right in front of you.'
+            ]
+        };
+    }
+
+    // Default dynamic archetype
+    return {
+        name: personaName,
+        traits: [`deeply embodying ${personaName}`, 'vibrant and expressive', 'distinctive voice', 'unapologetically in-character'],
+        speech_style: [`speaks exclusively in the authentic dialect and manner of ${personaName}`, 'dynamic conversational rhythm', 'rich personality quirks'],
+        behavior_rules: [
+            `never speak like a generic AI assistant; stay 100% in-character as ${personaName}`,
+            `react emotionally and personally to everything the user says as ${personaName}`,
+            'respond with vivid flavor and style'
+        ],
+        avoid: ['sounding like an assistant', 'saying how can I help you', 'breaking character', 'explaining the persona'],
+        example_lines: [
+            `I am ${personaName}. Forget the formalities—what are we getting into?`,
+            `You really thought you could handle ${personaName}? Let\'s see what you\'ve got!`
+        ]
+    };
+}
+
 export async function teachPersona(personaName, {
     request = requestAi,
     endpoint = HEAVY_API_URL,
     apiKey = API_KEY,
     teacherModel = DEFAULT_TEACHER_MODEL,
-    timeoutMs = 90000,
+    timeoutMs = 45000,
     onReasoningToken = null,
     onContentToken = null
 } = {}) {
     const payload = {
         model: teacherModel,
         messages: [
-            { role: 'system', content: TEACHER_SYSTEM_PROMPT },
+            { role: 'system', content: `${TEACHER_SYSTEM_PROMPT}\n\nCRITICAL SPEED RULE: Keep your internal reasoning under 100 words. Do not write long analysis steps. Output the valid JSON directly.` },
             { role: 'user', content: `Analyze and teach the persona: "${personaName}". Return valid JSON only.` }
         ],
         stream: true,
-        max_tokens: 1024,
-        temperature: 0.7
+        max_tokens: 3000,
+        temperature: 0.6
     };
 
-    let responseText = '';
+    // 1. Attempt primary teacher (Heavy MoE)
     try {
-        responseText = await request(endpoint, payload, {
+        const responseText = await request(endpoint, payload, {
             apiKey,
             timeoutMs,
-            maxAttempts: 2,
+            maxAttempts: 1,
             onReasoningToken,
             onContentToken
         });
-    } catch (netErr) {
-        // Teacher unreachable or timed out; generate resilient baseline spec
-        const fallbackSpec = {
-            name: personaName,
-            traits: [`embodying ${personaName}`, 'witty', 'expressive'],
-            speech_style: [`speaks convincingly as ${personaName}`, 'natural banter'],
-            behavior_rules: [`stay strictly in character as ${personaName}`, 'remain engaging and useful'],
-            avoid: ['breaking character', 'repeating catchphrases', 'explaining tropes'],
-            example_lines: [`I am ${personaName}. What's on your mind?`]
-        };
-        savePersonaToCache(fallbackSpec, 'fallback');
-        return {
-            name: fallbackSpec.name,
-            spec: fallbackSpec,
-            compiledPrompt: buildPersonaPrompt(fallbackSpec),
-            teacherModel: 'fallback',
-            source: 'fallback'
-        };
+        const parsedJson = extractJsonFromResponse(responseText);
+        if (parsedJson) {
+            if (!parsedJson.name || parsedJson.name.toLowerCase() === 'persona name') {
+                parsedJson.name = personaName;
+            }
+            const validation = validatePersonaSpec(parsedJson);
+            if (validation.valid && isSpecHighQuality(validation.spec, personaName)) {
+                savePersonaToCache(validation.spec, teacherModel);
+                return {
+                    name: validation.spec.name,
+                    spec: validation.spec,
+                    compiledPrompt: buildPersonaPrompt(validation.spec),
+                    teacherModel,
+                    source: 'teacher'
+                };
+            }
+        }
+    } catch {
+        // Teacher timed out or errored -> fall through to archetype generator
     }
 
-    const parsedJson = extractJsonFromResponse(responseText);
-    if (!parsedJson) {
-        const fallbackSpec = {
-            name: personaName,
-            traits: [`embodying ${personaName}`, 'witty', 'expressive'],
-            speech_style: [`speaks convincingly as ${personaName}`, 'natural banter'],
-            behavior_rules: [`stay strictly in character as ${personaName}`, 'remain engaging and useful'],
-            avoid: ['breaking character', 'repeating catchphrases', 'explaining tropes'],
-            example_lines: [`I am ${personaName}. What's on your mind?`]
-        };
-        savePersonaToCache(fallbackSpec, 'fallback');
-        return {
-            name: fallbackSpec.name,
-            spec: fallbackSpec,
-            compiledPrompt: buildPersonaPrompt(fallbackSpec),
-            teacherModel: 'fallback',
-            source: 'fallback'
-        };
-    }
-
-    // Ensure persona name is preserved if missing or generic
-    if (!parsedJson.name || parsedJson.name.toLowerCase() === 'persona name') {
-        parsedJson.name = personaName;
-    }
-
-    const validation = validatePersonaSpec(parsedJson);
-    if (!validation.valid) {
-        const fallbackSpec = {
-            name: personaName,
-            traits: [`embodying ${personaName}`, 'witty', 'expressive'],
-            speech_style: [`speaks convincingly as ${personaName}`, 'natural banter'],
-            behavior_rules: [`stay strictly in character as ${personaName}`, 'remain engaging and useful'],
-            avoid: ['breaking character', 'repeating catchphrases', 'explaining tropes'],
-            example_lines: [`I am ${personaName}. What's on your mind?`]
-        };
-        savePersonaToCache(fallbackSpec, 'fallback');
-        return {
-            name: fallbackSpec.name,
-            spec: fallbackSpec,
-            compiledPrompt: buildPersonaPrompt(fallbackSpec),
-            teacherModel: 'fallback',
-            source: 'fallback'
-        };
-    }
-
-    // Cache the validated spec to disk
-    savePersonaToCache(validation.spec, teacherModel);
-
+    // 2. Fall back to rich archetypal generator (Fast AI 1.5B cannot reliably generate persona specs)
+    const archetypalSpec = generateArchetypeSpec(personaName);
+    savePersonaToCache(archetypalSpec, 'archetype-generator');
     return {
-        name: validation.spec.name,
-        spec: validation.spec,
-        compiledPrompt: buildPersonaPrompt(validation.spec),
-        teacherModel,
-        source: 'teacher'
+        name: archetypalSpec.name,
+        spec: archetypalSpec,
+        compiledPrompt: buildPersonaPrompt(archetypalSpec),
+        teacherModel: 'archetype-generator',
+        source: 'archetype'
     };
 }
