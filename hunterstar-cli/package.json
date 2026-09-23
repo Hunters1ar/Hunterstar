@@ -1,6 +1,6 @@
 {
   "name": "hunterstar",
-  "version": "2.0.2",
+  "version": "2.0.5",
   "description": "Hunterstar Developer CLI",
   "main": "src/index.js",
   "bin": {

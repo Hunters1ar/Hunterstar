@@ -161,3 +161,197 @@ test('supported XML requests approval in turbo mode and continues with its resul
     assert.match(requests[1].messages.at(-1).content, /a.txt/);
     assert.equal(inputs.length, 0);
 });
+
+test('requestAi handles standard OpenAI/llama-server format and bearer auth', async () => {
+    let capturedHeaders = null;
+    let capturedBody = null;
+    const answer = await requestAi('https://api.moonlightsoldiers.xyz/v1/chat/completions', {
+        messages: [{ role: 'user', content: 'test' }],
+        model: 'Qwen3-Coder-30B'
+    }, {
+        apiKey: 'hunterella@152634879man',
+        fetchImpl: async (_, options) => {
+            capturedHeaders = options.headers;
+            capturedBody = JSON.parse(options.body);
+            return new Response(JSON.stringify({
+                choices: [{ message: { role: 'assistant', content: 'hello from qwen' } }]
+            }), { status: 200 });
+        }
+    });
+    assert.equal(answer, 'hello from qwen');
+    assert.equal(capturedHeaders['Authorization'], 'Bearer hunterella@152634879man');
+    assert.equal(capturedBody.model, 'Qwen3-Coder-30B');
+});
+
+test('AI presets apply correctly between own and cloud', async () => {
+    const { applyPreset, loadConfig, saveConfig } = await import('../src/utils/configManager.js');
+    const original = loadConfig();
+    try {
+        const ownRes = applyPreset('own');
+        assert.equal(ownRes.name, 'own');
+        assert.equal(ownRes.preset['api-url'], 'https://api.moonlightsoldiers.xyz/v1/chat/completions');
+        assert.equal(ownRes.preset['api-key'], 'hunterella@152634879man');
+        assert.equal(ownRes.preset['model'], 'Qwen3-Coder-30B');
+
+        const cloudRes = applyPreset('cloud');
+        assert.equal(cloudRes.name, 'cloud');
+        assert.equal(cloudRes.preset['api-url'], 'https://api.hunterstar.uz');
+    } finally {
+        saveConfig(original);
+    }
+});
+
+test('memoryManager records mistake on recursive search timeout and compacts output', async () => {
+    const { recordMistake, compactCommandOutput, recordUserLesson } = await import('../src/utils/memoryManager.js');
+    const lesson = recordMistake('Get-ChildItem -Path C:\\Users\\Hunte -Recurse -Filter "Tlauncher*"', { timeout: true });
+    assert.ok(lesson);
+    assert.match(lesson.rule, /unbounded recursive searches/);
+
+    const compacted = compactCommandOutput('line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\nline11\nline12\nline13\nline14\nline15\nline16\nline17\nline18', '', 5, 200);
+    assert.match(compacted, /omitted to preserve tokens/);
+
+    const userLesson = recordUserLesson('TLauncher is located in $env:APPDATA\\.tlauncher');
+    assert.equal(userLesson.rule, 'TLauncher is located in $env:APPDATA\\.tlauncher');
+});
+
+test('createStreamParser captures delta.reasoning_content and delta.content', async () => {
+    const { createStreamParser } = await import('../src/utils/aiTransport.js');
+    const reasoningChunks = [];
+    const contentChunks = [];
+    const parser = createStreamParser({
+        onReasoningToken: t => reasoningChunks.push(t),
+        onContentToken: t => contentChunks.push(t),
+    });
+
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"role":"assistant","content":null}}]}');
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"reasoning_content":"Thinking"}}]}');
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"reasoning_content":" process"}}]}');
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"Final"}}]}');
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":" answer"}}]}');
+    parser.parseLine('data: [DONE]');
+
+    assert.equal(parser.state.reasoningContent, 'Thinking process');
+    assert.equal(parser.state.content, 'Final answer');
+    assert.deepEqual(reasoningChunks, ['Thinking', ' process']);
+    assert.deepEqual(contentChunks, ['Final', ' answer']);
+    assert.equal(parser.state.isDone, true);
+});
+
+test('createStreamParser routes inline <think> tags in content to reasoning', async () => {
+    const { createStreamParser } = await import('../src/utils/aiTransport.js');
+    const reasoningChunks = [];
+    const contentChunks = [];
+    const parser = createStreamParser({
+        onReasoningToken: t => reasoningChunks.push(t),
+        onContentToken: t => contentChunks.push(t),
+    });
+
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"<think>Internal thought</think>Actual output"}}]}');
+    assert.equal(parser.state.reasoningContent, 'Internal thought');
+    assert.equal(parser.state.content, 'Actual output');
+    assert.deepEqual(reasoningChunks, ['Internal thought']);
+    assert.deepEqual(contentChunks, ['Actual output']);
+});
+
+test('requestAi handles streaming SSE responses with thinking tokens', async () => {
+    const { requestAi } = await import('../src/utils/aiTransport.js');
+    const reasoning = [];
+    const content = [];
+
+    const sseLines = [
+        'data: {"choices":[{"delta":{"role":"assistant"}}]}',
+        'data: {"choices":[{"delta":{"reasoning_content":"I will check the folder."}}]}',
+        'data: {"choices":[{"delta":{"content":"[EXEC]Get-ChildItem[/EXEC]"}}]}',
+        'data: [DONE]\n\n'
+    ].join('\n\n');
+
+    const result = await requestAi('https://fake-endpoint.local/v1/chat/completions', {
+        messages: [{ role: 'user', content: 'test' }],
+        stream: true
+    }, {
+        onReasoningToken: t => reasoning.push(t),
+        onContentToken: t => content.push(t),
+        fetchImpl: async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(encoder.encode(sseLines));
+                    controller.close();
+                }
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' }
+            });
+        }
+    });
+
+    assert.equal(result, '[EXEC]Get-ChildItem[/EXEC]');
+    assert.deepEqual(reasoning, ['I will check the folder.']);
+    assert.deepEqual(content, ['[EXEC]Get-ChildItem[/EXEC]']);
+});
+
+test('requestAi does not throw error when budget exhausts inside thinking block', async () => {
+    const { requestAi } = await import('../src/utils/aiTransport.js');
+    const reasoning = [];
+
+    const sseLines = [
+        'data: {"choices":[{"delta":{"role":"assistant"}}]}',
+        'data: {"choices":[{"delta":{"reasoning_content":"Thinking budget ran out here."},"finish_reason":"length"}]}',
+        'data: [DONE]\n\n'
+    ].join('\n\n');
+
+    const result = await requestAi('https://fake-endpoint.local/v1/chat/completions', {
+        messages: [{ role: 'user', content: 'test' }],
+        max_tokens: 128,
+        stream: true
+    }, {
+        onReasoningToken: t => reasoning.push(t),
+        fetchImpl: async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(encoder.encode(sseLines));
+                    controller.close();
+                }
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' }
+            });
+        }
+    });
+
+    assert.equal(result, 'Thinking budget ran out here.');
+    assert.deepEqual(reasoning, ['Thinking budget ran out here.']);
+});
+
+test('requestAi handles non-streaming responses with reasoning_content fallback', async () => {
+    const { requestAi } = await import('../src/utils/aiTransport.js');
+    const reasoning = [];
+
+    const result = await requestAi('https://fake-endpoint.local/v1/chat/completions', {
+        messages: [{ role: 'user', content: 'test' }]
+    }, {
+        onReasoningToken: t => reasoning.push(t),
+        fetchImpl: async () => {
+            return new Response(JSON.stringify({
+                choices: [{
+                    message: {
+                        role: 'assistant',
+                        content: '',
+                        reasoning_content: 'Non-streaming thought process'
+                    }
+                }]
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+    });
+
+    assert.equal(result, 'Non-streaming thought process');
+    assert.deepEqual(reasoning, ['Non-streaming thought process']);
+});
+
+

@@ -8,6 +8,13 @@ class ProviderError extends Error {
 
 function getKeys(env) {
     const keys = [];
+    if (env.SELF_HOSTED_AI_URL || env.LLAMA_API_URL) {
+        keys.push({
+            type: 'llama',
+            url: env.SELF_HOSTED_AI_URL || env.LLAMA_API_URL,
+            key: env.SELF_HOSTED_AI_KEY || env.LLAMA_API_KEY || ''
+        });
+    }
     for (const [type, prefix, count] of [['openrouter', 'OPEN_ROUTER_API_KEY', 10], ['aistudio', 'AI_STUDIO_API_KEY', 15]]) {
         for (let i = 0; i <= count; i++) {
             const key = env[prefix + (i || '')];
@@ -85,6 +92,7 @@ function createAiProvider({ env = process.env, fetchImpl = globalThis.fetch, now
     return async function callAiProviderWithFallback(systemContent, messages, { model: requestedModel } = {}) {
         // This route is public: client model selection must not enable arbitrary paid models.
         const allowedModels = [env.OPENROUTER_MODEL || 'dots-studio/dots-3-note-preview:free',
+            'Qwen3-Coder-30B', 'hunterstar-ai', 'own',
             ...(env.CLI_ALLOWED_MODELS || '').split(',').map(value => value.trim())];
         if (requestedModel && !requestedModel.endsWith(':free') && !allowedModels.includes(requestedModel)) {
             throw new ProviderError('This model is not enabled for the CLI. Choose a :free model or ask the server owner to set CLI_ALLOWED_MODELS.', { status: 400 });
@@ -96,10 +104,12 @@ function createAiProvider({ env = process.env, fetchImpl = globalThis.fetch, now
         let attempts = 0;
         const typeAttempts = new Map();
         const skippedTypes = new Set();
-        for (const { type, key } of keys) {
+        for (const entry of keys) {
+            const { type, key, url } = entry;
             if (skippedTypes.has(type)) continue;
             if ((typeAttempts.get(type) || 0) >= 2) continue;
-            const model = type === 'openrouter' ? (requestedModel || env.OPENROUTER_MODEL || 'dots-studio/dots-3-note-preview:free') : (env.GEMINI_MODEL || 'auto');
+            const model = type === 'llama' ? (requestedModel || 'Qwen3-Coder-30B')
+                : type === 'openrouter' ? (requestedModel || env.OPENROUTER_MODEL || 'dots-studio/dots-3-note-preview:free') : (env.GEMINI_MODEL || 'auto');
             const id = `${type}:${key}:${model}`;
             const cooldown = cooldowns.get(id);
             if (cooldown && cooldown.until > now()) {
@@ -110,7 +120,14 @@ function createAiProvider({ env = process.env, fetchImpl = globalThis.fetch, now
             typeAttempts.set(type, (typeAttempts.get(type) || 0) + 1);
             try {
                 let data;
-                if (type === 'openrouter') {
+                if (type === 'llama') {
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (key) headers['Authorization'] = `Bearer ${key}`;
+                    data = await jsonRequest(url, {
+                        method: 'POST', headers,
+                        body: JSON.stringify({ model: model === 'own' ? 'Qwen3-Coder-30B' : model, messages: [{ role: 'system', content: systemContent }, ...messages], max_tokens: 8192 }),
+                    }, deadline);
+                } else if (type === 'openrouter') {
                     data = await jsonRequest('https://openrouter.ai/api/v1/chat/completions', {
                         method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json',
                             'HTTP-Referer': 'https://hunterstar.uz', 'X-Title': 'Hunterstar Portfolio' },
@@ -127,6 +144,12 @@ function createAiProvider({ env = process.env, fetchImpl = globalThis.fetch, now
                     data = { choices: [{ message: { content: parts.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('') } }] };
                 }
                 const message = data?.choices?.[0]?.message;
+                if (message && (!message.content || !message.content.trim())) {
+                    const reasoning = message.reasoning_content || message.reasoning || message.thinking;
+                    if (typeof reasoning === 'string' && reasoning.trim()) {
+                        message.content = reasoning;
+                    }
+                }
                 if (!message || message.tool_calls?.length || message.function_call || typeof message.content !== 'string' || !message.content.trim()) {
                     throw new ProviderError('AI provider returned no usable text answer.', { retryable: true });
                 }

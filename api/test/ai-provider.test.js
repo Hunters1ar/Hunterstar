@@ -76,3 +76,25 @@ test('CLI prompt preserves client instructions and recognizes Windows shell vari
     assert.match(buildCliPrompt({ messages, platform: 'windows', shell: 'cmd' }), /\[EXEC\]cd\[\/EXEC\]/);
     assert.match(buildCliPrompt({ messages, platform: 'linux', shell: 'bash' }), /\[EXEC\]pwd\[\/EXEC\]/);
 });
+
+test('self-hosted llama provider is called with custom endpoint and auth key', async () => {
+    let capturedUrl, capturedHeaders, capturedBody;
+    const call = createAiProvider({
+        env: {
+            SELF_HOSTED_AI_URL: 'https://api.moonlightsoldiers.xyz/v1/chat/completions',
+            SELF_HOSTED_AI_KEY: 'hunterella@152634879man'
+        },
+        fetchImpl: async (url, options) => {
+            capturedUrl = String(url);
+            capturedHeaders = options.headers;
+            capturedBody = JSON.parse(options.body);
+            return reply('[EXEC]Get-ChildItem[/EXEC]');
+        }
+    });
+    const result = await call('system prompt', messages);
+    assert.equal(result.choices[0].message.content, '[EXEC]Get-ChildItem[/EXEC]');
+    assert.equal(capturedUrl, 'https://api.moonlightsoldiers.xyz/v1/chat/completions');
+    assert.equal(capturedHeaders['Authorization'], 'Bearer hunterella@152634879man');
+    assert.equal(capturedBody.model, 'Qwen3-Coder-30B');
+});
+
