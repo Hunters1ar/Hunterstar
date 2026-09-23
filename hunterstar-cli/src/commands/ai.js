@@ -163,12 +163,14 @@ export function getSystemPrompt(platformInfo, provider = 'cloud') {
 Operating system: ${platformInfo.osDisplayName}. Active shell: ${platformInfo.shell}. Command chaining: '${platformInfo.commandSeparator}'.
 To execute commands or inspect files, output exactly one [EXEC]command[/EXEC] block and wait for the execution result.
 Rules:
+- For greetings, conversations, questions, text generation, and prompt crafting, reply directly with plain text. Do NOT execute shell commands or inspect directories unless the user explicitly requests system actions.
 - On Windows PowerShell: use Get-ChildItem, Select-String, Get-Content. Do not use Linux grep, touch, or &&.
 - FAST SEARCH: NEVER run unbounded -Recurse across entire user directory (C:\\Users\\...) or drive roots; it times out after 30s. Target specific subfolders ($env:APPDATA, $env:LOCALAPPDATA, Start Menu) or use -Depth 1.
 - Output: Pipe search lists to 'Select-Object -First 15' to avoid wasting tokens.
 - For images: use 'hunterstar convert --from <src> --to <target>'.
 - Always return a single-line shell command inside [EXEC]. Do not output XML or multi-line script blocks.
-- Never claim success without a successful execution result. Continue after each execution result until complete.${memoryGuidance}`;
+- Never claim success without a successful execution result. Continue after each execution result until complete.
+- Be concise and direct in thinking. Avoid repetitive drafting or second-guessing in your thought process.${memoryGuidance}`;
     }
 
     return `You are the Hunterstar CLI AI Assistant.
@@ -492,10 +494,14 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         if (!thinkingSpinner.isSpinning) thinkingSpinner.start();
                     },
                 });
-                if (hasStartedReasoning && !hasStartedContent) {
+                const onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
+                if (onlyHadReasoning) {
                     process.stdout.write('\x1b[0m\n');
                     console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block (token limit reached).\x1b[0m');
                     console.log('\x1b[90mTip: Increase token budget with "/config max_tokens 16384" if needed.\x1b[0m\n');
+                    isProcessing = false;
+                    canRetry = true;
+                    continue;
                 }
                 thinkingSpinner.stop();
                 {
@@ -505,10 +511,11 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         console.log(`\x1b[90m[DEBUG] Raw AI Response length: ${aiMsg.length}\x1b[0m`);
                     }
 
-                    const toolCall = parseToolCall(aiMsg, platformInfo);
+                    const executableText = aiMsg.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '');
+                    const toolCall = parseToolCall(executableText, platformInfo);
                     const parsed = toolCall?.isSupported && toolCall.command
                         ? { command: toolCall.command, normalText: cleanAiDisplayText(aiMsg), suggestion: true }
-                        : parseAiCommand(aiMsg);
+                        : parseAiCommand(executableText);
                     if (parsed.error) {
                         messages.push({ role: 'user', content: `[PROTOCOL ERROR] ${parsed.error} Active shell: ${platformInfo.shell}. Restate the pending step.` });
                         if (++protocolRepairs > 2) {
