@@ -682,11 +682,17 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     model: activeModel,
                     max_tokens: maxTokens,
                     max_completion_tokens: maxTokens,
+                    temperature: routedTier === 'fast' ? 0.7 : undefined,
+                    presence_penalty: routedTier === 'fast' ? 0.35 : undefined,
+                    frequency_penalty: routedTier === 'fast' ? 0.35 : undefined,
                     stream: true,
                 } : {
                     messages: requestMessages, platform: platformInfo.os, shell: platformInfo.shell,
                     commandSeparator: platformInfo.commandSeparator, model: getConfigValue('model'),
                     max_tokens: maxTokens,
+                    temperature: routedTier === 'fast' ? 0.7 : undefined,
+                    presence_penalty: routedTier === 'fast' ? 0.35 : undefined,
+                    frequency_penalty: routedTier === 'fast' ? 0.35 : undefined,
                     stream: true,
                 };
 

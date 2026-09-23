@@ -121,6 +121,10 @@ test('detectPersonaRequest correctly catches commands and natural phrases while 
     assert.deepEqual(detectPersonaRequest('act as Sherlock Holmes'), { isPersona: true, isReset: false, persona: 'Sherlock Holmes' });
     assert.deepEqual(detectPersonaRequest('roleplay as a catgirl'), { isPersona: true, isReset: false, persona: 'catgirl' });
     assert.deepEqual(detectPersonaRequest('pretend to be Gordon Ramsay'), { isPersona: true, isReset: false, persona: 'Gordon Ramsay' });
+    assert.deepEqual(detectPersonaRequest('i want you to be silly prositute'), { isPersona: true, isReset: false, persona: 'silly prositute' });
+    assert.deepEqual(detectPersonaRequest('can you be a pirate?'), { isPersona: true, isReset: false, persona: 'pirate' });
+    assert.deepEqual(detectPersonaRequest('change your personality to detective'), { isPersona: true, isReset: false, persona: 'detective' });
+    assert.deepEqual(detectPersonaRequest('be a tsundere'), { isPersona: true, isReset: false, persona: 'tsundere' });
 
     // 3. Obvious resets
     assert.deepEqual(detectPersonaRequest('reset personality'), { isPersona: true, isReset: true });

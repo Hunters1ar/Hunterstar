@@ -230,7 +230,7 @@ export function listCachedPersonas() {
  * @returns {{ isPersona: boolean, isReset: boolean, persona?: string } | null}
  */
 export function detectPersonaRequest(input) {
-    const clean = (input || '').trim();
+    const clean = (input || '').trim().replace(/[?!.,;:]+$/, '').trim();
     if (!clean) return null;
 
     // 1. Explicit slash commands
@@ -253,8 +253,8 @@ export function detectPersonaRequest(input) {
     }
 
     // 3. Negative Guards (Avoid false positives)
-    // Questions / Definitions: "What does a tsundere personality mean?", "Why is tsundere popular?"
-    if (/^(?:what|why|how|who|when|where|is|can|explain|define|tell\s+me\s+about)\b/i.test(clean)) {
+    // Pure informational questions / definitions: "What does a tsundere personality mean?", "Why is tsundere popular?"
+    if (/^(?:what\s+is|what\s+does|what\s+are|why\s+|how\s+does|how\s+do|who\s+is|who\s+are|explain\b|define\b|meaning\s+of\b|tell\s+me\s+about\b)/i.test(clean)) {
         return null;
     }
     // Creative requests: "Write a story where someone acts like a pirate"
@@ -267,23 +267,43 @@ export function detectPersonaRequest(input) {
     }
 
     // 4. Natural language persona switch patterns
-    // e.g., "switch into tsundere personality", "change to pirate persona", "switch into a tsundere"
-    const switchPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:switch|change|turn)(?:\s+(?:in)?to)?\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,30}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
+
+    // Pattern A: "switch into tsundere personality", "change to pirate persona", "change your personality to detective"
+    const switchPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:switch|change|turn)(?:\s+(?:your\s+)?(?:personality|persona|character|mode))?(?:\s+(?:in)?to)?\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
     const switchMatch = clean.match(switchPattern);
     if (switchMatch) {
         const candidate = switchMatch[1].trim();
-        // Disallow generic filler words
-        if (candidate && !['it', 'this', 'that', 'them', 'fast', 'heavy', 'normal'].includes(candidate.toLowerCase())) {
+        if (candidate && !['it', 'this', 'that', 'them', 'fast', 'heavy', 'normal', 'your personality', 'personality'].includes(candidate.toLowerCase())) {
             return { isPersona: true, isReset: false, persona: candidate };
         }
     }
 
-    // e.g., "you are now a pirate", "act as sherlock holmes", "roleplay as a tsundere", "pretend to be batman"
-    const actPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:you\s+are\s+now|act\s+as|roleplay\s+as|pretend\s+to\s+be)\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,30}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
+    // Pattern B: "i want you to be silly prositute", "want you to be a pirate", "i need you to be..."
+    const wantPattern = /^(?:i\s+(?:want|need|wish)\s+you\s+to\s+be|want\s+you\s+to\s+be)\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
+    const wantMatch = clean.match(wantPattern);
+    if (wantMatch) {
+        const candidate = wantMatch[1].trim();
+        if (candidate && !['it', 'this', 'that', 'normal'].includes(candidate.toLowerCase())) {
+            return { isPersona: true, isReset: false, persona: candidate };
+        }
+    }
+
+    // Pattern C: "you are now a pirate", "act as sherlock holmes", "act like a tsundere", "roleplay as...", "pretend to be...", "talk like a pirate", "speak like a catgirl"
+    const actPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:you\s+are\s+now|act\s+as|act\s+like|roleplay\s+as|pretend\s+to\s+be|talk\s+like|speak\s+like)\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
     const actMatch = clean.match(actPattern);
     if (actMatch) {
         const candidate = actMatch[1].trim();
         if (candidate && !['it', 'this', 'that', 'normal'].includes(candidate.toLowerCase())) {
+            return { isPersona: true, isReset: false, persona: candidate };
+        }
+    }
+
+    // Pattern D: "be a pirate", "be tsundere", "become a detective", "can you be a catgirl"
+    const bePattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:be|become)\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
+    const beMatch = clean.match(bePattern);
+    if (beMatch) {
+        const candidate = beMatch[1].trim();
+        if (candidate && !['it', 'this', 'that', 'normal', 'nice', 'careful', 'honest', 'quick', 'fast', 'sure', 'serious', 'ready'].includes(candidate.toLowerCase())) {
             return { isPersona: true, isReset: false, persona: candidate };
         }
     }
@@ -372,20 +392,56 @@ export async function teachPersona(personaName, {
             { role: 'system', content: TEACHER_SYSTEM_PROMPT },
             { role: 'user', content: `Analyze and teach the persona: "${personaName}". Return valid JSON only.` }
         ],
-        stream: false,
+        stream: true,
         max_tokens: 1024,
         temperature: 0.7
     };
 
-    const responseText = await request(endpoint, payload, {
-        apiKey,
-        timeoutMs,
-        maxAttempts: 2
-    });
+    let responseText = '';
+    try {
+        responseText = await request(endpoint, payload, {
+            apiKey,
+            timeoutMs,
+            maxAttempts: 2
+        });
+    } catch (netErr) {
+        // Teacher unreachable or timed out; generate resilient baseline spec
+        const fallbackSpec = {
+            name: personaName,
+            traits: [`embodying ${personaName}`, 'witty', 'expressive'],
+            speech_style: [`speaks convincingly as ${personaName}`, 'natural banter'],
+            behavior_rules: [`stay strictly in character as ${personaName}`, 'remain engaging and useful'],
+            avoid: ['breaking character', 'repeating catchphrases', 'explaining tropes'],
+            example_lines: [`I am ${personaName}. What's on your mind?`]
+        };
+        savePersonaToCache(fallbackSpec, 'fallback');
+        return {
+            name: fallbackSpec.name,
+            spec: fallbackSpec,
+            compiledPrompt: buildPersonaPrompt(fallbackSpec),
+            teacherModel: 'fallback',
+            source: 'fallback'
+        };
+    }
 
     const parsedJson = extractJsonFromResponse(responseText);
     if (!parsedJson) {
-        throw new Error(`Teacher model output could not be parsed as JSON: ${responseText.slice(0, 150)}...`);
+        const fallbackSpec = {
+            name: personaName,
+            traits: [`embodying ${personaName}`, 'witty', 'expressive'],
+            speech_style: [`speaks convincingly as ${personaName}`, 'natural banter'],
+            behavior_rules: [`stay strictly in character as ${personaName}`, 'remain engaging and useful'],
+            avoid: ['breaking character', 'repeating catchphrases', 'explaining tropes'],
+            example_lines: [`I am ${personaName}. What's on your mind?`]
+        };
+        savePersonaToCache(fallbackSpec, 'fallback');
+        return {
+            name: fallbackSpec.name,
+            spec: fallbackSpec,
+            compiledPrompt: buildPersonaPrompt(fallbackSpec),
+            teacherModel: 'fallback',
+            source: 'fallback'
+        };
     }
 
     // Ensure persona name is preserved if missing or generic
@@ -395,7 +451,22 @@ export async function teachPersona(personaName, {
 
     const validation = validatePersonaSpec(parsedJson);
     if (!validation.valid) {
-        throw new Error(`Teacher model returned invalid PersonaSpec: ${validation.error}`);
+        const fallbackSpec = {
+            name: personaName,
+            traits: [`embodying ${personaName}`, 'witty', 'expressive'],
+            speech_style: [`speaks convincingly as ${personaName}`, 'natural banter'],
+            behavior_rules: [`stay strictly in character as ${personaName}`, 'remain engaging and useful'],
+            avoid: ['breaking character', 'repeating catchphrases', 'explaining tropes'],
+            example_lines: [`I am ${personaName}. What's on your mind?`]
+        };
+        savePersonaToCache(fallbackSpec, 'fallback');
+        return {
+            name: fallbackSpec.name,
+            spec: fallbackSpec,
+            compiledPrompt: buildPersonaPrompt(fallbackSpec),
+            teacherModel: 'fallback',
+            source: 'fallback'
+        };
     }
 
     // Cache the validated spec to disk
