@@ -11,7 +11,9 @@ import {
     listCachedPersonas,
     detectPersonaRequest,
     extractJsonFromResponse,
-    getPersonasDir
+    getPersonasDir,
+    isValidPersonaCandidate,
+    teachPersona
 } from '../src/utils/personaManager.js';
 import { getFastSystemPrompt } from '../src/commands/ai.js';
 
@@ -126,12 +128,27 @@ test('detectPersonaRequest correctly catches commands and natural phrases while 
     assert.deepEqual(detectPersonaRequest('change your personality to detective'), { isPersona: true, isReset: false, persona: 'detective' });
     assert.deepEqual(detectPersonaRequest('be a tsundere'), { isPersona: true, isReset: false, persona: 'tsundere' });
 
+    assert.deepEqual(detectPersonaRequest('set personality to pirate'), { isPersona: true, isReset: false, persona: 'pirate' });
+    assert.deepEqual(detectPersonaRequest('use tsundere personality'), { isPersona: true, isReset: false, persona: 'tsundere' });
+
     // 3. Obvious resets
     assert.deepEqual(detectPersonaRequest('reset personality'), { isPersona: true, isReset: true });
     assert.deepEqual(detectPersonaRequest('switch to normal'), { isPersona: true, isReset: true });
     assert.deepEqual(detectPersonaRequest('be normal'), { isPersona: true, isReset: true });
 
     // 4. False positive guards (must be rejected)
+    // Conversational questions asking if/how AI can change personality (must go to Fast AI, NOT trigger teacher!)
+    assert.equal(detectPersonaRequest('can you change your personality'), null);
+    assert.equal(detectPersonaRequest('can you change your personality?'), null);
+    assert.equal(detectPersonaRequest('can you change personality'), null);
+    assert.equal(detectPersonaRequest('change your personality'), null);
+    assert.equal(detectPersonaRequest('could you switch your personality'), null);
+    assert.equal(detectPersonaRequest('what personalities do you have'), null);
+    assert.equal(detectPersonaRequest('how do i change your personality'), null);
+    assert.equal(detectPersonaRequest('can you roleplay'), null);
+    assert.equal(detectPersonaRequest('do you have different personas?'), null);
+
+    // Definitions & creative requests
     assert.equal(detectPersonaRequest('What does a tsundere personality mean?'), null);
     assert.equal(detectPersonaRequest('Why is tsundere popular in anime?'), null);
     assert.equal(detectPersonaRequest('Write a story where someone acts like a pirate'), null);
@@ -196,5 +213,48 @@ test('classifyPromptTier routes greetings and casual prompts to fast tier even w
     const res = classifyPromptTier('hi', { messages });
     assert.equal(res.tier, 'fast');
     assert.equal(res.reason, 'Casual chatter / instant banter');
+});
+
+test('isValidPersonaCandidate rejects generic words, pronouns, and invalid names', () => {
+    assert.equal(isValidPersonaCandidate('your'), false);
+    assert.equal(isValidPersonaCandidate('my'), false);
+    assert.equal(isValidPersonaCandidate('the'), false);
+    assert.equal(isValidPersonaCandidate('a'), false);
+    assert.equal(isValidPersonaCandidate('personality'), false);
+    assert.equal(isValidPersonaCandidate('your personality'), false);
+    assert.equal(isValidPersonaCandidate('normal'), false);
+    assert.equal(isValidPersonaCandidate('it'), false);
+    assert.equal(isValidPersonaCandidate('x'), false); // too short
+
+    assert.equal(isValidPersonaCandidate('pirate'), true);
+    assert.equal(isValidPersonaCandidate('tsundere'), true);
+    assert.equal(isValidPersonaCandidate('cyberpunk hacker'), true);
+    assert.equal(isValidPersonaCandidate('Sherlock Holmes'), true);
+});
+
+test('teachPersona forwards onReasoningToken and parses JSON spec', async () => {
+    const reasoningTokens = [];
+    const mockRequest = async (endpoint, payload, options) => {
+        if (options.onReasoningToken) {
+            options.onReasoningToken('Teacher is reasoning about persona traits.');
+        }
+        return JSON.stringify({
+            name: 'Viking',
+            traits: ['brave', 'loud'],
+            speech_style: ['boisterous'],
+            behavior_rules: ['speak of glory'],
+            avoid: ['whining'],
+            example_lines: ['To Valhalla!']
+        });
+    };
+
+    const result = await teachPersona('Viking', {
+        request: mockRequest,
+        onReasoningToken: t => reasoningTokens.push(t)
+    });
+
+    assert.equal(result.name, 'Viking');
+    assert.equal(result.source, 'teacher');
+    assert.deepEqual(reasoningTokens, ['Teacher is reasoning about persona traits.']);
 });
 

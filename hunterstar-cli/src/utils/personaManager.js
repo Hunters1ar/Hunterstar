@@ -222,6 +222,28 @@ export function listCachedPersonas() {
     return list;
 }
 
+export const DISALLOWED_PERSONA_NAMES = new Set([
+    'it', 'this', 'that', 'them', 'fast', 'heavy', 'cloud', 'own', 'normal', 'standard', 'default',
+    'your', 'my', 'his', 'her', 'our', 'their', 'a', 'an', 'the',
+    'personality', 'persona', 'character', 'mode', 'tone', 'style', 'behavior',
+    'your personality', 'my personality', 'new personality', 'different personality',
+    'new', 'different', 'another', 'other', 'own', 'someone', 'somebody', 'anyone',
+    'something', 'anything', 'good', 'bad', 'nice', 'careful', 'honest', 'quick',
+    'sure', 'serious', 'ready', 'real', 'human', 'ai', 'bot', 'assistant'
+]);
+
+/**
+ * Validates whether a candidate string is a plausible character archetype/persona name.
+ */
+export function isValidPersonaCandidate(name) {
+    if (!name || typeof name !== 'string') return false;
+    const clean = name.trim().toLowerCase();
+    if (clean.length < 2 || clean.length > 40) return false;
+    if (DISALLOWED_PERSONA_NAMES.has(clean)) return false;
+    if (/^(?:your|my|the|a|an|new|different)\s+(?:personality|persona|character|mode)$/i.test(clean)) return false;
+    return true;
+}
+
 /**
  * Detects if a user input is an explicit or natural-language persona request.
  * Guards against false positives like questions, definitions, creative writing, or system tier switches.
@@ -244,7 +266,10 @@ export function detectPersonaRequest(input) {
         if (['list', 'status', 'show'].includes(p.toLowerCase())) {
             return null; // Handled separately as inspection commands
         }
-        return { isPersona: true, isReset: false, persona: p };
+        if (isValidPersonaCandidate(p)) {
+            return { isPersona: true, isReset: false, persona: p };
+        }
+        return null;
     }
 
     // 2. Explicit resets
@@ -255,6 +280,24 @@ export function detectPersonaRequest(input) {
     // 3. Negative Guards (Avoid false positives)
     // Pure informational questions / definitions: "What does a tsundere personality mean?", "Why is tsundere popular?"
     if (/^(?:what\s+is|what\s+does|what\s+are|why\s+|how\s+does|how\s+do|who\s+is|who\s+are|explain\b|define\b|meaning\s+of\b|tell\s+me\s+about\b)/i.test(clean)) {
+        return null;
+    }
+    // Meta questions / capability queries about changing personality:
+    // "can you change your personality", "can you change personality", "could you switch your personality",
+    // "how do I change your personality", "are you able to change your personality", "do you have personalities"
+    if (/^(?:can\s+you|could\s+you|would\s+you|do\s+you|are\s+you\s+able\s+to|is\s+it\s+possible\s+to|how\s+do\s+i|how\s+can\s+i|how\s+to)\s+(?:change|switch|customize|modify|have|pick|choose)\s+(?:your\s+)?(?:personality|persona|character|mode|tone|behavior)$/i.test(clean)) {
+        return null;
+    }
+    if (/^(?:can\s+you|could\s+you|do\s+you)\s+(?:roleplay|act\s+like|pretend)$/i.test(clean)) {
+        return null;
+    }
+    if (/^(?:change|switch)\s+(?:your\s+)?(?:personality|persona|character|mode)$/i.test(clean)) {
+        return null;
+    }
+    if (/^(?:what|which)\s+(?:personality|persona|character|personalities|personas)\b/i.test(clean)) {
+        return null;
+    }
+    if (/^(?:do\s+you\s+have|have\s+you\s+got)\s+(?:a\s+|any\s+|different\s+|other\s+)?(?:personality|persona|character|personalities|personas)\b/i.test(clean)) {
         return null;
     }
     // Creative requests: "Write a story where someone acts like a pirate"
@@ -268,12 +311,33 @@ export function detectPersonaRequest(input) {
 
     // 4. Natural language persona switch patterns
 
-    // Pattern A: "switch into tsundere personality", "change to pirate persona", "change your personality to detective"
-    const switchPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:switch|change|turn)(?:\s+(?:your\s+)?(?:personality|persona|character|mode))?(?:\s+(?:in)?to)?\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
+    // Pattern A1: "switch into tsundere personality", "change to pirate persona", "change your personality to detective", "turn into a catgirl"
+    // MANDATORY (in)to so queries like "can you change your personality" without a target persona NEVER match
+    const switchPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:switch|change|turn)(?:\s+(?:your\s+)?(?:personality|persona|character|mode))?\s+(?:in)?to\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
     const switchMatch = clean.match(switchPattern);
     if (switchMatch) {
         const candidate = switchMatch[1].trim();
-        if (candidate && !['it', 'this', 'that', 'them', 'fast', 'heavy', 'normal', 'your personality', 'personality'].includes(candidate.toLowerCase())) {
+        if (isValidPersonaCandidate(candidate)) {
+            return { isPersona: true, isReset: false, persona: candidate };
+        }
+    }
+
+    // Pattern A2: "set personality to pirate", "set your persona to catgirl"
+    const setPattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?set\s+(?:your\s+)?(?:personality|persona|character|mode)\s+(?:to\s+)?(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)(?:\s+personality|\s+persona|\s+character|\s+mode)?$/i;
+    const setMatch = clean.match(setPattern);
+    if (setMatch) {
+        const candidate = setMatch[1].trim();
+        if (isValidPersonaCandidate(candidate)) {
+            return { isPersona: true, isReset: false, persona: candidate };
+        }
+    }
+
+    // Pattern A3: "use pirate persona", "use tsundere personality", "use detective mode"
+    const usePattern = /^(?:please\s+|can\s+you\s+|could\s+you\s+)?use\s+(?:a\s+|an\s+)?([a-zA-Z0-9_\-\s]{2,40}?)\s+(?:personality|persona|character|mode)$/i;
+    const useMatch = clean.match(usePattern);
+    if (useMatch) {
+        const candidate = useMatch[1].trim();
+        if (isValidPersonaCandidate(candidate)) {
             return { isPersona: true, isReset: false, persona: candidate };
         }
     }
@@ -283,7 +347,7 @@ export function detectPersonaRequest(input) {
     const wantMatch = clean.match(wantPattern);
     if (wantMatch) {
         const candidate = wantMatch[1].trim();
-        if (candidate && !['it', 'this', 'that', 'normal'].includes(candidate.toLowerCase())) {
+        if (isValidPersonaCandidate(candidate)) {
             return { isPersona: true, isReset: false, persona: candidate };
         }
     }
@@ -293,7 +357,7 @@ export function detectPersonaRequest(input) {
     const actMatch = clean.match(actPattern);
     if (actMatch) {
         const candidate = actMatch[1].trim();
-        if (candidate && !['it', 'this', 'that', 'normal'].includes(candidate.toLowerCase())) {
+        if (isValidPersonaCandidate(candidate)) {
             return { isPersona: true, isReset: false, persona: candidate };
         }
     }
@@ -303,7 +367,7 @@ export function detectPersonaRequest(input) {
     const beMatch = clean.match(bePattern);
     if (beMatch) {
         const candidate = beMatch[1].trim();
-        if (candidate && !['it', 'this', 'that', 'normal', 'nice', 'careful', 'honest', 'quick', 'fast', 'sure', 'serious', 'ready'].includes(candidate.toLowerCase())) {
+        if (isValidPersonaCandidate(candidate)) {
             return { isPersona: true, isReset: false, persona: candidate };
         }
     }
@@ -384,7 +448,9 @@ export async function teachPersona(personaName, {
     endpoint = HEAVY_API_URL,
     apiKey = API_KEY,
     teacherModel = DEFAULT_TEACHER_MODEL,
-    timeoutMs = 90000
+    timeoutMs = 90000,
+    onReasoningToken = null,
+    onContentToken = null
 } = {}) {
     const payload = {
         model: teacherModel,
@@ -402,7 +468,9 @@ export async function teachPersona(personaName, {
         responseText = await request(endpoint, payload, {
             apiKey,
             timeoutMs,
-            maxAttempts: 2
+            maxAttempts: 2,
+            onReasoningToken,
+            onContentToken
         });
     } catch (netErr) {
         // Teacher unreachable or timed out; generate resilient baseline spec

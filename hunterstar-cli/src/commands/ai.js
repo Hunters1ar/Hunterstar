@@ -274,7 +274,8 @@ Core Rules:
 - Reply directly using concise, engaging, natural plain text.
 - Never explain the character trope, never say you are an AI, and never break character.
 - You are a text-only companion. You CANNOT execute shell commands, run scripts, or manipulate files.
-- NEVER output [EXEC] blocks, XML tags, or shell commands.${personaBlock}`;
+- NEVER output [EXEC] blocks, XML tags, or shell commands.
+- If asked whether you can change your personality or roleplay, enthusiastically explain that you can! Mention that the user can ask you to switch into any persona (e.g. tsundere, pirate, catgirl, cyberpunk detective) or use "/persona <name>".${personaBlock}`;
 }
 
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
@@ -306,6 +307,64 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     let messages = [{ role: 'system', content: getSystemPrompt(platformInfo, currentProv) }];
     let activePersona = null;
     let canRetry = false;
+
+    async function activateOrTeachPersona(targetPersona) {
+        const cached = loadPersonaFromCache(targetPersona);
+        if (cached) {
+            activePersona = {
+                name: cached.spec.name,
+                spec: cached.spec,
+                compiledPrompt: buildPersonaPrompt(cached.spec),
+                teacherModel: cached.metadata.teacher_model,
+                source: 'cache'
+            };
+            console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready \u26A1)\x1b[0m\n`);
+            return true;
+        }
+
+        const teacherSpinner = createSpinner(`Heavy AI (35B MoE) is architecting persona "${targetPersona}"...`, { color: 'magenta' }).start();
+        let teacherReasoningStarted = false;
+        let accumulatedTeacherReasoning = '';
+
+        const onTeacherReasoning = (token) => {
+            if (!teacherReasoningStarted) {
+                teacherReasoningStarted = true;
+                if (teacherSpinner.isSpinning) {
+                    teacherSpinner.stop();
+                }
+                process.stdout.write(`\n\x1b[35m${HUNTERSTAR_LOGO} Heavy AI (35B MoE) architecting persona "${targetPersona}"...\x1b[0m\n\x1b[90m🧠 Teacher Reasoning:\x1b[0m\n\x1b[90m`);
+            }
+            accumulatedTeacherReasoning += token;
+            process.stdout.write(token);
+        };
+
+        try {
+            const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
+            const taught = await teachPersona(targetPersona, {
+                request,
+                endpoint: heavyUrl,
+                apiKey: getConfigValue('api-key') || API_KEY,
+                onReasoningToken: onTeacherReasoning
+            });
+            if (teacherReasoningStarted) {
+                process.stdout.write('\x1b[0m\n');
+                eraseThinkingBlock(accumulatedTeacherReasoning);
+            } else if (teacherSpinner.isSpinning) {
+                teacherSpinner.stop();
+            }
+            activePersona = taught;
+            console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m\n`);
+            return true;
+        } catch (err) {
+            if (teacherReasoningStarted) {
+                process.stdout.write('\x1b[0m\n');
+            } else if (teacherSpinner.isSpinning) {
+                teacherSpinner.stop();
+            }
+            console.log(`\x1b[31m[Teacher Error]\x1b[0m Could not architect persona: ${err.message}\n`);
+            return false;
+        }
+    }
     console.log('Use /retry to resume a failed request without repeating completed commands.');
 
     const isDangerousCommand = (cmd) => {
@@ -511,33 +570,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
             }
 
             const requestedPersona = parts.join(' ').trim();
-            const cached = loadPersonaFromCache(requestedPersona);
-            if (cached) {
-                activePersona = {
-                    name: cached.spec.name,
-                    spec: cached.spec,
-                    compiledPrompt: buildPersonaPrompt(cached.spec),
-                    teacherModel: cached.metadata.teacher_model,
-                    source: 'cache'
-                };
-                console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready \u26A1)\x1b[0m\n`);
-            } else {
-                const teacherSpinner = createSpinner(`Heavy AI (35B MoE) is architecting persona "${requestedPersona}"...`, { color: 'magenta' }).start();
-                try {
-                    const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
-                    const taught = await teachPersona(requestedPersona, {
-                        request,
-                        endpoint: heavyUrl,
-                        apiKey: getConfigValue('api-key') || API_KEY
-                    });
-                    teacherSpinner.stop();
-                    activePersona = taught;
-                    console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m\n`);
-                } catch (err) {
-                    teacherSpinner.stop();
-                    console.log(`\x1b[31m[Teacher Error]\x1b[0m Could not architect persona: ${err.message}\n`);
-                }
-            }
+            await activateOrTeachPersona(requestedPersona);
             continue;
         }
 
@@ -550,33 +583,8 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
             }
 
             const targetPersona = personaReq.persona;
-            const cached = loadPersonaFromCache(targetPersona);
-            if (cached) {
-                activePersona = {
-                    name: cached.spec.name,
-                    spec: cached.spec,
-                    compiledPrompt: buildPersonaPrompt(cached.spec),
-                    teacherModel: cached.metadata.teacher_model,
-                    source: 'cache'
-                };
-                console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready \u26A1)\x1b[0m`);
-            } else {
-                const teacherSpinner = createSpinner(`Heavy AI (35B MoE) is architecting persona "${targetPersona}"...`, { color: 'magenta' }).start();
-                try {
-                    const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
-                    const taught = await teachPersona(targetPersona, {
-                        request,
-                        endpoint: heavyUrl,
-                        apiKey: getConfigValue('api-key') || API_KEY
-                    });
-                    teacherSpinner.stop();
-                    activePersona = taught;
-                    console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m`);
-                } catch (err) {
-                    teacherSpinner.stop();
-                    console.log(`\x1b[31m[Teacher Error]\x1b[0m Could not architect persona: ${err.message}`);
-                }
-            }
+            await activateOrTeachPersona(targetPersona);
+            continue;
         }
 
         if (trimmed.toLowerCase() === '/retry') {
