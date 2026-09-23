@@ -163,6 +163,8 @@ export function getSystemPrompt(platformInfo, provider = 'cloud') {
 Operating system: ${platformInfo.osDisplayName}. Active shell: ${platformInfo.shell}. Command chaining: '${platformInfo.commandSeparator}'.
 To execute commands or inspect files, output exactly one [EXEC]command[/EXEC] block and wait for the execution result.
 Rules:
+- You are a text-based AI assistant. You ONLY generate text, code, explanations, prompts, and shell commands. You CANNOT generate videos, audio, or 3D assets.
+- If the user asks for video prompts, creative prompts, ideas, or text, output the prompt text directly. NEVER attempt to generate videos, write prompts to files, or search the user's computer for video generation tools (like Runway, Pika, Stable Diffusion, ffmpeg, or Python scripts).
 - For greetings, conversations, questions, text generation, and prompt crafting, reply directly with plain text. Do NOT execute shell commands or inspect directories unless the user explicitly requests system actions.
 - On Windows PowerShell: use Get-ChildItem, Select-String, Get-Content. Do not use Linux grep, touch, or &&.
 - FAST SEARCH: NEVER run unbounded -Recurse across entire user directory (C:\\Users\\...) or drive roots; it times out after 30s. Target specific subfolders ($env:APPDATA, $env:LOCALAPPDATA, Start Menu) or use -Depth 1.
@@ -176,6 +178,9 @@ Rules:
     return `You are the Hunterstar CLI AI Assistant.
 ${getShellGuidance(platformInfo)}
 ${memoryGuidance}
+
+You are a text-based AI assistant. You ONLY generate text, code, explanations, prompts, and shell commands. You CANNOT generate videos, audio, or 3D assets.
+If the user asks for video prompts or creative ideas, output the prompt text directly. Never search for or attempt to run video generation tools.
 
 You can execute commands on the user's system by wrapping them in [EXEC]command[/EXEC].
 When executing multiple steps, execute one command at a time, wait for the result, and then proceed to the next step.
