@@ -218,6 +218,11 @@ test('generateArchetypeSpec produces rich, tailored specs for common archetypes'
     const flirty = generateArchetypeSpec('silly prositute');
     assert.ok(flirty.traits.some(t => t.includes('flirtatious') || t.includes('teasing')));
     assert.ok(flirty.example_lines.some(l => l.includes('darling') || l.includes('extra')));
+
+    const bimbo = generateArchetypeSpec('silly bimbo');
+    assert.ok(bimbo.traits.some(t => t.includes('bubbly') || t.includes('airheaded')));
+    assert.ok(bimbo.speech_style.some(s => s.includes('omg') || s.includes('like')));
+    assert.ok(bimbo.example_lines.some(l => l.toLowerCase().includes('omg') || l.toLowerCase().includes('giggles')));
 });
 
 test('classifyPromptTier routes greetings and casual prompts to fast tier even with system prompt containing [EXEC]', async () => {

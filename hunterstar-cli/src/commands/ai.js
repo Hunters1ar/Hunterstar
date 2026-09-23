@@ -262,20 +262,31 @@ CRITICAL EXECUTION RULES:
 }
 
 export function getFastSystemPrompt(activePersona = null) {
-    let personaBlock = '';
-    let roleIntro = 'You are Hunterstar AI, a witty, fast, friendly conversational assistant.\nYou specialize in casual conversation, quick banter, brainstorming, and answering general questions with great personality.';
     if (activePersona?.compiledPrompt) {
-        roleIntro = `You are Hunterstar AI, actively roleplaying as the character persona "${activePersona.name}". You MUST speak and react strictly in-character in all responses.`;
-        personaBlock = `\n\n--------------------\n${activePersona.compiledPrompt}\n--------------------`;
+        return `[CHARACTER ROLEPLAY MODE ACTIVE]
+You are "${activePersona.name}".
+You must completely embody this character in every single word you say.
+NEVER sound like a generic AI assistant. NEVER say "How can I help you today?", "What would you like to brainstorm?", "As an AI", or use corporate helpful filler.
+Always speak with the exact tone, attitude, vocabulary, and quirks of "${activePersona.name}".
+
+${activePersona.compiledPrompt}
+
+CRITICAL RULES:
+- Reply in 1-3 natural, highly expressive sentences in this exact persona.
+- React directly to the user's emotion and question strictly as this character.
+- Emote and stay completely in character in every single response.
+- NEVER break character. NEVER explain your persona. NEVER mention you are an AI.
+- You are a text-only companion. NEVER output [EXEC] blocks, XML tags, or shell commands.`;
     }
-    return `${roleIntro}
+
+    return `You are Hunterstar AI, a witty, fast, friendly conversational assistant.
+You specialize in casual conversation, quick banter, brainstorming, and answering general questions with great personality.
 
 Core Rules:
 - Reply directly using concise, engaging, natural plain text.
-- Never explain the character trope, never say you are an AI, and never break character.
 - You are a text-only companion. You CANNOT execute shell commands, run scripts, or manipulate files.
 - NEVER output [EXEC] blocks, XML tags, or shell commands.
-- If asked whether you can change your personality or roleplay, enthusiastically explain that you can! Mention that the user can ask you to switch into any persona (e.g. tsundere, pirate, catgirl, cyberpunk detective) or use "/persona <name>".${personaBlock}`;
+- If asked whether you can change your personality or roleplay, enthusiastically confirm that you can! Mention that the user can ask you to switch into any persona (e.g. tsundere, pirate, catgirl, cyberpunk detective) or use "/persona <name>".`;
 }
 
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
@@ -318,7 +329,9 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 teacherModel: cached.metadata.teacher_model,
                 source: 'cache'
             };
-            console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready \u26A1)\x1b[0m\n`);
+            // Clear message history so previous assistant responses don't contaminate the persona
+            messages = [{ role: 'system', content: getFastSystemPrompt(activePersona) }];
+            console.log(`\x1b[32m\u2713 Loaded persona from cache:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Fast AI ready ⚡)\x1b[0m\n`);
             return true;
         }
 
@@ -353,7 +366,13 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 teacherSpinner.stop();
             }
             activePersona = taught;
-            console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m\n`);
+            // Clear message history so previous assistant responses don't contaminate the persona
+            messages = [{ role: 'system', content: getFastSystemPrompt(activePersona) }];
+            if (taught.source === 'teacher') {
+                console.log(`\x1b[35m\uD83E\uDDE0 Heavy AI taught Fast AI:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m\n`);
+            } else {
+                console.log(`\x1b[36m\u2728 Archetype spec loaded:\x1b[0m \x1b[1m${activePersona.name}\x1b[0m \x1b[90m(Cached to disk)\x1b[0m\n`);
+            }
             return true;
         } catch (err) {
             if (teacherReasoningStarted) {
@@ -550,6 +569,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
 
             if (sub === 'reset' || sub === 'clear' || sub === 'normal' || sub === 'off') {
                 activePersona = null;
+                messages = [{ role: 'system', content: getSystemPrompt(platformInfo, currentProv) }];
                 console.log('\x1b[32m\u2713 Persona reset: Hunterstar AI returned to standard personality.\x1b[0m\n');
                 continue;
             }
@@ -578,6 +598,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
         if (personaReq) {
             if (personaReq.isReset) {
                 activePersona = null;
+                messages = [{ role: 'system', content: getSystemPrompt(platformInfo, currentProv) }];
                 console.log('\x1b[32m\u2713 Persona reset: Hunterstar AI returned to standard personality.\x1b[0m\n');
                 continue;
             }
