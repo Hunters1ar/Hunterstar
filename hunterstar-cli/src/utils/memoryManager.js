@@ -95,6 +95,13 @@ export function recordUserLesson(text) {
     if (!text || !text.trim()) return null;
     const memory = loadMemory();
     const cleanText = text.trim();
+    const existing = memory.lessons.find(l => l.rule.toLowerCase() === cleanText.toLowerCase());
+    if (existing) {
+        existing.timesTriggered = (existing.timesTriggered || 1) + 1;
+        existing.lastEncountered = Date.now();
+        saveMemory(memory);
+        return existing;
+    }
     const item = {
         id: `user-${Date.now()}`,
         rule: cleanText,
@@ -115,7 +122,16 @@ export function clearMemory() {
 
 export function getLearnedPromptGuidance(maxItems = 3) {
     const memory = loadMemory();
-    const sorted = [...memory.lessons].sort((a, b) => (b.timesTriggered || 1) - (a.timesTriggered || 1));
+    const unique = [];
+    const seen = new Set();
+    for (const item of memory.lessons) {
+        const key = (item.rule || '').trim().toLowerCase();
+        if (key && !seen.has(key)) {
+            seen.add(key);
+            unique.push(item);
+        }
+    }
+    const sorted = unique.sort((a, b) => (b.timesTriggered || 1) - (a.timesTriggered || 1));
     const top = sorted.slice(0, maxItems);
     if (!top.length) return '';
 

@@ -257,6 +257,15 @@ CRITICAL EXECUTION RULES:
 - For secret scans, report paths and line numbers with values redacted; never print credentials.`;
 }
 
+export function getFastSystemPrompt() {
+    return `You are Hunterstar AI, a witty, fast, friendly conversational assistant.
+You specialize in casual conversation, quick banter, brainstorming, and answering general questions with great personality.
+Rules:
+- Reply directly using concise, engaging, natural plain text.
+- You are a text-only companion. You CANNOT execute shell commands, run scripts, or manipulate files.
+- NEVER output [EXEC] blocks, XML tags, or shell commands.`;
+}
+
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
     const platformInfo = runtime.platformInfo || detectPlatform();
     const request = runtime.request || requestAi;
@@ -534,14 +543,30 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const cfgMaxTokens = Number(getConfigValue('max_tokens'));
                 const maxTokens = Number.isFinite(cfgMaxTokens) && cfgMaxTokens > 0 ? cfgMaxTokens : 8192;
 
+                const requestMessages = messages.map((m, idx) => {
+                    if (idx === 0 && m.role === 'system') {
+                        return {
+                            role: 'system',
+                            content: routedTier === 'fast'
+                                ? getFastSystemPrompt()
+                                : getSystemPrompt(platformInfo, provider)
+                        };
+                    }
+                    if (routedTier === 'fast' && m.role === 'user' && typeof m.content === 'string') {
+                        const cleanContent = m.content.replace(/^\[CWD:\s*[^\]]+\]\s*\n?/i, '');
+                        return { ...m, content: cleanContent };
+                    }
+                    return m;
+                });
+
                 const payload = isDirectOpenAi ? {
-                    messages,
+                    messages: requestMessages,
                     model: activeModel,
                     max_tokens: maxTokens,
                     max_completion_tokens: maxTokens,
                     stream: true,
                 } : {
-                    messages, platform: platformInfo.os, shell: platformInfo.shell,
+                    messages: requestMessages, platform: platformInfo.os, shell: platformInfo.shell,
                     commandSeparator: platformInfo.commandSeparator, model: getConfigValue('model'),
                     max_tokens: maxTokens,
                     stream: true,
@@ -559,6 +584,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 let hasStartedReasoning = false;
                 let hasStartedContent = false;
                 let streamedDirectly = false;
+                let fastTokenBuffer = '';
 
                 const onReasoningToken = (token) => {
                     if (!hasStartedReasoning) {
@@ -584,7 +610,10 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                             streamedDirectly = true;
                         }
                         if (token) {
-                            process.stdout.write(token);
+                            fastTokenBuffer += token;
+                            if (!fastTokenBuffer.includes('[EXEC]')) {
+                                process.stdout.write(token);
+                            }
                         }
                         return;
                     }
@@ -615,6 +644,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         hasStartedReasoning = false;
                         hasStartedContent = false;
                         streamedDirectly = false;
+                        fastTokenBuffer = '';
                         thinkingSpinner.text = `API busy; retry ${attempt}/${maxAttempts} in ${Math.ceil(delay / 1000)}s...`;
                         if (!thinkingSpinner.isSpinning) thinkingSpinner.start();
                     },
@@ -637,10 +667,12 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     }
 
                     const executableText = aiMsg.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '');
-                    const toolCall = parseToolCall(executableText, platformInfo);
-                    const parsed = toolCall?.isSupported && toolCall.command
-                        ? { command: toolCall.command, normalText: cleanAiDisplayText(aiMsg), suggestion: true }
-                        : parseAiCommand(executableText);
+                    const toolCall = routedTier === 'fast' ? null : parseToolCall(executableText, platformInfo);
+                    const parsed = routedTier === 'fast'
+                        ? { command: null, normalText: cleanAiDisplayText(aiMsg), suggestion: false }
+                        : (toolCall?.isSupported && toolCall.command
+                            ? { command: toolCall.command, normalText: cleanAiDisplayText(aiMsg), suggestion: true }
+                            : parseAiCommand(executableText));
                     if (parsed.error) {
                         messages.push({ role: 'user', content: `[PROTOCOL ERROR] ${parsed.error} Active shell: ${platformInfo.shell}. Restate the pending step.` });
                         if (++protocolRepairs > 2) {
