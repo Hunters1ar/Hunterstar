@@ -182,3 +182,15 @@ test('getFastSystemPrompt preserves Hunterstar core rules and embeds compiled sp
     assert.ok(personaPrompt.includes('Name: Tsundere'));
     assert.ok(personaPrompt.includes('- flustered'));
 });
+
+test('classifyPromptTier routes greetings and casual prompts to fast tier even with system prompt containing [EXEC]', async () => {
+    const { classifyPromptTier } = await import('../src/utils/aiRouter.js');
+    const messages = [
+        { role: 'system', content: 'You can execute [EXEC]command[/EXEC]' },
+        { role: 'user', content: '[CWD: C:\\Users\\Hunte]\nhi' }
+    ];
+    const res = classifyPromptTier('hi', { messages });
+    assert.equal(res.tier, 'fast');
+    assert.equal(res.reason, 'Casual chatter / instant banter');
+});
+

@@ -7,7 +7,7 @@ export const HEAVY_MODEL = "Qwen3.6-35B-A3B";
 
 const CODE_KEYWORDS = /\b(code|script|function|def|class|interface|type|struct|enum|const|let|var|import|export|from|return|async|await|regex|sql|json|yaml|xml|html|css|javascript|typescript|python|bash|powershell|cmd|git|npm|docker|api|endpoint|ast|algorithm|refactor|compile|build|deploy)\b/i;
 const DEBUG_KEYWORDS = /\b(debug|debugging|bug|fix|error|exception|traceback|stacktrace|stack trace|crash|crashed|failing|fails|failed|broken|issue|fatal|syntax error|nullpointer|undefined is not|segfault|timeout)\b/i;
-const COMMAND_KEYWORDS = /\b(execute|run|exec|install|uninstall|npm|pip|cargo|git|docker|curl|wget|chmod|chown|ps|kill|pkill|find|search|grep|cat|ls|dir|Get-ChildItem|Select-String|read file|delete file|remove file|create file|edit file)\b/i;
+const COMMAND_KEYWORDS = /\b(execute|run|exec|install|uninstall|npm|pip|cargo|git|docker|curl|wget|chmod|chown|ps|kill|pkill|find|search|grep|cat|ls|dir|inspect|folder|directory|files?|Get-ChildItem|Select-String|read file|delete file|remove file|create file|edit file)\b/i;
 const PATH_PATTERN = /[a-zA-Z]:\\|\/(?:usr|var|etc|bin|home|root|tmp)\b|\b\w+\.(?:js|ts|py|json|html|css|cpp|c|cs|rs|go|sh|ps1|bat|md|yaml|yml)\b/i;
 
 /**
@@ -63,13 +63,14 @@ export function classifyPromptTier(prompt, {
         };
     }
 
-    // Active tool call or error repair context
-    if (messages.some(m => typeof m?.content === 'string' && (
-        m.content.includes('[EXECUTION RESULT]') ||
-        m.content.includes('[PROTOCOL ERROR]') ||
-        m.content.includes('<dots_function_response>') ||
-        m.content.includes('[EXEC]')
-    ))) {
+    // Active tool call or error repair context (only check non-system messages)
+    const nonSystemMessages = messages.filter(m => m && m.role !== 'system');
+    const lastNonSystem = nonSystemMessages[nonSystemMessages.length - 1];
+    if (lastNonSystem && typeof lastNonSystem.content === 'string' && (
+        lastNonSystem.content.includes('[EXECUTION RESULT]') ||
+        lastNonSystem.content.includes('[PROTOCOL ERROR]') ||
+        lastNonSystem.content.includes('<dots_function_response>')
+    )) {
         return {
             tier: 'heavy',
             endpoint: heavyUrl || HEAVY_API_URL,
@@ -165,14 +166,4 @@ export function classifyPromptTier(prompt, {
         label: 'Fast Chat Tier (1.5B)'
     };
 }
-
-export {
-    detectPersonaRequest,
-    teachPersona,
-    buildPersonaPrompt,
-    loadPersonaFromCache,
-    savePersonaToCache,
-    listCachedPersonas,
-    validatePersonaSpec
-} from './personaManager.js';
 

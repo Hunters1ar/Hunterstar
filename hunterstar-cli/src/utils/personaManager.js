@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { getConfigDir, HEAVY_API_URL, API_KEY } from './configManager.js';
+import { getConfigDir } from './configManager.js';
+import { HEAVY_API_URL, API_KEY } from './aiRouter.js';
 import { requestAi } from './aiTransport.js';
 
 export const PERSONA_SCHEMA_VERSION = 1;
