@@ -29,6 +29,31 @@ function renderMarkdown(text) {
     return result;
 }
 
+export function calculateVisualRows(text, cols = 80) {
+    if (!text) return 0;
+    const clean = text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    const lines = clean.split('\n');
+    let rows = 0;
+    for (const l of lines) {
+        rows += Math.max(1, Math.ceil((l.length || 1) / cols));
+    }
+    return rows;
+}
+
+function eraseThinkingBlock(accumulatedThinking) {
+    if (!process.stdout.isTTY) return;
+    const cols = process.stdout.columns || 80;
+    const fullPrinted = '\n🧠 Thinking Process:\n' + accumulatedThinking;
+    const totalRows = calculateVisualRows(fullPrinted, cols);
+    const maxMoves = process.stdout.rows ? process.stdout.rows - 1 : 100;
+    const moves = Math.min(Math.max(0, totalRows - 1), maxMoves);
+
+    process.stdout.write('\r\x1b[2K');
+    for (let i = 0; i < moves; i++) {
+        process.stdout.write('\x1b[1A\x1b[2K');
+    }
+}
+
 function decodeXmlEntities(str) {
     if (!str) return '';
     return str
@@ -457,29 +482,37 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const timeoutMs = Number.isFinite(userTimeout) && userTimeout > 0 ? userTimeout : defaultTimeout;
                 const maxAttempts = isDirectOpenAi ? 2 : 3;
 
+                const requestStartTime = Date.now();
+                let thinkingStartTime = null;
+                let thinkingDurationMs = 0;
+                let accumulatedThinking = '';
                 let hasStartedReasoning = false;
                 let hasStartedContent = false;
 
                 const onReasoningToken = (token) => {
                     if (!hasStartedReasoning) {
                         hasStartedReasoning = true;
+                        thinkingStartTime = Date.now();
                         if (thinkingSpinner.isSpinning) {
                             thinkingSpinner.stop();
                         }
                         process.stdout.write('\n\x1b[90m🧠 Thinking Process:\x1b[0m\n\x1b[90m');
                     }
+                    accumulatedThinking += token;
                     process.stdout.write(token);
                 };
 
                 const onContentToken = () => {
                     if (hasStartedReasoning && !hasStartedContent) {
                         hasStartedContent = true;
-                        process.stdout.write('\x1b[0m\n\x1b[90m─────────────────────────────────────────\x1b[0m\n');
+                        thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
+                        process.stdout.write('\x1b[0m');
+                        eraseThinkingBlock(accumulatedThinking);
+                        thinkingSpinner.text = 'Generating response...';
+                        thinkingSpinner.start();
                     } else if (!hasStartedReasoning && !hasStartedContent) {
                         hasStartedContent = true;
-                        if (thinkingSpinner.isSpinning) {
-                            thinkingSpinner.stop();
-                        }
+                        thinkingSpinner.text = 'Generating response...';
                     }
                 };
 
@@ -534,9 +567,12 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     }
                     const { normalText, command: commandToRun, suggestion: isSuggestion } = parsed;
 
-                    const onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
+                    const totalDurationSec = ((Date.now() - requestStartTime) / 1000).toFixed(1);
+                    const thinkSec = thinkingDurationMs > 0 ? (thinkingDurationMs / 1000).toFixed(1) : null;
+                    const timeBadge = thinkSec ? `(${totalDurationSec}s · thought ${thinkSec}s)` : `(${totalDurationSec}s)`;
+
                     if (normalText && !onlyHadReasoning) {
-                        console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
+                        console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m${timeBadge}\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
                     }
 
                     if (commandToRun) {
@@ -547,9 +583,9 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         }
 
                         if (isSuggestion) {
-                            console.log(`\n\x1b[33m\u2753 The AI suggested this command:\x1b[0m`);
+                            console.log(`\n\x1b[33m\u2753 The AI suggested this command:\x1b[0m \x1b[90m${timeBadge}\x1b[0m`);
                         } else {
-                            console.log(`\n\x1b[33m\u26A1 Hunterstar AI requested to execute:\x1b[0m`);
+                            console.log(`\n\x1b[33m\u26A1 Hunterstar AI requested to execute:\x1b[0m \x1b[90m${timeBadge}\x1b[0m`);
                         }
                         
                         const cmdLines = commandToRun.split('\n').map(l => l.trim()).filter(Boolean);

@@ -354,4 +354,19 @@ test('requestAi handles non-streaming responses with reasoning_content fallback'
     assert.deepEqual(reasoning, ['Non-streaming thought process']);
 });
 
+test('calculateVisualRows accurately computes line and wrap counts for thinking erasure', async () => {
+    const { calculateVisualRows } = await import('../src/commands/ai.js');
+
+    assert.equal(calculateVisualRows(''), 0);
+    assert.equal(calculateVisualRows('Single line', 80), 1);
+    assert.equal(calculateVisualRows('Line 1\nLine 2\nLine 3', 80), 3);
+    assert.equal(calculateVisualRows('\n🧠 Thinking Process:\nLine 1\nLine 2', 80), 4);
+    // Line wrapping: 85 chars with cols=80 takes 2 visual rows
+    const longLine = 'a'.repeat(85);
+    assert.equal(calculateVisualRows(longLine, 80), 2);
+    // ANSI codes stripped properly
+    assert.equal(calculateVisualRows('\x1b[90m' + 'a'.repeat(80) + '\x1b[0m', 80), 1);
+});
+
+
 
