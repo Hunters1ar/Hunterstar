@@ -10,7 +10,8 @@ import { loadConfig, setConfigValue, getConfigValue, applyPreset, FAST_API_URL, 
 import { classifyPromptTier } from '../utils/aiRouter.js';
 import {
     detectPersonaRequest, teachPersona, buildPersonaPrompt,
-    loadPersonaFromCache, savePersonaToCache, listCachedPersonas
+    loadPersonaFromCache, savePersonaToCache, listCachedPersonas,
+    getPersonasDir, slugifyPersonaName
 } from '../utils/personaManager.js';
 import { createSpinner, HUNTERSTAR_LOGO, hunterstarTheme } from '../spinner.js';
 import { detectPlatform, getShellGuidance } from '../utils/platform.js';
@@ -285,6 +286,7 @@ Always speak directly with the exact tone, attitude, vocabulary, and quirks of "
 ${activePersona.compiledPrompt}
 
 CRITICAL RULES:
+- GREETINGS: When greeted ("hi", "hello", "hey", "how are you"), ALWAYS reply naturally in-character with affection, charm, or attitude matching "${activePersona.name}". NEVER say "How can I help you today?" or "How can I assist you?".
 - Reply in 1-3 natural, highly expressive sentences in this exact persona.
 - React directly to the user's emotion and question strictly as this character.
 - Emote and stay completely in character in every single response.
@@ -618,6 +620,57 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
 
             const targetPersona = personaReq.persona;
             await activateOrTeachPersona(targetPersona);
+            continue;
+        }
+
+        // Natural language persona management tasks
+        if (/^(?:delete|remove|clear|erase)\s+(?:all\s+)?personas?$/i.test(trimmed)) {
+            const dir = getPersonasDir();
+            let count = 0;
+            if (fs.existsSync(dir)) {
+                const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+                for (const f of files) {
+                    try {
+                        fs.unlinkSync(path.join(dir, f));
+                        count++;
+                    } catch {}
+                }
+            }
+            activePersona = null;
+            messages = [{ role: 'system', content: getSystemPrompt(platformInfo, currentProv) }];
+            console.log(`\x1b[32m\u2713 Deleted ${count} cached persona(s) from disk. Standard personality restored.\x1b[0m\n`);
+            continue;
+        }
+
+        const deleteSingleMatch = trimmed.match(/^(?:delete|remove|erase)\s+persona\s+([a-zA-Z0-9_\-\s]{2,40})$/i);
+        if (deleteSingleMatch) {
+            const targetName = deleteSingleMatch[1].trim();
+            const slug = slugifyPersonaName(targetName);
+            const filePath = path.join(getPersonasDir(), `${slug}.json`);
+            if (fs.existsSync(filePath)) {
+                try { fs.unlinkSync(filePath); } catch {}
+                if (activePersona?.name?.toLowerCase() === targetName.toLowerCase()) {
+                    activePersona = null;
+                    messages = [{ role: 'system', content: getSystemPrompt(platformInfo, currentProv) }];
+                }
+                console.log(`\x1b[32m\u2713 Deleted persona "${targetName}" from disk.\x1b[0m\n`);
+            } else {
+                console.log(`\x1b[33mPersona "${targetName}" was not found in cache.\x1b[0m\n`);
+            }
+            continue;
+        }
+
+        if (/^(?:list|show|view|see)\s+(?:all\s+)?personas?$/i.test(trimmed)) {
+            const list = listCachedPersonas();
+            console.log('\n\x1b[36m--- Cached Personas (~/.hunterstar/personas/) ---\x1b[0m');
+            if (list.length === 0) {
+                console.log('  No cached personas found.');
+            } else {
+                list.forEach(p => {
+                    console.log(`  \x1b[35m\u2022\x1b[0m \x1b[1m${p.name}\x1b[0m \x1b[90m(slug: ${p.slug}, teacher: ${p.teacher_model})\x1b[0m`);
+                });
+            }
+            console.log('\x1b[36m-------------------------------------------------\x1b[0m\n');
             continue;
         }
 
