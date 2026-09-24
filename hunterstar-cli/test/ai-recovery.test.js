@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { requestAi, AiRequestError, retryDelay } from '../src/utils/aiTransport.js';
-import { parseAiCommand } from '../src/utils/aiProtocol.js';
+import { parseAiCommand, extractRescuedCommand } from '../src/utils/aiProtocol.js';
 import { isUserCancellation } from '../src/utils/errors.js';
 import { startAiChat, parseToolCall } from '../src/commands/ai.js';
 
@@ -432,20 +432,40 @@ test('classifyPromptTier intelligently routes casual chatter to fast tier and co
     assert.equal(forcedHeavy.tier, 'heavy');
 });
 
-test('command rescue extracts final [EXEC] block from thought output when model ends inside reasoning', () => {
-    const rawThinking = `1. Understand User Request: analyze RAM
-3. Command to Use: \`Get-Process\`
-Proceed.
-Output: '[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 Name, @{N="RAM_MB";E={[math]::Round($_.WorkingSet64/1MB,2)}}[/EXEC]'
+test('extractRescuedCommand extracts command from thought output across various formats', () => {
+    // 1. [EXEC] in thoughts
+    const execText = `1. Understand User Request: analyze RAM
+Output: '[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15[/EXEC]'
 Wait, let me verify syntax.
-I'll output exactly that.
-\`[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 Name, @{N="RAM_MB";E={[math]::Round($_.WorkingSet64/1MB,2)}}[/EXEC]\`
-*Self-Correction*: It is valid.`;
+\`[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10[/EXEC]\``;
+    assert.equal(extractRescuedCommand(execText), 'Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10');
 
-    const execBlocks = [...rawThinking.matchAll(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/g)];
-    assert.equal(execBlocks.length, 2);
-    const rescuedCommand = execBlocks[execBlocks.length - 1][1].trim();
-    assert.equal(rescuedCommand, 'Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 Name, @{N="RAM_MB";E={[math]::Round($_.WorkingSet64/1MB,2)}}');
+    // 2. Fenced code block in thoughts
+    const fencedText = `I will run this powershell command:
+\`\`\`powershell
+Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10
+\`\`\``;
+    assert.equal(extractRescuedCommand(fencedText), 'Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10');
+
+    // 3. Labeled command
+    const labeledText = `The user wants RAM analysis.
+Final command: \`Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory\`.`;
+    assert.equal(extractRescuedCommand(labeledText), 'Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory');
+
+    // 4. Backtick cmdlet
+    const backtickText = `We should check memory with \`Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 5\` to see top consumers.`;
+    assert.equal(extractRescuedCommand(backtickText), 'Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 5');
+
+    // 5. Standalone line cmdlet
+    const standaloneText = `I need to inspect the RAM. Let's run:
+Get-Process | Sort-Object WS -Descending | Select-Object -First 10
+That will give the desired information.`;
+    assert.equal(extractRescuedCommand(standaloneText), 'Get-Process | Sort-Object WS -Descending | Select-Object -First 10');
+
+    // 6. Non-command thoughts return null
+    assert.equal(extractRescuedCommand('The user is asking about the weather in Tokyo. I should answer nicely.'), null);
+    assert.equal(extractRescuedCommand(''), null);
+    assert.equal(extractRescuedCommand(null), null);
 });
 
 

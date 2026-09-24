@@ -1,5 +1,5 @@
 import { requestAi } from '../utils/aiTransport.js';
-import { parseAiCommand } from '../utils/aiProtocol.js';
+import { parseAiCommand, extractRescuedCommand } from '../utils/aiProtocol.js';
 import { isUserCancellation } from '../utils/errors.js';
 import { exec } from 'child_process';
 import util from 'util';
@@ -191,7 +191,13 @@ export function getSystemPrompt(platformInfo, provider = 'cloud', activePersona 
     if (provider === 'own') {
         let prompt = `You are the Hunterstar CLI AI Assistant.
 Operating system: ${platformInfo.osDisplayName}. Active shell: ${platformInfo.shell}. Command chaining: '${platformInfo.commandSeparator}'.
-To execute commands or inspect files, output exactly one [EXEC]command[/EXEC] block and wait for the execution result.
+To execute commands or inspect files, close your thinking with </think> then output exactly one [EXEC]command[/EXEC] block.
+Format:
+<think>
+Brief strategy (under 40 words).
+</think>
+[EXEC]command[/EXEC]
+
 Rules:
 - You are a text-based AI assistant. You ONLY generate text, code, explanations, prompts, and shell commands. You CANNOT generate videos, audio, or 3D assets.
 - If the user asks for video prompts, creative prompts, ideas, or text, output the prompt text directly. NEVER attempt to generate videos, write prompts to files, or search the user's computer for video generation tools (like Runway, Pika, Stable Diffusion, ffmpeg, or Python scripts).
@@ -202,7 +208,7 @@ Rules:
 - For images: use 'hunterstar convert --from <src> --to <target>'.
 - Always return a single-line shell command inside [EXEC]. Do not output XML or multi-line script blocks.
 - Never claim success without a successful execution result. Continue after each execution result until complete.
-- CRITICAL REASONING RULES: Keep your internal thinking brief (under 60 words). Do NOT write [EXEC] blocks inside your thinking. Do NOT repeatedly draft, loop, or second-guess commands in your thoughts. As soon as you decide on the command, conclude thinking immediately and emit exactly one [EXEC]command[/EXEC] block in your response.${memoryGuidance}`;
+- Keep internal thinking brief (under 40 words). Close thinking with </think> as soon as the command is decided.${memoryGuidance}`;
 
         if (activePersona?.name) {
             prompt += `\n\n[ACTIVE CHARACTER PERSONA: ${activePersona.name}]\nYou are currently portraying "${activePersona.name}". While executing shell commands and providing factual execution results, reflect this persona's voice, attitude, and tone in your commentary. Never skip running the actual shell command or fabricate system data.`;
@@ -810,13 +816,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 });
                 const onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
                 if (onlyHadReasoning) {
-                    // Rescue [EXEC] command or markdown code block if drafted inside the thinking process
-                    const execBlocks = [...aiMsg.matchAll(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/g)];
-                    const markdownCmd = aiMsg.match(/```(?:bash|cmd|powershell|sh)\r?\n([\s\S]*?)\r?\n```/);
-                    const rescuedCommand = execBlocks.length > 0
-                        ? execBlocks[execBlocks.length - 1][1].trim()
-                        : markdownCmd?.[1]?.trim();
-
+                    const rescuedCommand = extractRescuedCommand(aiMsg);
                     if (rescuedCommand) {
                         hasStartedContent = true;
                         thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
@@ -827,7 +827,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         process.stdout.write('\x1b[0m');
                         eraseThinkingBlock(accumulatedThinking);
                         console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block without an executable action.\x1b[0m');
-                        console.log('\x1b[90mTip: Increase token budget with "/config max_tokens 16384" or rephrase your request.\x1b[0m\n');
+                        console.log('\x1b[90mTip: Rephrase your request or specify the action directly.\x1b[0m\n');
                         isProcessing = false;
                         canRetry = true;
                         continue;
