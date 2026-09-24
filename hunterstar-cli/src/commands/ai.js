@@ -1,5 +1,5 @@
 import { requestAi } from '../utils/aiTransport.js';
-import { parseAiCommand, extractRescuedCommand } from '../utils/aiProtocol.js';
+import { parseAiCommand, extractRescuedCommand, extractRescuedAnswer } from '../utils/aiProtocol.js';
 import { isUserCancellation } from '../utils/errors.js';
 import { exec } from 'child_process';
 import util from 'util';
@@ -165,7 +165,8 @@ export function cleanAiDisplayText(text) {
     const withoutThink = withoutTools
         .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '')
         .trim();
-    return withoutThink || withoutTools.trim();
+    if (withoutThink) return withoutThink;
+    return withoutTools.replace(/<\/?think>/gi, '').trim();
 }
 
 function getExtendedPath(platformInfo) {
@@ -192,12 +193,19 @@ export function getSystemPrompt(platformInfo, provider = 'cloud', activePersona 
     if (provider === 'own') {
         let prompt = `You are the Hunterstar CLI AI Assistant.
 Operating system: ${platformInfo.osDisplayName}. Active shell: ${platformInfo.shell}. Command chaining: '${platformInfo.commandSeparator}'.
-To execute commands or inspect files, close your thinking with </think> then output exactly one [EXEC]command[/EXEC] block.
-Format:
+
+CRITICAL RESPONSE FORMAT:
+1. When executing commands or inspecting files:
 <think>
 Brief strategy (under 40 words).
 </think>
 [EXEC]command[/EXEC]
+
+2. When providing the final answer, summary, or answering questions:
+<think>
+Brief synthesis (under 40 words).
+</think>
+Direct, clear answer to the user with the findings, explanation, or results. You MUST close </think> before writing your final response.
 
 Rules:
 - You are a text-based AI assistant. You ONLY generate text, code, explanations, prompts, and shell commands. You CANNOT generate videos, audio, or 3D assets.
@@ -209,7 +217,7 @@ Rules:
 - For images: use 'hunterstar convert --from <src> --to <target>'.
 - Always return a single-line shell command inside [EXEC]. Do not output XML or multi-line script blocks.
 - Never claim success without a successful execution result. Continue after each execution result until complete.
-- Keep internal thinking brief (under 40 words). Close thinking with </think> as soon as the command is decided.${memoryGuidance}`;
+- Keep internal thinking brief (under 40 words). ALWAYS close thinking with </think> before outputting commands or answers.${memoryGuidance}`;
 
         if (activePersona?.name) {
             prompt += `\n\n[ACTIVE CHARACTER PERSONA: ${activePersona.name}]\nYou are currently portraying "${activePersona.name}". While executing shell commands and providing factual execution results, reflect this persona's voice, attitude, and tone in your commentary. Never skip running the actual shell command or fabricate system data.`;
@@ -869,7 +877,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         if (!thinkingSpinner.isSpinning) thinkingSpinner.start();
                     },
                 });
-                const onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
+                let onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
                 if (onlyHadReasoning) {
                     const rescuedCommand = extractRescuedCommand(aiMsg);
                     if (rescuedCommand) {
@@ -879,13 +887,23 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         eraseThinkingBlock(accumulatedThinking);
                         aiMsg = `[EXEC]${rescuedCommand}[/EXEC]`;
                     } else {
-                        process.stdout.write('\x1b[0m');
-                        eraseThinkingBlock(accumulatedThinking);
-                        console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block without an executable action.\x1b[0m');
-                        console.log('\x1b[90mTip: Rephrase your request or specify the action directly.\x1b[0m\n');
-                        isProcessing = false;
-                        canRetry = true;
-                        continue;
+                        const rescuedAnswer = extractRescuedAnswer(aiMsg);
+                        if (rescuedAnswer && rescuedAnswer.trim().length > 0) {
+                            hasStartedContent = true;
+                            onlyHadReasoning = false;
+                            thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
+                            process.stdout.write('\x1b[0m');
+                            eraseThinkingBlock(accumulatedThinking);
+                            aiMsg = rescuedAnswer.trim();
+                        } else {
+                            process.stdout.write('\x1b[0m');
+                            eraseThinkingBlock(accumulatedThinking);
+                            console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block without an executable action.\x1b[0m');
+                            console.log('\x1b[90mTip: Rephrase your request or specify the action directly.\x1b[0m\n');
+                            isProcessing = false;
+                            canRetry = true;
+                            continue;
+                        }
                     }
                 }
                 thinkingSpinner.stop();

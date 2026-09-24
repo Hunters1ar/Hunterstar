@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { requestAi, AiRequestError, retryDelay } from '../src/utils/aiTransport.js';
-import { parseAiCommand, extractRescuedCommand } from '../src/utils/aiProtocol.js';
+import { parseAiCommand, extractRescuedCommand, extractRescuedAnswer } from '../src/utils/aiProtocol.js';
 import { isUserCancellation } from '../src/utils/errors.js';
 import { startAiChat, parseToolCall } from '../src/commands/ai.js';
 
@@ -466,6 +466,89 @@ That will give the desired information.`;
     assert.equal(extractRescuedCommand('The user is asking about the weather in Tokyo. I should answer nicely.'), null);
     assert.equal(extractRescuedCommand(''), null);
     assert.equal(extractRescuedCommand(null), null);
+
+    // 7. Explicit final summary/answer section without [EXEC] defers to extractRescuedAnswer (returns null)
+    const summaryWithCmdlet = `<think>We previously ran \`Get-ChildItem\` to search for model weights.
+### Final Findings
+Found 3 AI model weights on your system:
+- E:\\models\\flux1-dev.safetensors (23.8 GB)
+- E:\\models\\sd_xl_base.safetensors (6.9 GB)
+</think>`;
+    assert.equal(extractRescuedCommand(summaryWithCmdlet), null);
+});
+
+test('extractRescuedAnswer extracts clean synthesis from thinking blocks', () => {
+    // 1. Explicit marker
+    const markerText = `<think>Let me see. The search finished.
+Here are the findings:
+- Model 1: flux.safetensors (23.8 GB)
+- Model 2: sdxl.safetensors (6.4 GB)
+Located in E:\\models.</think>`;
+    const answer1 = extractRescuedAnswer(markerText);
+    assert.match(answer1, /flux\.safetensors/);
+    assert.match(answer1, /sdxl\.safetensors/);
+    assert.ok(!answer1.includes('<think>'));
+
+    // 2. Heading marker
+    const headingText = `<think>Analyzing results from previous turn.
+### Discovered Models
+1. E:\\models\\model1.gguf
+2. E:\\models\\model2.gguf
+Done searching.</think>`;
+    const answer2 = extractRescuedAnswer(headingText);
+    assert.match(answer2, /### Discovered Models/);
+    assert.match(answer2, /model1\.gguf/);
+
+    // 3. Filtering meta thoughts at start
+    const metaText = `<think>I need to answer the user's question now.
+Let me check the results.
+The search across all drives found no AI models on this computer. You can download models from HuggingFace.</think>`;
+    const answer3 = extractRescuedAnswer(metaText);
+    assert.match(answer3, /The search across all drives found no AI models/);
+    assert.ok(!answer3.includes('I need to'));
+
+    // 4. Edge cases
+    assert.equal(extractRescuedAnswer(''), '');
+    assert.equal(extractRescuedAnswer(null), '');
+});
+
+test('startAiChat rescues textual answer when task completes inside thinking block without executable action', async () => {
+    const inputs = ['find all AI models on my drive', '/exit'];
+    const requests = [];
+    let executions = 0;
+    const stdoutWrites = [];
+    const origWrite = process.stdout.write;
+    process.stdout.write = chunk => { stdoutWrites.push(String(chunk)); return true; };
+
+    try {
+        await startAiChat({ turbo: true }, {
+            platformInfo,
+            ask: async () => inputs.shift() ?? assert.fail('unexpected prompt'),
+            execute: async command => {
+                executions++;
+                assert.match(command, /Get-ChildItem/);
+                return { stdout: 'flux.safetensors\nsdxl.safetensors', stderr: '' };
+            },
+            request: async (_, payload, options) => {
+                requests.push(structuredClone(payload));
+                if (requests.length === 1) {
+                    return '[EXEC]Get-ChildItem -Filter *.safetensors[/EXEC]';
+                }
+                // Turn 2: Final synthesis inside thinking block (simulating llama.cpp streaming reasoning)
+                if (options?.onReasoningToken) {
+                    options.onReasoningToken('I have analyzed the search results.\n### Final Findings\nFound 2 AI models:\n- flux.safetensors\n- sdxl.safetensors');
+                }
+                return 'I have analyzed the search results.\n### Final Findings\nFound 2 AI models:\n- flux.safetensors\n- sdxl.safetensors';
+            },
+        });
+    } finally {
+        process.stdout.write = origWrite;
+    }
+
+    assert.equal(executions, 1);
+    assert.equal(requests.length, 2);
+    // Verify the second request includes the execution result
+    assert.match(requests[1].messages.at(-1).content, /flux\.safetensors/);
 });
 
 
