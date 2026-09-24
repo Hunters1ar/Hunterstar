@@ -406,6 +406,24 @@ test('classifyPromptTier intelligently routes casual chatter to fast tier and co
     });
     assert.equal(agentMsg.tier, 'heavy');
 
+    // System resource / diagnostic analysis -> heavy
+    const ramQuery = classifyPromptTier('analyze my ram usage and tell me what most consuming');
+    assert.equal(ramQuery.tier, 'heavy');
+    assert.equal(ramQuery.endpoint, HEAVY_API_URL);
+    assert.equal(ramQuery.model, HEAVY_MODEL);
+
+    const cpuQuery = classifyPromptTier('check my cpu temperature and usage');
+    assert.equal(cpuQuery.tier, 'heavy');
+
+    const procQuery = classifyPromptTier('show running processes');
+    assert.equal(procQuery.tier, 'heavy');
+
+    const diskQuery = classifyPromptTier('what is taking up disk space');
+    assert.equal(diskQuery.tier, 'heavy');
+
+    const osCmd = classifyPromptTier('Get-Process | Sort-Object WorkingSet64 -Descending');
+    assert.equal(osCmd.tier, 'heavy');
+
     // Manual overrides
     const forcedFast = classifyPromptTier('write complex compiler AST in rust', { forcedTier: 'fast' });
     assert.equal(forcedFast.tier, 'fast');

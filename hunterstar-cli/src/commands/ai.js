@@ -185,11 +185,11 @@ function getExtendedPath(platformInfo) {
     }
     return envPath;
 }
-export function getSystemPrompt(platformInfo, provider = 'cloud') {
+export function getSystemPrompt(platformInfo, provider = 'cloud', activePersona = null) {
     const memoryGuidance = getLearnedPromptGuidance(3);
 
     if (provider === 'own') {
-        return `You are the Hunterstar CLI AI Assistant.
+        let prompt = `You are the Hunterstar CLI AI Assistant.
 Operating system: ${platformInfo.osDisplayName}. Active shell: ${platformInfo.shell}. Command chaining: '${platformInfo.commandSeparator}'.
 To execute commands or inspect files, output exactly one [EXEC]command[/EXEC] block and wait for the execution result.
 Rules:
@@ -203,6 +203,11 @@ Rules:
 - Always return a single-line shell command inside [EXEC]. Do not output XML or multi-line script blocks.
 - Never claim success without a successful execution result. Continue after each execution result until complete.
 - Be concise and direct in thinking. Avoid repetitive drafting or second-guessing in your thought process.${memoryGuidance}`;
+
+        if (activePersona?.name) {
+            prompt += `\n\n[ACTIVE CHARACTER PERSONA: ${activePersona.name}]\nYou are currently portraying "${activePersona.name}". While executing shell commands and providing factual execution results, reflect this persona's voice, attitude, and tone in your commentary. Never skip running the actual shell command or fabricate system data.`;
+        }
+        return prompt;
     }
 
     return `You are the Hunterstar CLI AI Assistant.
@@ -696,7 +701,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                             role: 'system',
                             content: routedTier === 'fast'
                                 ? getFastSystemPrompt(activePersona)
-                                : getSystemPrompt(platformInfo, provider)
+                                : getSystemPrompt(platformInfo, provider, activePersona)
                         };
                     }
                     if (routedTier === 'fast' && m.role === 'user' && typeof m.content === 'string') {
@@ -845,7 +850,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     
                     let tierTag = '';
                     if (routedTier === 'fast') tierTag = activePersona ? ` · Fast [${activePersona.name}]` : ' · Fast';
-                    else if (routedTier === 'heavy') tierTag = ' · MoE';
+                    else if (routedTier === 'heavy') tierTag = activePersona ? ` · MoE [${activePersona.name}]` : ' · MoE';
 
                     const timeBadge = thinkSec 
                         ? `(${totalDurationSec}s · thought ${thinkSec}s${tierTag})` 
