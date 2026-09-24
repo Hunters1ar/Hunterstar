@@ -202,7 +202,7 @@ Rules:
 - For images: use 'hunterstar convert --from <src> --to <target>'.
 - Always return a single-line shell command inside [EXEC]. Do not output XML or multi-line script blocks.
 - Never claim success without a successful execution result. Continue after each execution result until complete.
-- Be concise and direct in thinking. Avoid repetitive drafting or second-guessing in your thought process.${memoryGuidance}`;
+- CRITICAL REASONING RULES: Keep your internal thinking brief (under 60 words). Do NOT write [EXEC] blocks inside your thinking. Do NOT repeatedly draft, loop, or second-guess commands in your thoughts. As soon as you decide on the command, conclude thinking immediately and emit exactly one [EXEC]command[/EXEC] block in your response.${memoryGuidance}`;
 
         if (activePersona?.name) {
             prompt += `\n\n[ACTIVE CHARACTER PERSONA: ${activePersona.name}]\nYou are currently portraying "${activePersona.name}". While executing shell commands and providing factual execution results, reflect this persona's voice, attitude, and tone in your commentary. Never skip running the actual shell command or fabricate system data.`;
@@ -810,12 +810,28 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 });
                 const onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
                 if (onlyHadReasoning) {
-                    process.stdout.write('\x1b[0m\n');
-                    console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block (token limit reached).\x1b[0m');
-                    console.log('\x1b[90mTip: Increase token budget with "/config max_tokens 16384" if needed.\x1b[0m\n');
-                    isProcessing = false;
-                    canRetry = true;
-                    continue;
+                    // Rescue [EXEC] command or markdown code block if drafted inside the thinking process
+                    const execBlocks = [...aiMsg.matchAll(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/g)];
+                    const markdownCmd = aiMsg.match(/```(?:bash|cmd|powershell|sh)\r?\n([\s\S]*?)\r?\n```/);
+                    const rescuedCommand = execBlocks.length > 0
+                        ? execBlocks[execBlocks.length - 1][1].trim()
+                        : markdownCmd?.[1]?.trim();
+
+                    if (rescuedCommand) {
+                        hasStartedContent = true;
+                        thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
+                        process.stdout.write('\x1b[0m');
+                        eraseThinkingBlock(accumulatedThinking);
+                        aiMsg = `[EXEC]${rescuedCommand}[/EXEC]`;
+                    } else {
+                        process.stdout.write('\x1b[0m');
+                        eraseThinkingBlock(accumulatedThinking);
+                        console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block without an executable action.\x1b[0m');
+                        console.log('\x1b[90mTip: Increase token budget with "/config max_tokens 16384" or rephrase your request.\x1b[0m\n');
+                        isProcessing = false;
+                        canRetry = true;
+                        continue;
+                    }
                 }
                 thinkingSpinner.stop();
                 {

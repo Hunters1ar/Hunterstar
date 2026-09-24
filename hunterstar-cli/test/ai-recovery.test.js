@@ -432,6 +432,23 @@ test('classifyPromptTier intelligently routes casual chatter to fast tier and co
     assert.equal(forcedHeavy.tier, 'heavy');
 });
 
+test('command rescue extracts final [EXEC] block from thought output when model ends inside reasoning', () => {
+    const rawThinking = `1. Understand User Request: analyze RAM
+3. Command to Use: \`Get-Process\`
+Proceed.
+Output: '[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 Name, @{N="RAM_MB";E={[math]::Round($_.WorkingSet64/1MB,2)}}[/EXEC]'
+Wait, let me verify syntax.
+I'll output exactly that.
+\`[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 Name, @{N="RAM_MB";E={[math]::Round($_.WorkingSet64/1MB,2)}}[/EXEC]\`
+*Self-Correction*: It is valid.`;
+
+    const execBlocks = [...rawThinking.matchAll(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/g)];
+    assert.equal(execBlocks.length, 2);
+    const rescuedCommand = execBlocks[execBlocks.length - 1][1].trim();
+    assert.equal(rescuedCommand, 'Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 Name, @{N="RAM_MB";E={[math]::Round($_.WorkingSet64/1MB,2)}}');
+});
+
+
 
 
 
