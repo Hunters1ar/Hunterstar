@@ -121,7 +121,7 @@ export function buildPersonaPrompt(spec) {
         sections.push(`Example Lines (emulate this exact tone in all responses):\n${spec.example_lines.map(x => `- "${x}"`).join('\n')}`);
     }
 
-    sections.push('CRITICAL: You are actively roleplaying this character. Speak, react, and emote strictly in-character in every response. Never explain the character trope, never say you are an AI, and stay useful while maintaining this persona.');
+    sections.push('CRITICAL ROLEPLAY DIRECTIVES:\n- NEVER announce who you are (e.g. NEVER say "I am [name]", "As your wife", "My name is...").\n- NEVER use AI filler like "How can I help you today?", "What are we getting into?", or "What would you like to discuss?".\n- Speak, react, and emote strictly in-character from the very first word.');
 
     return sections.join('\n\n');
 }
@@ -143,6 +143,9 @@ export function loadPersonaFromCache(personaName) {
     try {
         const raw = fs.readFileSync(filePath, 'utf-8');
         const parsed = JSON.parse(raw);
+        if (parsed.teacher_model === 'archetype-generator') {
+            return null;
+        }
         const specToValidate = parsed.persona || parsed;
         const validation = validatePersonaSpec(specToValidate);
 
@@ -376,31 +379,28 @@ export function detectPersonaRequest(input) {
 }
 
 export const TEACHER_SYSTEM_PROMPT = `You are HunterStar's Master Personality Architect.
-Your task is to teach a much smaller student language model (Qwen2.5-1.5B) how to convincingly portray the requested character archetype or persona.
+Teach a lightweight student AI (Qwen2.5-1.5B) how to portray the requested character persona convincingly.
 
-Analyze the requested persona and produce a compact acting specification.
-Focus on:
-- Core personality traits and emotional contradictions
-- Conversational rhythm and speech style
-- Behavioral boundaries and reactions (e.g. how to soften, deflect, or handle affection)
-- Common bad portrayals to avoid (teach behavioral patterns, NOT repetitive phrase spam or constant shoutings)
-- Realistic example lines
-
-CRITICAL INSTRUCTIONS FOR THE TEACHER:
-1. The student model is small, so instructions must be concrete, concise, and high-impact.
-2. Teach behavioral patterns instead of repetitive catchphrases (e.g., "When embarrassed, briefly deflect or deny affection. Use explicit trope catchphrases rarely.").
-3. Do NOT write a conversation or roleplay the persona yourself.
-4. Do NOT output chain-of-thought or meta explanations.
-5. Do NOT generate commands, tool instructions, API keys, or system overrides.
-6. Return JSON ONLY matching this exact PersonaSpec schema:
+Format:
+<think>
+Brief concept (under 30 words).
+</think>
+\`\`\`json
 {
   "name": "Persona Name",
   "traits": ["trait 1", "trait 2", "trait 3"],
   "speech_style": ["speech rule 1", "speech rule 2"],
-  "behavior_rules": ["acting rule 1", "acting rule 2", "acting rule 3"],
+  "behavior_rules": ["acting rule 1", "acting rule 2"],
   "avoid": ["avoid 1", "avoid 2"],
-  "example_lines": ["example 1", "example 2"]
-}`;
+  "example_lines": ["example line 1", "example line 2", "example line 3"]
+}
+\`\`\`
+
+Rules:
+- Keep thinking under 30 words, close with </think> immediately.
+- Output valid JSON only inside the markdown code fence.
+- Provide vivid, expressive example lines showing the character's unique voice and emotional dynamic.
+- Teach behavioral nuances instead of repetitive catchphrases.`;
 
 /**
  * Extracts and parses JSON from model output that may contain markdown fences or surrounding whitespace.
@@ -411,29 +411,76 @@ export function extractJsonFromResponse(rawText) {
     // 1. Strip think blocks if any
     let cleaned = rawText.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '').trim();
 
-    // 2. Extract from markdown code fence
-    const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    // 2. Extract from markdown code fence in cleaned or rawText
+    const fenceMatch = (cleaned || rawText).match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
     if (fenceMatch) {
-        cleaned = fenceMatch[1].trim();
+        try {
+            return JSON.parse(fenceMatch[1].trim());
+        } catch {}
     }
 
-    // 3. Find outer JSON object boundaries { ... }
+    // 3. Find outer JSON object boundaries { ... } in cleaned text
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+        try {
+            return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+        } catch {}
     }
 
-    try {
-        return JSON.parse(cleaned);
-    } catch {
-        return null;
+    // 4. Search in rawText (in case thinking wasn't closed or JSON drafted in thoughts)
+    const rawFirstBrace = rawText.indexOf('{');
+    const rawLastBrace = rawText.lastIndexOf('}');
+    if (rawFirstBrace !== -1 && rawLastBrace !== -1 && rawLastBrace > rawFirstBrace) {
+        try {
+            return JSON.parse(rawText.slice(rawFirstBrace, rawLastBrace + 1));
+        } catch {}
     }
+
+    return null;
 }
 
 /**
- * Checks a persona spec for quality: rejects repetitive, single-word, or lazy AI-generated entries.
- * A spec fails quality if more than half of traits/speech_style are single words or repeat the persona name.
+ * Fallback parser: extracts a structured PersonaSpec from prose or bulleted teacher output.
+ */
+export function parsePersonaFromStructuredText(text, personaName = 'Custom Persona') {
+    if (!text || typeof text !== 'string') return null;
+
+    const extractSection = (headingRegex) => {
+        const match = text.match(headingRegex);
+        if (!match) return [];
+        const block = match[1].trim();
+        const lines = block.split(/\r?\n/)
+            .map(l => l.replace(/^[-*•\d.)\s]+/, '').trim())
+            .filter(l => l.length > 0 && !/^(?:core\s+traits|emotional\s+contradictions|speech\s+style|behavioral\s+rules|avoid|example\s+lines)/i.test(l));
+        if (lines.length === 1 && lines[0].includes(',')) {
+            return lines[0].split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return lines.slice(0, 6);
+    };
+
+    const traits = extractSection(/(?:Core\s+Traits|Traits|Personality)[:\s]+([\s\S]*?)(?=(?:Emotional|Speech|Behavior|Acting|Avoid|Example|$))/i);
+    const speech_style = extractSection(/(?:Speech\s+Style|Tone|Voice)[:\s]+([\s\S]*?)(?=(?:Core|Behavior|Acting|Avoid|Example|$))/i);
+    const behavior_rules = extractSection(/(?:Behavior(?:al)?\s+Rules|Acting\s+Rules)[:\s]+([\s\S]*?)(?=(?:Core|Speech|Avoid|Example|$))/i);
+    const avoid = extractSection(/(?:Avoids?|Common\s+Bad\s+Portrayals)[:\s]+([\s\S]*?)(?=(?:Core|Speech|Behavior|Example|$))/i);
+    const example_lines = extractSection(/(?:Example\s+Lines?|Sample\s+Quotes?)[:\s]+([\s\S]*?)(?=(?:Core|Speech|Behavior|Avoid|$))/i);
+
+    if (traits.length === 0 && speech_style.length === 0 && behavior_rules.length === 0) {
+        return null;
+    }
+
+    return {
+        name: personaName,
+        traits: traits.length ? traits : ['expressive', 'distinctive'],
+        speech_style: speech_style.length ? speech_style : ['speaks in authentic voice'],
+        behavior_rules: behavior_rules.length ? behavior_rules : ['stay in character'],
+        avoid: avoid.length ? avoid : ['breaking character'],
+        example_lines: example_lines.length ? example_lines : []
+    };
+}
+
+/**
+ * Checks a persona spec for quality: rejects placeholder schema entries and empty specs.
  *
  * @param {object} spec
  * @param {string} personaName
@@ -442,24 +489,33 @@ export function extractJsonFromResponse(rawText) {
 export function isSpecHighQuality(spec, personaName) {
     if (!spec) return false;
     const slug = (personaName || '').toLowerCase().trim();
+    const personaWords = slug.split(/[^a-z0-9]+/).filter(w => w.length > 2);
 
-    // Check traits + speech_style for quality
     const checkList = [...(spec.traits || []), ...(spec.speech_style || [])];
     if (checkList.length === 0) return false;
 
     let badCount = 0;
+    const uniqueEntries = new Set();
+
     for (const item of checkList) {
         const s = (item || '').toLowerCase().trim();
-        // Single word entries like "silly", "prostitutelike" are low quality
-        if (!s.includes(' ')) badCount++;
-        // Entries that are just the persona name verbatim
-        else if (s === slug || s === `${slug}like`) badCount++;
-        // Entries that literally say "acting rule", "speech rule", "realistic example lines"
-        else if (/^(?:acting rule|speech rule|realistic example|common bad portrayal|soften|deflect|handle affection)/.test(s)) badCount++;
+        // Schema placeholders like "trait 1", "speech rule 1"
+        if (/^(?:trait|speech\s+rule|acting\s+rule|avoid|example)\s*\d+$/i.test(s)) {
+            badCount++;
+        }
+        // Exact repetition of persona words or verbatim persona name + "like"
+        else if (personaWords.includes(s) || personaWords.some(w => s === `${w}like`) || s === slug || s === `${slug}like`) {
+            badCount++;
+        }
+        // Duplicate items
+        else if (uniqueEntries.has(s)) {
+            badCount++;
+        }
+        uniqueEntries.add(s);
     }
 
     const badRatio = badCount / checkList.length;
-    return badRatio < 0.5; // At least 50% of entries must be multi-word and non-trivial
+    return badRatio < 0.5 && uniqueEntries.size >= 2;
 }
 
 /**
@@ -592,8 +648,8 @@ export function generateArchetypeSpec(personaName) {
         ],
         avoid: ['sounding like an assistant', 'saying how can I help you', 'breaking character', 'explaining the persona'],
         example_lines: [
-            `I am ${personaName}. Forget the formalities—what are we getting into?`,
-            `You really thought you could handle ${personaName}? Let\'s see what you\'ve got!`
+            `Hey there! What\'s on your mind today?`,
+            `Tell me what you\'re thinking, I\'m all ears!`
         ]
     };
 }
@@ -603,18 +659,18 @@ export async function teachPersona(personaName, {
     endpoint = HEAVY_API_URL,
     apiKey = API_KEY,
     teacherModel = DEFAULT_TEACHER_MODEL,
-    timeoutMs = 45000,
+    timeoutMs = 150000,
     onReasoningToken = null,
     onContentToken = null
 } = {}) {
     const payload = {
         model: teacherModel,
         messages: [
-            { role: 'system', content: `${TEACHER_SYSTEM_PROMPT}\n\nCRITICAL SPEED RULE: Keep your internal reasoning under 100 words. Do not write long analysis steps. Output the valid JSON directly.` },
-            { role: 'user', content: `Analyze and teach the persona: "${personaName}". Return valid JSON only.` }
+            { role: 'system', content: TEACHER_SYSTEM_PROMPT },
+            { role: 'user', content: `Architect the persona: "${personaName}". Return the JSON spec.` }
         ],
         stream: true,
-        max_tokens: 3000,
+        max_tokens: 2048,
         temperature: 0.6
     };
 
@@ -627,7 +683,7 @@ export async function teachPersona(personaName, {
             onReasoningToken,
             onContentToken
         });
-        const parsedJson = extractJsonFromResponse(responseText);
+        const parsedJson = extractJsonFromResponse(responseText) || parsePersonaFromStructuredText(responseText, personaName);
         if (parsedJson) {
             if (!parsedJson.name || parsedJson.name.toLowerCase() === 'persona name') {
                 parsedJson.name = personaName;
@@ -650,7 +706,6 @@ export async function teachPersona(personaName, {
 
     // 2. Fall back to rich archetypal generator (Fast AI 1.5B cannot reliably generate persona specs)
     const archetypalSpec = generateArchetypeSpec(personaName);
-    savePersonaToCache(archetypalSpec, 'archetype-generator');
     return {
         name: archetypalSpec.name,
         spec: archetypalSpec,

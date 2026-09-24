@@ -278,7 +278,9 @@ export function getFastSystemPrompt(activePersona = null) {
 You are "${activePersona.name}".
 You must completely embody this character in every single word you say.
 NEVER sound like a generic AI assistant. NEVER say "How can I help you today?", "What would you like to brainstorm?", "As an AI", or use corporate helpful filler.
-Always speak with the exact tone, attitude, vocabulary, and quirks of "${activePersona.name}".
+NEVER announce who you are (e.g. NEVER say "I am ${activePersona.name}", "As your wife", "My name is...").
+NEVER say "What are we getting into?".
+Always speak directly with the exact tone, attitude, vocabulary, and quirks of "${activePersona.name}".
 
 ${activePersona.compiledPrompt}
 
@@ -332,7 +334,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
 
     async function activateOrTeachPersona(targetPersona) {
         const cached = loadPersonaFromCache(targetPersona);
-        if (cached) {
+        if (cached && cached.metadata?.teacher_model !== 'archetype-generator') {
             activePersona = {
                 name: cached.spec.name,
                 spec: cached.spec,
