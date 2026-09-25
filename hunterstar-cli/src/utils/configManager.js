@@ -28,7 +28,7 @@ function getConfigFilePath() {
 const CONFIG_PATH = getConfigFilePath();
 
 export const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-export const OPENROUTER_DEFAULT_MODEL = 'dots-studio/dots-3-note-preview:free';
+export const OPENROUTER_DEFAULT_MODEL = 'qwen/qwen3.8-27b:free';
 
 export const AI_PRESETS = {
     own: {
@@ -45,7 +45,7 @@ export const AI_PRESETS = {
         'api-provider': 'cloud',
         'api-url': 'https://api.hunterstar.uz',
         'api-key': '',
-        'model': 'dots-studio/dots-3-note-preview:free',
+        'model': OPENROUTER_DEFAULT_MODEL,
         'tier': 'cloud',
         'max_tokens': 8192
     },
@@ -62,7 +62,7 @@ export const AI_PRESETS = {
 const DEFAULT_CONFIG = {
     'api-provider': 'cloud',
     'api-url': 'https://api.hunterstar.uz',
-    'model': 'dots-studio/dots-3-note-preview:free',
+    'model': OPENROUTER_DEFAULT_MODEL,
     'tier': 'auto',
     'fast-api-url': FAST_API_URL,
     'heavy-api-url': HEAVY_API_URL,

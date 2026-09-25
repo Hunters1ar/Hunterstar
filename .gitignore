@@ -2,20 +2,19 @@
 *.bak
 *.log
 .env
-.env*.local
+.env.local
+.env.*.local
+!.env.example
+!api/.env.example
 service-account.json
 *-firebase-adminsdk-*.json
 
 # Vercel
-.vercel
+.vercel/
 
 # Node modules
-api/node_modules
-functions/node_modules
 node_modules/
-
-# API secrets
-api/.env
+**/node_modules/
 
 # Android build — entire folder
 android/
@@ -26,22 +25,31 @@ android/
 *.bin
 !assets/desktop_pc.glb
 
-# 3D model asset folders (now standalone repos)
-assets/eduventure3d/
-assets/gaming_desktop_pc model/
-assets/hunter3dmodel/
-assets/musicbox3d/
-assets/server model/
-assets/tengdosh3d/
+# 3D model asset folders (now standalone repos — case-insensitive)
+assets/[Ee]duventure3d/
+assets/[Gg]aming_desktop_pc*/
+assets/[Hh]unter3d*/
+assets/[Mm]usicbox3d/
+assets/[Ss]erver [Mm]odel/
+assets/[Ss]erver model/
+assets/[Tt]engdosh3d/
 
-# Telegram bot — separate repo & VPS
-YoutubeBot/
+# Telegram bot — separate repo & VPS (case-insensitive)
+[Yy]outube[Bb]ot/
+youtubebot/
 
-# Build artifacts & OS
+# Build artifacts, IDE & OS
 .DS_Store
-Thumbs.db
-.vercel
-.env*
+.ds_store
+[Tt]humbs.db
+ehthumbs.db
+.idea/
+.vscode/
+
+# npm pack output & tarballs
+hunterstar-cli/package/
+package/
+*.tgz
 
 # C# desktop output
 opener-desktop/app/

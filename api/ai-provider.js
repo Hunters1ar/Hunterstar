@@ -91,7 +91,8 @@ function createAiProvider({ env = process.env, fetchImpl = globalThis.fetch, now
 
     return async function callAiProviderWithFallback(systemContent, messages, { model: requestedModel } = {}) {
         // This route is public: client model selection must not enable arbitrary paid models.
-        const allowedModels = [env.OPENROUTER_MODEL || 'dots-studio/dots-3-note-preview:free',
+        const allowedModels = [env.OPENROUTER_MODEL || 'qwen/qwen3.8-27b:free',
+            'dots-studio/dots-3-note-preview:free',
             'Qwen3-Coder-30B', 'hunterstar-ai', 'own',
             ...(env.CLI_ALLOWED_MODELS || '').split(',').map(value => value.trim())];
         if (requestedModel && !requestedModel.endsWith(':free') && !allowedModels.includes(requestedModel)) {
@@ -109,7 +110,7 @@ function createAiProvider({ env = process.env, fetchImpl = globalThis.fetch, now
             if (skippedTypes.has(type)) continue;
             if ((typeAttempts.get(type) || 0) >= 2) continue;
             const model = type === 'llama' ? (requestedModel || 'Qwen3-Coder-30B')
-                : type === 'openrouter' ? (requestedModel || env.OPENROUTER_MODEL || 'dots-studio/dots-3-note-preview:free') : (env.GEMINI_MODEL || 'auto');
+                : type === 'openrouter' ? (requestedModel || env.OPENROUTER_MODEL || 'qwen/qwen3.8-27b:free') : (env.GEMINI_MODEL || 'auto');
             const id = `${type}:${key}:${model}`;
             const cooldown = cooldowns.get(id);
             if (cooldown && cooldown.until > now()) {
