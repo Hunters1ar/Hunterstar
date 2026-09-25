@@ -1,22 +1,25 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-:: ============================================================
-:: Hunterstar - Fast Deploy
-:: - Git commit + push (all tracked files)
-:: - SCP api/server.js to VPS  (direct IP, proven to work)
-:: - PM2 restart portfolio-api
-:: - Health check
-::
-:: Usage:  deploy.bat [commit message]
-::         deploy.bat --check-only
-::         deploy.bat --full       (full npm+nginx redeploy via deploy-vps.ps1)
-:: ============================================================
+REM ============================================================
+REM Hunterstar - Fast Deploy
+REM - Vercel deploy (--prod --yes)
+REM - Git commit + push (all tracked files)
+REM - SCP backend API files (server.js, ai-provider.js, cli-prompt.js)
+REM - SCP lightweight admin files (admin.html, css, js)
+REM - PM2 restart portfolio-api
+REM - Health check
+REM
+REM Usage:  deploy.bat [commit message]
+REM         deploy.bat --with-assets [commit message]
+REM         deploy.bat --check-only
+REM         deploy.bat --full       (full npm+nginx redeploy via deploy-vps.ps1)
+REM ============================================================
 
 cd /d "%~dp0"
 set "PROJECT_ROOT=%CD%"
 
-:: ---- Config ------------------------------------------------
+REM ---- Config ------------------------------------------------
 set "VPS_HOST=hunterstar"
 set "VPS_API_DIR=/opt/portfolio-api"
 set "VPS_ADMIN_DIR=/var/www/admin-hunterstar"
@@ -24,11 +27,18 @@ set "PM2_APP=portfolio-api"
 set "VPS_API_URL=https://api.hunterstar.uz"
 set "SSH_OPTS=-o ConnectTimeout=20 -o ServerAliveInterval=15 -o StrictHostKeyChecking=no"
 
-:: ---- Commit message ----------------------------------------
+REM ---- Flags and Commit message ------------------------------
 if /I "%~1"=="--check-only" goto check_only
 if /I "%~1"=="--full" goto full_deploy
 
-set "COMMIT_MSG=%~1"
+set "WITH_ASSETS=0"
+if /I "%~1"=="--with-assets" (
+    set "WITH_ASSETS=1"
+    set "COMMIT_MSG=%~2"
+) else (
+    set "COMMIT_MSG=%~1"
+)
+
 if "!COMMIT_MSG!"=="" set "COMMIT_MSG=deploy"
 
 echo.
@@ -40,53 +50,80 @@ echo  App  : %PM2_APP%
 echo  API  : %VPS_API_URL%
 echo.
 
-:: ---- Step 0: Git -------------------------------------------
+REM ---- Step 0: Vercel -----------------------------------------
 echo [0/3] Vercel deploy...
-call vercel --prod
+call vercel --prod --yes
 
-if errorlevel 1 ( echo ERROR: Vercel deploy failed. & goto fail )
+if errorlevel 1 (
+    echo ERROR: Vercel deploy failed.
+    goto fail
+)
 
 echo       Vercel OK.
 
-:: ---- Step 1: Git -------------------------------------------
+REM ---- Step 1: Git -------------------------------------------
 echo [1/3] Git commit + push...
 git add -A
 git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "!COMMIT_MSG!"
-    if errorlevel 1 ( echo ERROR: git commit failed. & goto fail )
+    if errorlevel 1 (
+        echo ERROR: git commit failed.
+        goto fail
+    )
 ) else (
     echo       No changes to commit.
 )
 git push
-if errorlevel 1 ( echo ERROR: git push failed. & goto fail )
+if errorlevel 1 (
+    echo ERROR: git push failed.
+    goto fail
+)
 echo       Git OK.
 
-:: ---- Step 2: SCP server.js and admin assets to VPS ---------
+REM ---- Step 2: SCP backend and admin code to VPS ---------
 echo.
-echo [2/3] Uploading api/server.js, admin static files, favicons, and assets to %VPS_HOST%...
-ssh %SSH_OPTS% %VPS_HOST% "mkdir -p %VPS_ADMIN_DIR%/assets %VPS_ADMIN_DIR%/css %VPS_ADMIN_DIR%/js"
-scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%VPS_HOST%:%VPS_API_DIR%/server.js"
-if errorlevel 1 ( echo ERROR: SCP server.js upload failed. & goto fail )
+echo [2/3] Uploading backend API and admin files to %VPS_HOST%...
+ssh %SSH_OPTS% %VPS_HOST% "mkdir -p %VPS_API_DIR% %VPS_ADMIN_DIR%/css %VPS_ADMIN_DIR%/js"
+scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%PROJECT_ROOT%\api\ai-provider.js" "%PROJECT_ROOT%\api\cli-prompt.js" "%VPS_HOST%:%VPS_API_DIR%/"
+if errorlevel 1 (
+    echo ERROR: SCP backend API upload failed.
+    goto fail
+)
 scp %SSH_OPTS% "%PROJECT_ROOT%\admin.html" "%VPS_HOST%:%VPS_ADMIN_DIR%/admin.html"
-if errorlevel 1 ( echo ERROR: SCP admin.html upload failed. & goto fail )
-scp %SSH_OPTS% "%PROJECT_ROOT%\css\admin-dashboard.css" "%VPS_HOST%:%VPS_ADMIN_DIR%/css/admin-dashboard.css"
-scp %SSH_OPTS% "%PROJECT_ROOT%\css\styles.css" "%VPS_HOST%:%VPS_ADMIN_DIR%/css/styles.css"
-scp %SSH_OPTS% "%PROJECT_ROOT%\js\admin.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/admin.js"
-scp %SSH_OPTS% "%PROJECT_ROOT%\js\firebase-config.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/firebase-config.js"
-scp %SSH_OPTS% "%PROJECT_ROOT%\favicon.ico" "%PROJECT_ROOT%\favicon-96x96.png" "%PROJECT_ROOT%\favicon.svg" "%PROJECT_ROOT%\apple-touch-icon.png" "%PROJECT_ROOT%\site.webmanifest" "%PROJECT_ROOT%\web-app-manifest-192x192.png" "%PROJECT_ROOT%\web-app-manifest-512x512.png" "%PROJECT_ROOT%\hunterstar.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/"
-if errorlevel 1 ( echo ERROR: SCP favicons and manifests failed. & goto fail )
-scp %SSH_OPTS% "%PROJECT_ROOT%\assets\logo.png" "%PROJECT_ROOT%\assets\hunterrealpic.png" "%PROJECT_ROOT%\assets\security-icon.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/assets/"
-if errorlevel 1 ( echo ERROR: SCP assets failed. & goto fail )
+if errorlevel 1 (
+    echo ERROR: SCP admin.html upload failed.
+    goto fail
+)
+scp %SSH_OPTS% "%PROJECT_ROOT%\css\admin-dashboard.css" "%PROJECT_ROOT%\css\styles.css" "%VPS_HOST%:%VPS_ADMIN_DIR%/css/"
+if errorlevel 1 (
+    echo ERROR: SCP admin CSS upload failed.
+    goto fail
+)
+scp %SSH_OPTS% "%PROJECT_ROOT%\js\admin.js" "%PROJECT_ROOT%\js\firebase-config.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/"
+if errorlevel 1 (
+    echo ERROR: SCP admin JS upload failed.
+    goto fail
+)
+
+if "%WITH_ASSETS%"=="1" (
+    echo       Uploading static assets, favicons and manifests...
+    ssh %SSH_OPTS% %VPS_HOST% "mkdir -p %VPS_ADMIN_DIR%/assets"
+    scp %SSH_OPTS% "%PROJECT_ROOT%\favicon.ico" "%PROJECT_ROOT%\favicon-96x96.png" "%PROJECT_ROOT%\favicon.svg" "%PROJECT_ROOT%\apple-touch-icon.png" "%PROJECT_ROOT%\site.webmanifest" "%PROJECT_ROOT%\web-app-manifest-192x192.png" "%PROJECT_ROOT%\web-app-manifest-512x512.png" "%PROJECT_ROOT%\hunterstar.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/"
+    scp %SSH_OPTS% "%PROJECT_ROOT%\assets\logo.png" "%PROJECT_ROOT%\assets\hunterrealpic.png" "%PROJECT_ROOT%\assets\security-icon.webp" "%VPS_HOST%:%VPS_ADMIN_DIR%/assets/"
+)
 echo       Upload OK.
 
-:: ---- Step 3: Restart PM2 ------------------------------------
+REM ---- Step 3: Restart PM2 ------------------------------------
 echo.
 echo [3/3] Restarting PM2 app "%PM2_APP%"...
 ssh %SSH_OPTS% %VPS_HOST% "pm2 restart %PM2_APP% && sleep 2 && pm2 show %PM2_APP% | grep -E 'status|uptime|restarts'"
-if errorlevel 1 ( echo ERROR: PM2 restart failed. & goto fail )
+if errorlevel 1 (
+    echo ERROR: PM2 restart failed.
+    goto fail
+)
 
-:: ---- Health check -------------------------------------------
+REM ---- Health check -------------------------------------------
 echo.
 echo Verifying API health...
 ssh %SSH_OPTS% %VPS_HOST% "curl -sf '%VPS_API_URL%/api/health' | python3 -m json.tool 2>/dev/null || curl -sf '%VPS_API_URL%/api/health'"
@@ -102,7 +139,7 @@ if errorlevel 1 (
 echo.
 goto end
 
-:: ---- Full redeploy (npm install + nginx + ssl) --------------
+REM ---- Full redeploy (npm install + nginx + ssl) --------------
 :full_deploy
 echo.
 echo Running FULL VPS redeploy via deploy-vps.ps1...
@@ -114,18 +151,30 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "& { $env:PROJECT_ROOT='%
 if errorlevel 1 goto fail
 goto end
 
-:: ---- Check-only mode ----------------------------------------
+REM ---- Check-only mode ----------------------------------------
 :check_only
 echo Checking deploy prerequisites...
 git --version >NUL 2>&1
-if errorlevel 1 ( echo MISSING: git & exit /b 1 )
+if errorlevel 1 (
+    echo MISSING: git
+    exit /b 1
+)
 where ssh >NUL 2>&1
-if errorlevel 1 ( echo MISSING: ssh & exit /b 1 )
+if errorlevel 1 (
+    echo MISSING: ssh
+    exit /b 1
+)
 where scp >NUL 2>&1
-if errorlevel 1 ( echo MISSING: scp & exit /b 1 )
+if errorlevel 1 (
+    echo MISSING: scp
+    exit /b 1
+)
 echo Testing SSH connection to %VPS_HOST%...
 ssh %SSH_OPTS% %VPS_HOST% "echo SSH_OK"
-if errorlevel 1 ( echo FAIL: Cannot SSH to %VPS_HOST% & exit /b 1 )
+if errorlevel 1 (
+    echo FAIL: Cannot SSH to %VPS_HOST%
+    exit /b 1
+)
 echo All checks passed.
 exit /b 0
 
