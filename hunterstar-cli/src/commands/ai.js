@@ -299,15 +299,15 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     const platformInfo = runtime.platformInfo || detectPlatform();
     const request = runtime.request || requestAi;
     const execute = runtime.execute || execPromise;
-    const currentProv = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : (getConfigValue('api-url')?.includes('openrouter.ai') ? 'open' : 'cloud'));
+    const currentProv = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('openrouter.ai') ? 'open' : 'own');
     const currentTier = (runtime.tier || getConfigValue('tier') || 'auto').toUpperCase();
     let provLabel;
     if (currentProv === 'own') {
         provLabel = `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 14B 🧠 | Tier: ${currentTier})`;
     } else if (currentProv === 'openrouter' || currentProv === 'open') {
-        provLabel = `OpenRouter (${getConfigValue('model') || 'qwen/qwen3.8-27b:free'})`;
+        provLabel = `OpenRouter (${getConfigValue('model') || 'cohere/north-mini-code:free'})`;
     } else {
-        provLabel = 'Hunterstar Cloud';
+        provLabel = `Hunterstar Cloud (${getConfigValue('model') || 'cohere/north-mini-code:free'})`;
     }
     console.log('\x1b[35mHunterstar AI CLI Initialized (Agent Mode).\x1b[0m');
     console.log(`\x1b[90m[Provider: ${provLabel} | System: ${platformInfo.osDisplayName} | Shell: ${platformInfo.shell} | Chaining: "${platformInfo.commandSeparator}"]\x1b[0m`);
@@ -555,13 +555,13 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const isDirectOpenAi = provider === 'own' || isOpenRouter || baseUrl.includes('/v1') || baseUrl.includes('moonlightsoldiers');
 
                 let endpoint;
-                let activeModel = getConfigValue('model') || (isOpenRouter ? 'qwen/qwen3.8-27b:free' : 'Qwen2.5-Coder-14B');
+                let activeModel = getConfigValue('model') || (isOpenRouter || provider === 'cloud' ? 'cohere/north-mini-code:free' : 'Qwen2.5-Coder-14B');
                 let routedTier = null;
                 let routingReason = '';
 
-                if (isOpenRouter) {
+                if (isOpenRouter || provider === 'cloud') {
                     endpoint = baseUrl.includes('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
-                    activeModel = getConfigValue('model') || 'qwen/qwen3.8-27b:free';
+                    activeModel = getConfigValue('model') || 'cohere/north-mini-code:free';
                 } else if (provider === 'own' || baseUrl.includes('moonlightsoldiers')) {
                     const tierSetting = runtime.tier || getConfigValue('tier') || 'auto';
                     const fastUrl = getConfigValue('fast-api-url') || FAST_API_URL;

@@ -236,12 +236,17 @@ function curlStreamRequest(endpoint, payload, { headers = {}, timeoutMs = 60000,
     });
 }
 
+// For own hunterella endpoints, cap retry-after to 8s — the llama-server
+// sends a large Retry-After header but we want fast recovery on own hardware.
+const OWN_MAX_RETRY_MS = 8000;
+
 export async function requestAi(endpoint, payload, {
     fetchImpl = globalThis.fetch, wait = sleep, timeoutMs = 50000,
-    maxAttempts = 3, maxRetryDelayMs = 60000, onRetry = () => {},
+    maxAttempts = 4, maxRetryDelayMs = 60000, onRetry = () => {},
     headers = {}, apiKey = null,
     onReasoningToken = null, onContentToken = null,
 } = {}) {
+    const isOwnEndpoint = endpoint.includes('moonlightsoldiers') || endpoint.includes('hunterella');
     // Retries request another answer, never rerun a local command.
     const body = JSON.stringify(payload);
     const requestHeaders = { 'Content-Type': 'application/json', ...headers };
@@ -369,7 +374,12 @@ export async function requestAi(endpoint, payload, {
             failure = error instanceof AiRequestError ? error : new AiRequestError(
                 controller.signal.aborted ? 'The AI request timed out.' : 'Could not connect to the AI API.', { retryable: true });
         } finally { clearTimeout(timer); }
-        const delay = Math.max(failure.retryAfterMs, 1000 * 2 ** (attempt - 1));
+        const delay = Math.max(
+            // Cap retry-after for own endpoints — llama-server sends large headers
+            // but with -np 2 slots the server recovers fast.
+            isOwnEndpoint ? Math.min(failure.retryAfterMs || 0, OWN_MAX_RETRY_MS) : (failure.retryAfterMs || 0),
+            1000 * 2 ** (attempt - 1)
+        );
         if (!failure.retryable || attempt === maxAttempts || delay > maxRetryDelayMs) throw failure;
         onRetry({ attempt, delay, error: failure });
         await wait(delay);

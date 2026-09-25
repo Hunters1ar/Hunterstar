@@ -1,5 +1,5 @@
-export const FAST_API_URL = "https://api.moonlightsoldiers.xyz/fast/v1/chat/completions";
-export const HEAVY_API_URL = "https://api.moonlightsoldiers.xyz/v1/chat/completions";
+export const FAST_API_URL = "https://fast.moonlightsoldiers.xyz/v1/chat/completions";
+export const HEAVY_API_URL = "https://heavy.moonlightsoldiers.xyz/v1/chat/completions";
 export const API_KEY = "hunterella@152634879man";
 
 export const FAST_MODEL = "Qwen2.5-1.5B";

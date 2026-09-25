@@ -28,7 +28,8 @@ function getConfigFilePath() {
 const CONFIG_PATH = getConfigFilePath();
 
 export const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-export const OPENROUTER_DEFAULT_MODEL = 'qwen/qwen3.8-27b:free';
+export const CLOUD_API_URL = 'https://cloud.moonlightsoldiers.xyz/v1/chat/completions';
+export const OPENROUTER_DEFAULT_MODEL = 'cohere/north-mini-code:free';
 
 export const AI_PRESETS = {
     own: {
@@ -43,7 +44,7 @@ export const AI_PRESETS = {
     },
     cloud: {
         'api-provider': 'cloud',
-        'api-url': 'https://api.hunterstar.uz',
+        'api-url': CLOUD_API_URL,
         'api-key': '',
         'model': OPENROUTER_DEFAULT_MODEL,
         'tier': 'cloud',

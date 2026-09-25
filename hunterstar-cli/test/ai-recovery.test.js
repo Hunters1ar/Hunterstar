@@ -53,7 +53,7 @@ test('invalid/empty replies have a finite retry budget', async () => {
     for (const body of ['<html>bad</html>', '{invalid', '{"ok":true,"data":{}}', '{"ok":true,"data":{"choices":[{"message":{"content":""}}]}}']) {
         let calls = 0;
         await assert.rejects(requestAi('https://example.test', {}, { fetchImpl: async () => { calls++; return new Response(body); }, wait: async () => {} }), AiRequestError);
-        assert.equal(calls, 3);
+        assert.equal(calls, 4);
     }
 });
 
@@ -216,19 +216,19 @@ test('AI presets apply correctly between own, cloud, and open (OpenRouter)', asy
     try {
         const ownRes = applyPreset('own');
         assert.equal(ownRes.name, 'own');
-        assert.equal(ownRes.preset['api-url'], 'https://api.moonlightsoldiers.xyz/v1/chat/completions');
+        assert.equal(ownRes.preset['api-url'], 'https://heavy.moonlightsoldiers.xyz/v1/chat/completions');
         assert.equal(ownRes.preset['api-key'], 'hunterella@152634879man');
         assert.equal(ownRes.preset['model'], 'Qwen2.5-Coder-14B');
 
         const cloudRes = applyPreset('cloud');
         assert.equal(cloudRes.name, 'cloud');
-        assert.equal(cloudRes.preset['api-url'], 'https://api.hunterstar.uz');
+        assert.equal(cloudRes.preset['api-url'], 'https://cloud.moonlightsoldiers.xyz/v1/chat/completions');
 
         const openRes = applyPreset('open');
         assert.equal(openRes.name, 'open');
         assert.equal(openRes.preset['api-provider'], 'openrouter');
         assert.equal(openRes.preset['api-url'], 'https://openrouter.ai/api/v1/chat/completions');
-        assert.equal(openRes.preset['model'], 'qwen/qwen3.8-27b:free');
+        assert.equal(openRes.preset['model'], 'cohere/north-mini-code:free');
 
         const openRouterAlias = applyPreset('openrouter');
         assert.equal(openRouterAlias.name, 'open');
@@ -433,8 +433,8 @@ test('calculateVisualRows accurately computes line and wrap counts for thinking 
 test('classifyPromptTier intelligently routes casual chatter to fast tier and coding/debug to heavy tier', async () => {
     const { classifyPromptTier, FAST_API_URL, HEAVY_API_URL, FAST_MODEL, HEAVY_MODEL } = await import('../src/utils/aiRouter.js');
 
-    assert.equal(FAST_API_URL, 'https://api.moonlightsoldiers.xyz/fast/v1/chat/completions');
-    assert.equal(HEAVY_API_URL, 'https://api.moonlightsoldiers.xyz/v1/chat/completions');
+    assert.equal(FAST_API_URL, 'https://fast.moonlightsoldiers.xyz/v1/chat/completions');
+    assert.equal(HEAVY_API_URL, 'https://heavy.moonlightsoldiers.xyz/v1/chat/completions');
 
     // Casual chatter -> fast
     const chat1 = classifyPromptTier('hello there, how are you?');
