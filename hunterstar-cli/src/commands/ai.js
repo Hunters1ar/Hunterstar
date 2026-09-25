@@ -320,7 +320,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     const currentTier = (runtime.tier || getConfigValue('tier') || 'auto').toUpperCase();
     let provLabel;
     if (currentProv === 'own') {
-        provLabel = `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 35B 🧠 | Tier: ${currentTier})`;
+        provLabel = `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 14B 🧠 | Tier: ${currentTier})`;
     } else if (currentProv === 'openrouter' || currentProv === 'open') {
         provLabel = `OpenRouter (${getConfigValue('model') || 'qwen/qwen3.8-27b:free'})`;
     } else {
@@ -735,7 +735,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const isDirectOpenAi = provider === 'own' || isOpenRouter || baseUrl.includes('/v1') || baseUrl.includes('moonlightsoldiers');
 
                 let endpoint;
-                let activeModel = getConfigValue('model') || (isOpenRouter ? 'qwen/qwen3.8-27b:free' : 'Qwen3-Coder-30B');
+                let activeModel = getConfigValue('model') || (isOpenRouter ? 'qwen/qwen3.8-27b:free' : 'Qwen2.5-Coder-14B');
                 let routedTier = null;
                 let routingReason = '';
 

@@ -29,7 +29,7 @@ export async function runConfig(args) {
         const target = args[1];
         if (!target) {
             console.log('\n\x1b[36mAvailable AI Presets:\x1b[0m');
-            console.log('  \x1b[33mown\x1b[0m   - Self-hosted AI Dual Routing (Fast 1.5B @ /fast/ + Heavy 35B MoE @ /v1/)');
+            console.log('  \x1b[33mown\x1b[0m   - Self-hosted AI Dual Routing (Fast 1.5B @ /fast/ + Heavy 14B Coder @ /v1/)');
             console.log('  \x1b[33mcloud\x1b[0m - Official Hunterstar Cloud AI (api.hunterstar.uz)');
             console.log('  \x1b[33mopen\x1b[0m  - OpenRouter AI Direct (openrouter.ai)\n');
             console.log('Usage: hunterstar config preset <own|cloud|open>\n');

@@ -218,7 +218,7 @@ test('AI presets apply correctly between own, cloud, and open (OpenRouter)', asy
         assert.equal(ownRes.name, 'own');
         assert.equal(ownRes.preset['api-url'], 'https://api.moonlightsoldiers.xyz/v1/chat/completions');
         assert.equal(ownRes.preset['api-key'], 'hunterella@152634879man');
-        assert.equal(ownRes.preset['model'], 'Qwen3-Coder-30B');
+        assert.equal(ownRes.preset['model'], 'Qwen2.5-Coder-14B');
 
         const cloudRes = applyPreset('cloud');
         assert.equal(cloudRes.name, 'cloud');

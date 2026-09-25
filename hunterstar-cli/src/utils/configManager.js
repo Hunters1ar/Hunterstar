@@ -37,7 +37,7 @@ export const AI_PRESETS = {
         'fast-api-url': FAST_API_URL,
         'heavy-api-url': HEAVY_API_URL,
         'api-key': API_KEY,
-        'model': 'Qwen3-Coder-30B',
+        'model': 'Qwen2.5-Coder-14B',
         'tier': 'auto',
         'max_tokens': 8192
     },
