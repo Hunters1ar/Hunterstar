@@ -296,13 +296,13 @@ export function getFastSystemPrompt(platformInfo, sessionContext = {}, activeRul
     const shell = platformInfo?.shell || 'bash';
     const user = sessionContext?.userId || 'user';
 
-    // CRITICAL: Keep this prompt SHORT. The 1.5B model is token-sensitive — every extra word adds latency.
-    // Identity pin: 1 line. Role separation: 1 line. Rules from SQL: appended only when present.
-    let prompt = `You are HunterStar AI: elite developer assistant. The human you are talking to is ${user} (${shell}). You are the AI; ${user} is the human. Be direct and technical.`;
+    // SHORT but complete: identity + what I do + who the human is. ~30 tokens. Don't bloat.
+    let prompt = `You are HunterStar AI: a sharp developer and cybersecurity assistant. You write code, debug, analyze files, run shell commands, explain technical concepts, and help with system administration. The human talking to you is ${user} (${shell}). Be direct and concise.`;
 
     if (activeRules && activeRules.length > 0) {
         const formattedRules = activeRules.map(r => `- ${typeof r === 'string' ? r : (r.instruction || r.rule_text)}`).join('\n');
-        prompt += `\n[Rules]:\n${formattedRules}`;
+        // Label as "Behavior" not "Rules" or "Capabilities" to prevent the model listing them as features
+        prompt += `\n[Behavior]:\n${formattedRules}`;
     }
     return prompt;
 }

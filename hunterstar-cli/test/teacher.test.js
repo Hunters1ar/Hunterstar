@@ -44,15 +44,15 @@ test('resolveSessionContext dynamically resolves different user identities', () 
 test('getFastSystemPrompt returns role separation and only injects active behavioral rules', () => {
     const platform = { shell: 'bash' };
     const promptNoRules = getFastSystemPrompt(platform, { userId: 'Khurshid' }, []);
-    assert.ok(!promptNoRules.includes('[Rules]'));
+    assert.ok(!promptNoRules.includes('[Behavior]'));
     assert.ok(promptNoRules.includes('HunterStar AI'));
     assert.ok(promptNoRules.includes('Khurshid'));
-    assert.ok(promptNoRules.includes('Khurshid is the human'));
+    assert.ok(promptNoRules.includes('write code, debug'));
 
     const promptKhurshid = getFastSystemPrompt(platform, { userId: 'Khurshid' }, [
         'Always address the human user with respect and never confuse the user identity.'
     ]);
-    assert.ok(promptKhurshid.includes('[Rules]'));
+    assert.ok(promptKhurshid.includes('[Behavior]'));
     assert.ok(promptKhurshid.includes('Always address the human user with respect'));
 
     const promptSarah = getFastSystemPrompt(platform, { userId: 'Sarah' }, [
@@ -61,11 +61,22 @@ test('getFastSystemPrompt returns role separation and only injects active behavi
     assert.ok(promptSarah.includes('The human user on this device is an administrator'));
 });
 
-test('fetchActiveInstructions and setLocalActiveInstruction cache user rules', async () => {
+test('fetchActiveInstructions falls back to local cache on network failure', async () => {
     clearInstructionsCache();
     setLocalActiveInstruction('Sarah', 'Never confuse Sarah with assistant');
-    const rules = await fetchActiveInstructions({ userId: 'Sarah' });
+    // Simulate network failure → should fall back to local cache
+    const failFetch = async () => { throw new Error('network error'); };
+    const rules = await fetchActiveInstructions({ userId: 'Sarah', fetchImpl: failFetch });
     assert.ok(rules.includes('Never confuse Sarah with assistant'));
+});
+
+test('fetchActiveInstructions always trusts SQL result over local cache (even when empty)', async () => {
+    clearInstructionsCache();
+    setLocalActiveInstruction('Bob', 'stale cached rule that should be overridden');
+    // SQL returns empty list
+    const emptyFetch = async () => new Response(JSON.stringify({ ok: true, instructions: [] }), { status: 200 });
+    const rules = await fetchActiveInstructions({ userId: 'Bob', fetchImpl: emptyFetch });
+    assert.deepEqual(rules, []);  // SQL empty wins over stale local cache
 });
 
 test('queueTeacherEvaluation returns null when prompt or fastResponse is missing', async () => {

@@ -41,8 +41,9 @@ export function resolveSessionContext(explicitContext = {}) {
 const activeInstructionsCache = new Map();
 
 /**
- * Fetches active rules and lessons taught by Heavy AI for this specific user.
- * Cached in-memory to prevent adding latency to Fast AI turns.
+ * Fetches active rules and lessons taught by Heavy AI.
+ * IMPORTANT: On a successful fetch (even empty), always use SQL result - never serve stale local cache.
+ * Only fall back to stale cache when the network request fails/times out.
  */
 export async function fetchActiveInstructions({
     userId,
@@ -52,9 +53,9 @@ export async function fetchActiveInstructions({
 } = {}) {
     const resolvedUser = (userId || process.env.HUNTERSTAR_USER || process.env.USERNAME || process.env.USER || 'guest').toLowerCase();
     const cached = activeInstructionsCache.get(resolvedUser) || activeInstructionsCache.get('global');
-    if (cached && (Date.now() - cached.timestamp < maxAgeMs)) {
-        return cached.instructions;
-    }
+
+    // Only serve cache if it's fresh AND we can't reach server (handled below)
+    const cacheIsFresh = cached && (Date.now() - cached.timestamp < maxAgeMs);
 
     try {
         const cleanUrl = intelectUrl.replace(/\/+$/, '');
@@ -68,14 +69,16 @@ export async function fetchActiveInstructions({
         if (res.ok) {
             const data = await res.json();
             const list = (data.instructions || []).map(i => i.instruction || i.rule_text).filter(Boolean);
+            // Always trust SQL result - update both user and global cache
             activeInstructionsCache.set(resolvedUser, { instructions: list, timestamp: Date.now() });
             activeInstructionsCache.set('global', { instructions: list, timestamp: Date.now() });
-            return list;
+            return list;  // may be [] if SQL is empty - that's correct, don't inject stale
         }
     } catch {
-        // Fall back to cached or empty on timeout/network issue
+        // Network error / timeout - fall back to stale cache only as last resort
+        if (cacheIsFresh) return cached.instructions;
     }
-    return cached ? cached.instructions : [];
+    return [];
 }
 
 export function setLocalActiveInstruction(userId, instruction) {

@@ -39,7 +39,7 @@ test('getFastSystemPrompt returns role separation system prompt', () => {
     const prompt = getFastSystemPrompt({ shell: 'bash' }, { userId: 'testUser' });
     assert.ok(prompt.includes('HunterStar AI'));
     assert.ok(prompt.includes('testUser'));
-    assert.ok(prompt.includes('testUser is the human'));
+    assert.ok(prompt.includes('write code, debug'));
     assert.ok(!prompt.includes('roleplay'));
     assert.ok(!prompt.includes('tsundere'));
 });
