@@ -44,14 +44,15 @@ test('resolveSessionContext dynamically resolves different user identities', () 
 test('getFastSystemPrompt returns role separation and only injects active behavioral rules', () => {
     const platform = { shell: 'bash' };
     const promptNoRules = getFastSystemPrompt(platform, { userId: 'Khurshid' }, []);
-    assert.ok(!promptNoRules.includes('Active Behavioral Rules'));
-    assert.ok(promptNoRules.includes('YOU are HunterStar AI'));
+    assert.ok(!promptNoRules.includes('[Rules]'));
+    assert.ok(promptNoRules.includes('HunterStar AI'));
     assert.ok(promptNoRules.includes('Khurshid'));
+    assert.ok(promptNoRules.includes('Khurshid is the human'));
 
     const promptKhurshid = getFastSystemPrompt(platform, { userId: 'Khurshid' }, [
         'Always address the human user with respect and never confuse the user identity.'
     ]);
-    assert.ok(promptKhurshid.includes('Active Behavioral Rules'));
+    assert.ok(promptKhurshid.includes('[Rules]'));
     assert.ok(promptKhurshid.includes('Always address the human user with respect'));
 
     const promptSarah = getFastSystemPrompt(platform, { userId: 'Sarah' }, [
