@@ -18,6 +18,7 @@ import {
     loadMemory, clearMemory, recordMistake, recordUserLesson,
     getLearnedPromptGuidance, compactCommandOutput
 } from '../utils/memoryManager.js';
+import { queueTeacherEvaluation } from '../utils/teacherEngine.js';
 
 const execPromise = util.promisify(exec);
 
@@ -291,8 +292,11 @@ CRITICAL EXECUTION RULES:
 - For secret scans, report paths and line numbers with values redacted; never print credentials.`;
 }
 
-export function getFastSystemPrompt() {
-    return STATIC_PERSONA;
+export function getFastSystemPrompt(platformInfo) {
+    if (!platformInfo) return STATIC_PERSONA;
+    const user = process.env.USERNAME || process.env.USER || 'Hunte';
+    const cwd = process.cwd();
+    return `${STATIC_PERSONA} The human user is "${user}" (engineer and owner of this environment at ${cwd}). If asked "who am i", identify the human user as "${user}".`;
 }
 
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
@@ -629,9 +633,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         }
                         return m;
                     });
-                    if (provider !== 'own' && !baseUrl.includes('moonlightsoldiers')) {
-                        requestMessages.unshift({ role: 'system', content: getFastSystemPrompt() });
-                    }
+                    requestMessages.unshift({ role: 'system', content: getFastSystemPrompt(platformInfo) });
                 } else {
                     requestMessages = messages.map((m, idx) => {
                         if (idx === 0 && m.role === 'system') {
@@ -832,6 +834,25 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         process.stdout.write(`\n\x1b[90m${timeBadge}\x1b[0m\n\n`);
                     } else if (normalText && !onlyHadReasoning) {
                         console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m${timeBadge}\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
+                    }
+
+                    if (routedTier === 'fast' && (normalText || executableText)) {
+                        const fastAnswer = normalText || executableText;
+                        const heavyEndpoint = getConfigValue('heavy-api-url') || HEAVY_API_URL;
+                        const teacherKey = getConfigValue('api-key') || API_KEY;
+                        queueTeacherEvaluation({
+                            prompt: trimmed,
+                            fastResponse: fastAnswer,
+                            userContext: {
+                                username: process.env.USERNAME || process.env.USER || 'Hunte',
+                                cwd: process.cwd(),
+                                platform: process.platform,
+                                shell: platformInfo.shell
+                            },
+                            heavyApiUrl: heavyEndpoint,
+                            apiKey: teacherKey,
+                            verbose
+                        }).catch(() => {});
                     }
 
                     if (commandToRun) {

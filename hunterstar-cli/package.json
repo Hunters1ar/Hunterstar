@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "scripts": {
-    "test": "node test/spinner.test.js && node test/ai-toolcall.test.js && node --test test/persona.test.js && node --test test/ai-recovery.test.js"
+    "test": "node test/spinner.test.js && node test/ai-toolcall.test.js && node --test test/persona.test.js && node --test test/ai-recovery.test.js && node --test test/teacher.test.js"
   },
   "engines": {
     "node": ">=21.0.0"
