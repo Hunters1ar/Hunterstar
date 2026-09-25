@@ -85,7 +85,7 @@ REM ---- Step 2: SCP backend and admin code to VPS ---------
 echo.
 echo [2/3] Uploading backend API and admin files to %VPS_HOST%...
 ssh %SSH_OPTS% %VPS_HOST% "mkdir -p %VPS_API_DIR% %VPS_ADMIN_DIR%/css %VPS_ADMIN_DIR%/js"
-scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%PROJECT_ROOT%\api\ai-provider.js" "%PROJECT_ROOT%\api\cli-prompt.js" "%VPS_HOST%:%VPS_API_DIR%/"
+scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%PROJECT_ROOT%\api\ai-provider.js" "%VPS_HOST%:%VPS_API_DIR%/"
 if errorlevel 1 (
     echo ERROR: SCP backend API upload failed.
     goto fail
