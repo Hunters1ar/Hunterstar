@@ -6,7 +6,10 @@ import {
     fetchActiveInstructions,
     setLocalActiveInstruction,
     clearInstructionsCache,
-    getDatasetFilePath
+    getDatasetFilePath,
+    detectTaskIntent,
+    fetchMasterpieceStrategy,
+    queueHeavyMasterDistillation
 } from '../src/utils/teacherEngine.js';
 import { getFastSystemPrompt } from '../src/commands/ai.js';
 
@@ -111,4 +114,63 @@ test('queueTeacherEvaluation parses teacher critique and creates dynamic dataset
     assert.ok(capturedTelegram.text.includes('What taught:'));
     assert.ok(capturedTelegram.text.includes('What to expect:'));
     assert.ok(capturedTelegram.text.includes('Khurshid'));
+});
+
+test('detectTaskIntent recognizes project analysis and security scanning', () => {
+    assert.equal(detectTaskIntent('analyze my project please'), 'analyze_project');
+    assert.equal(detectTaskIntent('inspect this repository structure'), 'analyze_project');
+    assert.equal(detectTaskIntent('find security leaks and exposed api keys'), 'security_scan');
+    assert.equal(detectTaskIntent('how is the weather'), null);
+});
+
+test('fetchMasterpieceStrategy retrieves and caches SQL masterpiece command', async () => {
+    const mockStrategy = {
+        task_intent: 'analyze_project',
+        platform: 'windows',
+        shell: 'powershell',
+        masterpiece_command: 'Get-ChildItem -Depth 2 -File | Select-Object -First 25',
+        strategy_summary: 'One shot project inspection'
+    };
+
+    const mockFetch = async () => new Response(JSON.stringify({ ok: true, strategies: [mockStrategy] }), { status: 200 });
+
+    const strategy = await fetchMasterpieceStrategy({
+        intent: 'analyze_project',
+        platform: 'windows',
+        shell: 'powershell',
+        fetchImpl: mockFetch
+    });
+
+    assert.ok(strategy);
+    assert.equal(strategy.task_intent, 'analyze_project');
+    assert.ok(strategy.masterpiece_command.includes('Get-ChildItem'));
+});
+
+test('queueHeavyMasterDistillation posts trial-and-error runs and records masterpiece to SQL', async () => {
+    let capturedPayload = null;
+    const mockFetch = async (url, options) => {
+        capturedPayload = JSON.parse(options.body);
+        return new Response(JSON.stringify({ ok: true, distill_id: 42, strategy_id: 7 }), { status: 200 });
+    };
+
+    const res = await queueHeavyMasterDistillation({
+        prompt: 'analyze my project please',
+        taskIntent: 'analyze_project',
+        platform: 'windows',
+        shell: 'powershell',
+        trialCommands: ['Get-ChildItem -Recurse', 'Get-Content package.json'],
+        stepsCount: 2,
+        masterpieceCommand: 'Get-ChildItem -Depth 2 -File; Get-Content package.json',
+        masterCritique: 'Combined multi-turn trial into 1-shot command.',
+        taughtBy: 'cloud-master',
+        latencySaved: 10.5,
+        fetchImpl: mockFetch
+    });
+
+    assert.ok(res);
+    assert.equal(res.distill_id, 42);
+    assert.equal(capturedPayload.task_intent, 'analyze_project');
+    assert.equal(capturedPayload.steps_count, 2);
+    assert.equal(capturedPayload.taught_by, 'cloud-master');
+    assert.equal(capturedPayload.latency_saved_est_sec, 10.5);
 });

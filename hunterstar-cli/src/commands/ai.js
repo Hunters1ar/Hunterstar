@@ -18,7 +18,7 @@ import {
     loadMemory, clearMemory, recordMistake, recordUserLesson,
     getLearnedPromptGuidance, compactCommandOutput
 } from '../utils/memoryManager.js';
-import { queueTeacherEvaluation, resolveSessionContext, fetchActiveInstructions } from '../utils/teacherEngine.js';
+import { queueTeacherEvaluation, resolveSessionContext, fetchActiveInstructions, detectTaskIntent, fetchMasterpieceStrategy } from '../utils/teacherEngine.js';
 
 const execPromise = util.promisify(exec);
 
@@ -641,11 +641,28 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     const activeRules = await fetchActiveInstructions({ userId: sessionContext.userId });
                     requestMessages.unshift({ role: 'system', content: getFastSystemPrompt(platformInfo, sessionContext, activeRules) });
                 } else {
+                    const isMockRuntime = Boolean(runtime.request || runtime.execute);
+                    const detectedIntent = (!isMockRuntime || runtime.enableMasterpiece) ? detectTaskIntent(trimmed) : null;
+                    let masterpieceStrategy = null;
+                    if (detectedIntent) {
+                        try {
+                            masterpieceStrategy = await fetchMasterpieceStrategy({
+                                intent: detectedIntent,
+                                platform: platformInfo.platform || process.platform,
+                                shell: platformInfo.shell
+                            });
+                        } catch {}
+                    }
+
                     requestMessages = messages.map((m, idx) => {
                         if (idx === 0 && m.role === 'system') {
+                            let sysPrompt = getSystemPrompt(platformInfo, provider);
+                            if (masterpieceStrategy && masterpieceStrategy.masterpiece_command) {
+                                sysPrompt += `\n\n[MASTERPIECE EXECUTION PROTOCOL (SQL Taught - ${masterpieceStrategy.task_intent})]:\nWhen responding to this task on ${platformInfo.shell}, immediately execute this 1-shot masterpiece command instead of exploratory trial-and-error:\n[EXEC]${masterpieceStrategy.masterpiece_command}[/EXEC]`;
+                            }
                             return {
                                 role: 'system',
-                                content: getSystemPrompt(platformInfo, provider)
+                                content: sysPrompt
                             };
                         }
                         return m;

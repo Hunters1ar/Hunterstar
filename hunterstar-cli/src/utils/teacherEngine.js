@@ -268,3 +268,118 @@ Evaluate Fast model's output and provide ideal distilled target.`;
         return null;
     }
 }
+
+const masterpieceCache = new Map();
+
+export function clearMasterpieceCache() {
+    masterpieceCache.clear();
+}
+
+export function detectTaskIntent(prompt) {
+    if (!prompt) return null;
+    const clean = prompt.toLowerCase();
+    if (/(?:analy[sz]e|inspect|what is this|examine)\s+(?:my|this|the|current)?\s*(?:project|repo|repository|files|folder|codebase)/i.test(clean)) {
+        return 'analyze_project';
+    }
+    if (/(?:find|detect|scan|check|audit)\s+(?:for\s+)?(?:security|secret|leak|vulnerabilit|danger|key|password|token|credential)/i.test(clean)) {
+        return 'security_scan';
+    }
+    if (/(?:git\s+deploy|push|build\s+my\s+git|deploy\s+git)/i.test(clean)) {
+        return 'git_deploy';
+    }
+    return null;
+}
+
+export async function fetchMasterpieceStrategy({
+    intent,
+    platform = process.platform,
+    shell = 'powershell',
+    intelectUrl = 'https://heavy.moonlightsoldiers.xyz/intelect/heavy/strategies',
+    fetchImpl = globalThis.fetch,
+    maxAgeMs = 60000
+} = {}) {
+    if (!intent) return null;
+    const normPlatform = (platform === 'win32' || platform === 'windows') ? 'windows' : (platform === 'darwin' ? 'darwin' : 'linux');
+    const normShell = (shell || '').toLowerCase().includes('powershell') || (shell || '').toLowerCase() === 'pwsh' ? 'powershell' : (shell || 'bash').toLowerCase();
+    const cacheKey = `${intent}:${normPlatform}:${normShell}`.toLowerCase();
+    const cached = masterpieceCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < maxAgeMs)) {
+        return cached.strategy;
+    }
+
+    try {
+        const cleanUrl = intelectUrl.replace(/\/+$/, '');
+        const endpoint = cleanUrl.includes('/heavy/strategies') ? cleanUrl : `${cleanUrl}/heavy/strategies`;
+        const url = `${endpoint}?intent=${encodeURIComponent(intent)}&platform=${encodeURIComponent(normPlatform)}&shell=${encodeURIComponent(normShell)}`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2000);
+        const res = await fetchImpl(url, { signal: controller.signal });
+        clearTimeout(timer);
+
+        if (res.ok) {
+            const data = await res.json();
+            const strategy = data.strategies?.[0] || null;
+            masterpieceCache.set(cacheKey, { strategy, timestamp: Date.now() });
+            return strategy;
+        }
+    } catch {
+        // Fall back gracefully
+    }
+    return cached ? cached.strategy : null;
+}
+
+export async function queueHeavyMasterDistillation({
+    prompt,
+    taskIntent,
+    platform = process.platform,
+    shell = 'powershell',
+    trialCommands = [],
+    stepsCount = 1,
+    masterpieceCommand,
+    masterCritique = '',
+    taughtBy = 'cloud-master',
+    latencySaved = 0.0,
+    heavyApiUrl = 'https://heavy.moonlightsoldiers.xyz/intelect/heavy/distill',
+    fetchImpl = globalThis.fetch,
+    verbose = false
+} = {}) {
+    if (!taskIntent || !masterpieceCommand) return null;
+    try {
+        const endpoint = heavyApiUrl.includes('/heavy/distill') 
+            ? heavyApiUrl 
+            : heavyApiUrl.replace(/\/v1\/chat\/completions\/?$/, '/intelect/heavy/distill');
+
+        const normPlatform = (platform === 'win32' || platform === 'windows') ? 'windows' : (platform === 'darwin' ? 'darwin' : 'linux');
+        const normShell = (shell || '').toLowerCase().includes('powershell') || (shell || '').toLowerCase() === 'pwsh' ? 'powershell' : (shell || 'bash').toLowerCase();
+
+        const payload = {
+            prompt: prompt || taskIntent,
+            task_intent: taskIntent,
+            platform: normPlatform,
+            shell: normShell,
+            trial_commands: trialCommands,
+            steps_count: stepsCount,
+            masterpiece_command: masterpieceCommand,
+            master_critique: masterCritique,
+            taught_by: taughtBy,
+            latency_saved_est_sec: latencySaved
+        };
+
+        const res = await fetchImpl(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (verbose) {
+                console.log(`\x1b[90m👑 [Heavy Masterpiece] Distillation logged to SQL (ID: ${data.distill_id})\x1b[0m`);
+            }
+            return data;
+        }
+    } catch (e) {
+        if (verbose) console.warn('[Heavy Masterpiece Error]', e.message);
+    }
+    return null;
+}
