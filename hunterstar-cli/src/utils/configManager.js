@@ -60,9 +60,10 @@ export const AI_PRESETS = {
 };
 
 const DEFAULT_CONFIG = {
-    'api-provider': 'cloud',
-    'api-url': 'https://api.hunterstar.uz',
-    'model': OPENROUTER_DEFAULT_MODEL,
+    'api-provider': 'own',
+    'api-url': HEAVY_API_URL,
+    'api-key': API_KEY,
+    'model': 'Qwen2.5-Coder-14B',
     'tier': 'auto',
     'fast-api-url': FAST_API_URL,
     'heavy-api-url': HEAVY_API_URL,

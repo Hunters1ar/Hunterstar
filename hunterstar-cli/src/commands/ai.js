@@ -543,7 +543,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const apiUrl = process.env.HUNTERSTAR_API_URL || configUrl || 'https://api.hunterstar.uz';
                 const baseUrl = apiUrl.replace(/\/+$/, '');
                 const configProv = getConfigValue('api-provider');
-                const provider = configProv || (apiUrl.includes('moonlightsoldiers') || apiUrl.includes('/v1') ? 'own' : (apiUrl.includes('openrouter.ai') ? 'open' : 'cloud'));
+                const provider = configProv || (apiUrl.includes('openrouter.ai') ? 'open' : 'own');
                 const isOpenRouter = provider === 'openrouter' || provider === 'open' || apiUrl.includes('openrouter.ai');
 
                 const apiKey = isOpenRouter
