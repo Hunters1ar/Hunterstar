@@ -870,6 +870,10 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                             heavyApiUrl: heavyEndpoint,
                             apiKey: teacherKey,
                             verbose
+                        }).then(entry => {
+                            if (entry && entry.lesson_taught) {
+                                process.stdout.write(`\n\x1b[90m🧠 [Heavy Teacher]: Taught lesson -> "${entry.lesson_taught}" (Saved to SQL)\x1b[0m\n`);
+                            }
                         }).catch(() => {});
                     }
 

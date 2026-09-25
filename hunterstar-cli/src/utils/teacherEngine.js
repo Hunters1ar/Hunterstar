@@ -152,7 +152,7 @@ Evaluate Fast model's output and provide ideal distilled target.`;
                 { role: 'user', content: teacherUserMessage }
             ],
             temperature: 0.2,
-            max_tokens: 384
+            max_tokens: 128
         };
 
         const headers = {
