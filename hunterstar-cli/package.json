@@ -1,6 +1,6 @@
 {
   "name": "hunterstar",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Hunterstar Developer CLI - Autonomous Full-Stack AI & Engineering Platform",
   "main": "src/index.js",
   "bin": {
