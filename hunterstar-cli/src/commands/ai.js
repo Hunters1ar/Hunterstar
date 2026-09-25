@@ -622,7 +622,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     });
                 }
 
-                const fastMaxTokens = Math.min(cfgMaxTokens || 512, 1024);
+                const fastMaxTokens = Math.min(cfgMaxTokens || 256, 512);
                 const currentMaxTokens = routedTier === 'fast' ? fastMaxTokens : maxTokens;
 
                 const payload = isDirectOpenAi ? {
@@ -760,13 +760,13 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 }
                 thinkingSpinner.stop();
                 {
-                    messages.push({ role: 'assistant', content: aiMsg });
+                    const executableText = aiMsg.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '').trim();
+                    const historyContent = executableText || aiMsg;
+                    messages.push({ role: 'assistant', content: historyContent });
                     
                     if (verbose) {
-                        console.log(`\x1b[90m[DEBUG] Raw AI Response length: ${aiMsg.length}\x1b[0m`);
+                        console.log(`\x1b[90m[DEBUG] AI History Response length: ${historyContent.length}\x1b[0m`);
                     }
-
-                    const executableText = aiMsg.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '');
                     const toolCall = routedTier === 'fast' ? null : parseToolCall(executableText, platformInfo);
                     const parsed = routedTier === 'fast'
                         ? { command: null, normalText: cleanAiDisplayText(aiMsg), suggestion: false }
