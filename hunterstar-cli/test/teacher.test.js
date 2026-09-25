@@ -46,8 +46,9 @@ test('getFastSystemPrompt returns role separation and only injects active behavi
     const promptNoRules = getFastSystemPrompt(platform, { userId: 'Khurshid' }, []);
     assert.ok(!promptNoRules.includes('[Behavior]'));
     assert.ok(promptNoRules.includes('HunterStar AI'));
-    assert.ok(promptNoRules.includes('Khurshid'));
-    assert.ok(promptNoRules.includes('write code, debug'));
+    // userId NOT in base prompt — prevents 1.5B from parroting "The human talking to me is Khurshid"
+    assert.ok(!promptNoRules.includes('Khurshid'));
+    assert.ok(promptNoRules.includes('debug'));
 
     const promptKhurshid = getFastSystemPrompt(platform, { userId: 'Khurshid' }, [
         'Always address the human user with respect and never confuse the user identity.'

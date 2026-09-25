@@ -293,15 +293,14 @@ CRITICAL EXECUTION RULES:
 }
 
 export function getFastSystemPrompt(platformInfo, sessionContext = {}, activeRules = []) {
-    const shell = platformInfo?.shell || 'bash';
     const user = sessionContext?.userId || 'user';
 
-    // SHORT but complete: identity + what I do + who the human is. ~30 tokens. Don't bloat.
-    let prompt = `You are HunterStar AI: a sharp developer and cybersecurity assistant. You write code, debug, analyze files, run shell commands, explain technical concepts, and help with system administration. The human talking to you is ${user} (${shell}). Be direct and concise.`;
+    // No user/shell in base prompt — the 1.5B model parrots those details verbatim.
+    // Identity is passed to the teacher for evaluation context only.
+    let prompt = `You are HunterStar AI: a sharp developer and cybersecurity assistant. Write code, debug, analyze files, run shell commands, explain technical concepts, system administration. Be direct and concise.`;
 
     if (activeRules && activeRules.length > 0) {
         const formattedRules = activeRules.map(r => `- ${typeof r === 'string' ? r : (r.instruction || r.rule_text)}`).join('\n');
-        // Label as "Behavior" not "Rules" or "Capabilities" to prevent the model listing them as features
         prompt += `\n[Behavior]:\n${formattedRules}`;
     }
     return prompt;
