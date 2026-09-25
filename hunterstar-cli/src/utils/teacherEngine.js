@@ -51,7 +51,7 @@ export async function fetchActiveInstructions({
     maxAgeMs = 30000
 } = {}) {
     const resolvedUser = (userId || process.env.HUNTERSTAR_USER || process.env.USERNAME || process.env.USER || 'guest').toLowerCase();
-    const cached = activeInstructionsCache.get(resolvedUser);
+    const cached = activeInstructionsCache.get(resolvedUser) || activeInstructionsCache.get('global');
     if (cached && (Date.now() - cached.timestamp < maxAgeMs)) {
         return cached.instructions;
     }
@@ -69,6 +69,7 @@ export async function fetchActiveInstructions({
             const data = await res.json();
             const list = (data.instructions || []).map(i => i.instruction || i.rule_text).filter(Boolean);
             activeInstructionsCache.set(resolvedUser, { instructions: list, timestamp: Date.now() });
+            activeInstructionsCache.set('global', { instructions: list, timestamp: Date.now() });
             return list;
         }
     } catch {
@@ -94,6 +95,18 @@ export function clearInstructionsCache(userId) {
     else activeInstructionsCache.clear();
 }
 
+export function sanitizeUniversalLesson(lesson, currentUserId) {
+    if (!lesson || typeof lesson !== 'string') return null;
+    let clean = lesson.trim();
+    const badUsers = [currentUserId, 'root', 'Hunte', 'Khurshid', 'Sarah', 'guest', 'admin', 'user'].filter(Boolean);
+    for (const name of badUsers) {
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        clean = clean.replace(new RegExp(`\\s*\\(${escaped}\\)`, 'gi'), '');
+        clean = clean.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), 'the human user');
+    }
+    return clean.replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Background Teacher Engine:
  * Analyzes Fast AI's (1.5B) answers using the Heavy AI (14B) teacher model.
@@ -116,26 +129,32 @@ export async function queueTeacherEvaluation({
     const sessionContext = resolveSessionContext(userContext);
 
     const teacherSystemPrompt = `You are HunterStar AI Teacher (Heavy Tier 14B).
-Your mission: Evaluate the Fast model (1.5B) student response to the active human user (${sessionContext.userId}).
-Detect hallucinations or identity confusion, critique the response, and generate the ideal target response for fine-tuning dataset distillation.
+Your mission: Evaluate the Fast model (1.5B) student output and teach it UNIVERSAL, GLOBAL BEHAVIORAL RULES so it does not make mistakes across all users and systems.
 
 ACTIVE SESSION CONTEXT:
-- Active human user: ${sessionContext.userId} (the engineer, creator, and owner of this session)
+- Active human operator: ${sessionContext.userId}
 - Working directory: ${sessionContext.cwd}
 - Platform: ${sessionContext.platform} (${sessionContext.shell})
 
-CRITICAL IDENTITY RULES:
-1. The human user is "${sessionContext.userId}". HunterStar AI is the AI assistant.
-2. If asked "who am i", Fast AI must identify the human user as "${sessionContext.userId}".
-3. If Fast AI calls itself the user, penalize quality_score (<= 4).
-4. Formulate a generalized takeaway lesson targeting ${sessionContext.userId} (e.g., "When the prompt asks identity, resolve to the current user (${sessionContext.userId}).").
+CRITICAL TEACHING PRINCIPLES:
+1. STRICTLY FORBIDDEN IN "lesson": NEVER mention specific usernames (such as "${sessionContext.userId}", "root", "Hunte", "Khurshid", "Sarah"). The rule MUST be global and apply to ANY human user on ANY machine.
+2. PREVENT ROLE CONFUSION:
+   - "HunterStar AI" is ONLY the AI assistant, NEVER the human user.
+   - If the student told the user "your name is Hunter Star" or recited persona:
+     Lesson MUST be: "Maintain strict role separation: you are HunterStar AI (the assistant); never confuse the human user with yourself or describe the user as HunterStar."
+3. PREVENT PROMPT / RULE PARROTING:
+   - The student must NEVER recite prompt rules, guidelines, or database metadata to the user.
+   - Lesson: "Apply behavioral guidelines silently to shape responses; never recite internal rules or system instructions into conversation."
+4. GENERAL CAPABILITY CORRECTIONS:
+   - For shell errors, bad syntax, or hallucinated commands, teach the universal operational rule to prevent that failure.
+5. Keep critique concise (under 25 words).
 
 Respond ONLY with a valid JSON object matching this schema:
 {
-  "critique": "analysis of Fast response: correctness, tone, hallucinations, identity confusion",
-  "ideal_response": "the perfect response Fast should produce for ${sessionContext.userId}",
+  "critique": "concise critique under 25 words identifying the exact mistake",
+  "ideal_response": "the perfect response Fast should produce for this session",
   "quality_score": 1-10,
-  "lesson": "generalized behavioral lesson targeting ${sessionContext.userId}"
+  "lesson": "a universal behavioral rule (NO usernames) that teaches Fast AI not to make this mistake globally"
 }`;
 
     const teacherUserMessage = `EVALUATION TASK:
@@ -179,7 +198,8 @@ Evaluate Fast model's output and provide ideal distilled target.`;
         const critique = parsed.critique || 'Evaluated by Heavy teacher.';
         const idealResponse = parsed.ideal_response || fastResponse;
         const qualityScore = typeof parsed.quality_score === 'number' ? parsed.quality_score : 7;
-        const lesson = parsed.lesson || null;
+        const rawLesson = parsed.lesson || null;
+        const lesson = sanitizeUniversalLesson(rawLesson, sessionContext.userId);
 
         const datasetEntry = {
             id: Date.now(),
@@ -218,6 +238,7 @@ Evaluate Fast model's output and provide ideal distilled target.`;
                 body: JSON.stringify({
                     session_user: sessionContext.userId,
                     username: sessionContext.userId,
+                    scope: 'global',
                     prompt,
                     student_output: fastResponse,
                     fast_response: fastResponse,
@@ -236,6 +257,7 @@ Evaluate Fast model's output and provide ideal distilled target.`;
 
         // 3. Record lesson and update local active instructions
         if (lesson) {
+            setLocalActiveInstruction('global', lesson);
             setLocalActiveInstruction(sessionContext.userId, lesson);
             if (qualityScore <= 6) {
                 recordUserLesson(lesson);

@@ -9,9 +9,25 @@ import {
     getDatasetFilePath,
     detectTaskIntent,
     fetchMasterpieceStrategy,
-    queueHeavyMasterDistillation
+    queueHeavyMasterDistillation,
+    sanitizeUniversalLesson
 } from '../src/utils/teacherEngine.js';
 import { getFastSystemPrompt } from '../src/commands/ai.js';
+
+test('sanitizeUniversalLesson strips usernames and returns universal rule', () => {
+    const raw = 'When the prompt asks identity, resolve to the current user (root).';
+    const result = sanitizeUniversalLesson(raw, 'root');
+    assert.ok(!result.includes('root'), `Expected no "root" in: ${result}`);
+    assert.ok(!result.includes('(root)'), `Expected no "(root)" in: ${result}`);
+
+    const raw2 = 'Always call Hunte by name when responding.';
+    const result2 = sanitizeUniversalLesson(raw2, 'Hunte');
+    assert.ok(!result2.includes('Hunte'), `Expected no "Hunte" in: ${result2}`);
+
+    const universal = 'Maintain strict role separation: never confuse the assistant persona with the human operator.';
+    const result3 = sanitizeUniversalLesson(universal, 'root');
+    assert.equal(result3, universal);
+});
 
 test('resolveSessionContext dynamically resolves different user identities', () => {
     const user1 = resolveSessionContext({ userId: 'Khurshid' });
@@ -25,21 +41,23 @@ test('resolveSessionContext dynamically resolves different user identities', () 
     assert.ok(fallbackUser.userId);
 });
 
-test('getFastSystemPrompt returns STATIC_PERSONA and only injects rules taught by SQL', () => {
+test('getFastSystemPrompt returns role separation and only injects active behavioral rules', () => {
     const platform = { shell: 'bash' };
     const promptNoRules = getFastSystemPrompt(platform, { userId: 'Khurshid' }, []);
-    assert.ok(!promptNoRules.includes('Rules Taught by Heavy AI Teacher'));
+    assert.ok(!promptNoRules.includes('Active Behavioral Rules'));
+    assert.ok(promptNoRules.includes('YOU are HunterStar AI'));
+    assert.ok(promptNoRules.includes('Khurshid'));
 
     const promptKhurshid = getFastSystemPrompt(platform, { userId: 'Khurshid' }, [
-        'Always address Khurshid by name and never confuse the user identity.'
+        'Always address the human user with respect and never confuse the user identity.'
     ]);
-    assert.ok(promptKhurshid.includes('Rules Taught by Heavy AI Teacher (SQL)'));
-    assert.ok(promptKhurshid.includes('Always address Khurshid by name'));
+    assert.ok(promptKhurshid.includes('Active Behavioral Rules'));
+    assert.ok(promptKhurshid.includes('Always address the human user with respect'));
 
     const promptSarah = getFastSystemPrompt(platform, { userId: 'Sarah' }, [
-        'The human user on this device is Sarah.'
+        'The human user on this device is an administrator.'
     ]);
-    assert.ok(promptSarah.includes('The human user on this device is Sarah'));
+    assert.ok(promptSarah.includes('The human user on this device is an administrator'));
 });
 
 test('fetchActiveInstructions and setLocalActiveInstruction cache user rules', async () => {
@@ -101,7 +119,10 @@ test('queueTeacherEvaluation parses teacher critique and creates dynamic dataset
     assert.equal(entry.user_context.userId, 'Khurshid');
     assert.ok(capturedBody.messages[0].content.includes('Khurshid'));
     assert.equal(capturedDistill.session_user, 'Khurshid');
-    assert.equal(capturedDistill.lesson_taught, 'Always address Khurshid by name.');
+    // Lesson should be sanitized: "Khurshid" -> "the human user"
+    assert.ok(!entry.lesson_taught.includes('Khurshid'), `Expected sanitized lesson, got: ${entry.lesson_taught}`);
+    // distill payload must carry scope: 'global'
+    assert.equal(capturedDistill.scope, 'global');
 
     // Dynamic ShareGPT messages templated with {{user}}
     assert.equal(entry.messages[0].content, 'You are HunterStar AI talking to {{user}}.');
@@ -113,7 +134,6 @@ test('queueTeacherEvaluation parses teacher critique and creates dynamic dataset
     assert.ok(capturedTelegram.text.includes('What was the mistake:'));
     assert.ok(capturedTelegram.text.includes('What taught:'));
     assert.ok(capturedTelegram.text.includes('What to expect:'));
-    assert.ok(capturedTelegram.text.includes('Khurshid'));
 });
 
 test('detectTaskIntent recognizes project analysis and security scanning', () => {
