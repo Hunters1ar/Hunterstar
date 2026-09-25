@@ -132,11 +132,12 @@ FIREBASE_API_KEY=AIzaSyDCmF8y4DXFqABNOuDtz6ytEUqJJcIFlMs
 YOUTUBE_API_KEY=$(env_quote "$YOUTUBE_API_KEY")
 YOUTUBE_PLAYLIST_ID=$(env_quote "$YOUTUBE_PLAYLIST_ID")
 OPEN_ROUTER_API_KEY=$(env_quote "$OPEN_ROUTER_API_KEY")
+OPENROUTER_MODEL=$(env_quote "${OPENROUTER_MODEL:-qwen/qwen3.8-27b:free}")
 EOF
 
-# Preserve multiple AI keys from existing .env if they exist
+# Preserve multiple Gemini AI keys from existing .env if they exist
 if [ -f ".env.bak" ]; then
-    grep -E '^(OPEN_ROUTER_API_KEY|AI_STUDIO_API_KEY)[0-9]*=' ".env.bak" >> .env || true
+    grep -E '^AI_STUDIO_API_KEY[0-9]*=' ".env.bak" >> .env || true
 fi
 
 echo "OK .env created"
