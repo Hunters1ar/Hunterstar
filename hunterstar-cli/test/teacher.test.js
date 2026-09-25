@@ -22,18 +22,20 @@ test('resolveSessionContext dynamically resolves different user identities', () 
     assert.ok(fallbackUser.userId);
 });
 
-test('getFastSystemPrompt dynamically injects active user and learned rules', () => {
+test('getFastSystemPrompt returns STATIC_PERSONA and only injects rules taught by SQL', () => {
     const platform = { shell: 'bash' };
+    const promptNoRules = getFastSystemPrompt(platform, { userId: 'Khurshid' }, []);
+    assert.ok(!promptNoRules.includes('Rules Taught by Heavy AI Teacher'));
+
     const promptKhurshid = getFastSystemPrompt(platform, { userId: 'Khurshid' }, [
         'Always address Khurshid by name and never confuse the user identity.'
     ]);
-    assert.ok(promptKhurshid.includes('speaking with Khurshid'));
+    assert.ok(promptKhurshid.includes('Rules Taught by Heavy AI Teacher (SQL)'));
     assert.ok(promptKhurshid.includes('Always address Khurshid by name'));
 
     const promptSarah = getFastSystemPrompt(platform, { userId: 'Sarah' }, [
         'The human user on this device is Sarah.'
     ]);
-    assert.ok(promptSarah.includes('speaking with Sarah'));
     assert.ok(promptSarah.includes('The human user on this device is Sarah'));
 });
 

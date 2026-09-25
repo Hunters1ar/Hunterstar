@@ -294,13 +294,10 @@ CRITICAL EXECUTION RULES:
 
 export function getFastSystemPrompt(platformInfo, sessionContext = {}, activeRules = []) {
     if (!platformInfo) return STATIC_PERSONA;
-    const resolvedContext = resolveSessionContext(sessionContext);
-    const user = resolvedContext.userId;
-    const cwd = resolvedContext.cwd;
-    let prompt = `You are HunterStar AI. You are speaking with ${user}, the owner of this session at ${cwd}.`;
+    let prompt = STATIC_PERSONA;
     if (activeRules && activeRules.length > 0) {
         const formattedRules = activeRules.map(r => `- ${typeof r === 'string' ? r : (r.instruction || r.rule_text)}`).join('\n');
-        prompt += `\n\n[Rules Taught by Heavy AI Teacher]:\n${formattedRules}`;
+        prompt += `\n\n[Rules Taught by Heavy AI Teacher (SQL)]:\n${formattedRules}`;
     }
     return prompt;
 }
