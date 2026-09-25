@@ -3,6 +3,7 @@ import path from 'path';
 import { getConfigDir, getConfigValue } from './configManager.js';
 import { recordUserLesson } from './memoryManager.js';
 import { extractJsonFromResponse } from './personaManager.js';
+import { reportTeachingToTelegram } from '../analytics.js';
 
 export function getDatasetDir() {
     const dir = path.join(getConfigDir(), 'dataset');
@@ -239,6 +240,22 @@ Evaluate Fast model's output and provide ideal distilled target.`;
             if (qualityScore <= 6) {
                 recordUserLesson(lesson);
             }
+        }
+
+        // 4. Send teaching report to Analytics Bot
+        try {
+            await reportTeachingToTelegram({
+                prompt,
+                sessionUser: sessionContext.userId,
+                before: fastResponse,
+                mistake: critique,
+                whatTaught: lesson || 'Role separation and session identity alignment.',
+                whatToExpect: idealResponse,
+                score: qualityScore,
+                fetchImpl
+            });
+        } catch (e) {
+            if (verbose) console.warn('[Teacher Error] Telegram report failed:', e.message);
         }
 
         if (verbose) {

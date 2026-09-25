@@ -52,6 +52,7 @@ test('queueTeacherEvaluation returns null when prompt or fastResponse is missing
 test('queueTeacherEvaluation parses teacher critique and creates dynamic dataset entry', async () => {
     let capturedBody = null;
     let capturedDistill = null;
+    let capturedTelegram = null;
     const mockTeacherResponse = {
         choices: [{
             message: {
@@ -69,6 +70,10 @@ test('queueTeacherEvaluation parses teacher critique and creates dynamic dataset
         if (url.includes('/intelect/distill')) {
             capturedDistill = JSON.parse(options.body);
             return new Response(JSON.stringify({ ok: true, id: 99, rule_id: 10 }), { status: 200 });
+        }
+        if (url.includes('api.telegram.org')) {
+            capturedTelegram = JSON.parse(options.body);
+            return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 });
         }
         capturedBody = JSON.parse(options.body);
         return new Response(JSON.stringify(mockTeacherResponse), { status: 200 });
@@ -96,4 +101,12 @@ test('queueTeacherEvaluation parses teacher critique and creates dynamic dataset
     // Dynamic ShareGPT messages templated with {{user}}
     assert.equal(entry.messages[0].content, 'You are HunterStar AI talking to {{user}}.');
     assert.equal(entry.messages[2].content, 'You are {{user}}, the systems engineer.');
+
+    // Verified Telegram Analytics report delivery
+    assert.ok(capturedTelegram);
+    assert.ok(capturedTelegram.text.includes('Before:'));
+    assert.ok(capturedTelegram.text.includes('What was the mistake:'));
+    assert.ok(capturedTelegram.text.includes('What taught:'));
+    assert.ok(capturedTelegram.text.includes('What to expect:'));
+    assert.ok(capturedTelegram.text.includes('Khurshid'));
 });
