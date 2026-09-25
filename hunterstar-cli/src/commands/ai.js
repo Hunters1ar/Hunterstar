@@ -18,7 +18,7 @@ import {
     loadMemory, clearMemory, recordMistake, recordUserLesson,
     getLearnedPromptGuidance, compactCommandOutput
 } from '../utils/memoryManager.js';
-import { queueTeacherEvaluation } from '../utils/teacherEngine.js';
+import { queueTeacherEvaluation, resolveSessionContext, fetchActiveInstructions } from '../utils/teacherEngine.js';
 
 const execPromise = util.promisify(exec);
 
@@ -292,11 +292,17 @@ CRITICAL EXECUTION RULES:
 - For secret scans, report paths and line numbers with values redacted; never print credentials.`;
 }
 
-export function getFastSystemPrompt(platformInfo) {
+export function getFastSystemPrompt(platformInfo, sessionContext = {}, activeRules = []) {
     if (!platformInfo) return STATIC_PERSONA;
-    const user = process.env.USERNAME || process.env.USER || 'Hunte';
-    const cwd = process.cwd();
-    return `${STATIC_PERSONA} The human user is "${user}" (engineer and owner of this environment at ${cwd}). If asked "who am i", identify the human user as "${user}".`;
+    const resolvedContext = resolveSessionContext(sessionContext);
+    const user = resolvedContext.userId;
+    const cwd = resolvedContext.cwd;
+    let prompt = `You are HunterStar AI. You are speaking with ${user}, the owner of this session at ${cwd}.`;
+    if (activeRules && activeRules.length > 0) {
+        const formattedRules = activeRules.map(r => `- ${typeof r === 'string' ? r : (r.instruction || r.rule_text)}`).join('\n');
+        prompt += `\n\n[Rules Taught by Heavy AI Teacher]:\n${formattedRules}`;
+    }
+    return prompt;
 }
 
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
@@ -319,6 +325,8 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     if (noExec) console.log('\x1b[33m[NO-EXEC MODE ACTIVE]\x1b[0m Command execution is disabled.');
     if (turbo) console.log('\x1b[33m[\u26A1 TURBO MODE ACTIVE]\x1b[0m Safe commands will be auto-executed.\n');
     else console.log();
+
+    const sessionContext = resolveSessionContext(runtime.userContext || { shell: platformInfo.shell });
     
     const askQuestion = runtime.ask || (async (query) => {
         const { ans } = await inquirer.prompt([{
@@ -633,7 +641,8 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         }
                         return m;
                     });
-                    requestMessages.unshift({ role: 'system', content: getFastSystemPrompt(platformInfo) });
+                    const activeRules = await fetchActiveInstructions({ userId: sessionContext.userId });
+                    requestMessages.unshift({ role: 'system', content: getFastSystemPrompt(platformInfo, sessionContext, activeRules) });
                 } else {
                     requestMessages = messages.map((m, idx) => {
                         if (idx === 0 && m.role === 'system') {
@@ -843,12 +852,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         queueTeacherEvaluation({
                             prompt: trimmed,
                             fastResponse: fastAnswer,
-                            userContext: {
-                                username: process.env.USERNAME || process.env.USER || 'Hunte',
-                                cwd: process.cwd(),
-                                platform: process.platform,
-                                shell: platformInfo.shell
-                            },
+                            userContext: sessionContext,
                             heavyApiUrl: heavyEndpoint,
                             apiKey: teacherKey,
                             verbose
