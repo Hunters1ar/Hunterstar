@@ -35,11 +35,9 @@ test('STATIC_PERSONA_SPEC defines structured professional traits and rules', () 
     assert.ok(STATIC_PERSONA_SPEC.avoid.some(a => a.includes('fluff') || a.includes('gimmicks')));
 });
 
-test('getFastSystemPrompt returns role separation system prompt', () => {
-    const prompt = getFastSystemPrompt({ shell: 'bash' }, { userId: 'testUser' });
+test('getFastSystemPrompt returns a static professional persona prompt', () => {
+    const prompt = getFastSystemPrompt();
     assert.ok(prompt.includes('HunterStar AI'));
-    // No username in base prompt — prevents 1.5B from parroting identity details
-    assert.ok(!prompt.includes('testUser'));
     assert.ok(prompt.includes('debug'));
     assert.ok(!prompt.includes('roleplay'));
     assert.ok(!prompt.includes('tsundere'));

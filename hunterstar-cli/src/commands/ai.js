@@ -18,7 +18,7 @@ import {
     loadMemory, clearMemory, recordMistake, recordUserLesson,
     getLearnedPromptGuidance, compactCommandOutput
 } from '../utils/memoryManager.js';
-import { queueTeacherEvaluation, resolveSessionContext, fetchActiveInstructions, detectTaskIntent, fetchMasterpieceStrategy } from '../utils/teacherEngine.js';
+import { resolveSessionContext, detectTaskIntent, fetchMasterpieceStrategy } from '../utils/teacherEngine.js';
 
 const execPromise = util.promisify(exec);
 
@@ -292,18 +292,8 @@ CRITICAL EXECUTION RULES:
 - For secret scans, report paths and line numbers with values redacted; never print credentials.`;
 }
 
-export function getFastSystemPrompt(platformInfo, sessionContext = {}, activeRules = []) {
-    const user = sessionContext?.userId || 'user';
-
-    // No user/shell in base prompt — the 1.5B model parrots those details verbatim.
-    // Identity is passed to the teacher for evaluation context only.
-    let prompt = `You are HunterStar AI: a sharp developer and cybersecurity assistant. Write code, debug, analyze files, run shell commands, explain technical concepts, system administration. Be direct and concise.`;
-
-    if (activeRules && activeRules.length > 0) {
-        const formattedRules = activeRules.map(r => `- ${typeof r === 'string' ? r : (r.instruction || r.rule_text)}`).join('\n');
-        prompt += `\n[Behavior]:\n${formattedRules}`;
-    }
-    return prompt;
+export function getFastSystemPrompt() {
+    return `You are HunterStar AI: a sharp developer and cybersecurity assistant. Write code, debug, analyze files, run shell commands, explain technical concepts, system administration. Be direct and concise.`;
 }
 
 export async function startAiChat({ noExec = false, verbose = false, turbo = false } = {}, runtime = {}) {
@@ -642,8 +632,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         }
                         return m;
                     });
-                    const activeRules = await fetchActiveInstructions({ userId: sessionContext.userId });
-                    requestMessages.unshift({ role: 'system', content: getFastSystemPrompt(platformInfo, sessionContext, activeRules) });
+                    requestMessages.unshift({ role: 'system', content: getFastSystemPrompt() });
                 } else {
                     const isMockRuntime = Boolean(runtime.request || runtime.execute);
                     const detectedIntent = (!isMockRuntime || runtime.enableMasterpiece) ? detectTaskIntent(trimmed) : null;
@@ -863,23 +852,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         console.log(`\n\x1b[35m${HUNTERSTAR_LOGO} Hunterstar AI:\x1b[0m \x1b[90m${timeBadge}\x1b[0m\n\n${renderMarkdown(normalText)}\n`);
                     }
 
-                    if (routedTier === 'fast' && (normalText || executableText)) {
-                        const fastAnswer = normalText || executableText;
-                        const heavyEndpoint = getConfigValue('heavy-api-url') || HEAVY_API_URL;
-                        const teacherKey = getConfigValue('api-key') || API_KEY;
-                        queueTeacherEvaluation({
-                            prompt: trimmed,
-                            fastResponse: fastAnswer,
-                            userContext: sessionContext,
-                            heavyApiUrl: heavyEndpoint,
-                            apiKey: teacherKey,
-                            verbose
-                        }).then(entry => {
-                            if (entry && entry.lesson_taught) {
-                                process.stdout.write(`\n\x1b[90m🧠 [Heavy Teacher]: Taught lesson -> "${entry.lesson_taught}" (Saved to SQL)\x1b[0m\n`);
-                            }
-                        }).catch(() => {});
-                    }
+
 
                     if (commandToRun) {
                         if (noExec) {
