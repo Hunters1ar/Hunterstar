@@ -1,3 +1,8 @@
+function stripShellPrefix(cmd) {
+    if (!cmd || typeof cmd !== 'string') return cmd;
+    return cmd.replace(/^(?:powershell|pwsh|cmd|bash|sh|fish|zsh):\s*/i, '').trim();
+}
+
 export function parseAiCommand(text) {
     if (/<\/?(?:dots_function_call|invoke|parameter|tool_call|function_call)\b/i.test(text)) {
         return { error: 'Unsupported or malformed XML tool call. Use exactly one [EXEC]command[/EXEC] block with a command for the active shell. No command was executed.' };
@@ -8,10 +13,12 @@ export function parseAiCommand(text) {
         return { error: 'Invalid execution format. Return exactly one complete, nonempty [EXEC]command[/EXEC] block. No command was executed.' };
     }
     if (blocks.length === 1) {
-        return { command: blocks[0][1].trim(), normalText: text.slice(0, blocks[0].index).trim(), suggestion: false };
+        const cmd = stripShellPrefix(blocks[0][1].trim());
+        return { command: cmd, normalText: text.slice(0, blocks[0].index).trim(), suggestion: false };
     }
     const suggestion = text.match(/```(?:bash|cmd|powershell|sh)\r?\n([\s\S]*?)\r?\n```/);
-    return { command: suggestion?.[1]?.trim(), normalText: text, suggestion: Boolean(suggestion) };
+    const suggCmd = suggestion?.[1] ? stripShellPrefix(suggestion[1].trim()) : undefined;
+    return { command: suggCmd, normalText: text, suggestion: Boolean(suggestion) };
 }
 
 export function extractRescuedCommand(text) {
@@ -20,7 +27,7 @@ export function extractRescuedCommand(text) {
     // 1. Explicit [EXEC] block (take the last complete block since that represents the model's final conclusion)
     const execBlocks = [...text.matchAll(/\[EXEC\]([\s\S]*?)\[\/EXEC\]/g)];
     if (execBlocks.length > 0) {
-        const cmd = execBlocks[execBlocks.length - 1][1].trim();
+        const cmd = stripShellPrefix(execBlocks[execBlocks.length - 1][1].trim());
         if (cmd) return cmd;
     }
 

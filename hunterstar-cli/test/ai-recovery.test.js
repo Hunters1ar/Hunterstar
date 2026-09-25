@@ -466,6 +466,25 @@ test('classifyPromptTier intelligently routes casual chatter to fast tier and co
 
     const forcedHeavy = classifyPromptTier('hi', { forcedTier: 'heavy' });
     assert.equal(forcedHeavy.tier, 'heavy');
+
+    // Audit, security, secret leak detection & project analysis -> heavy
+    const auditQuery = classifyPromptTier('analyze my files');
+    assert.equal(auditQuery.tier, 'heavy');
+
+    const leakQuery = classifyPromptTier('find dangerous parts like leaks and fix them');
+    assert.equal(leakQuery.tier, 'heavy');
+
+    const projQuery = classifyPromptTier('what is this project about');
+    assert.equal(projQuery.tier, 'heavy');
+
+    const addQuery = classifyPromptTier('what things you think i should add');
+    assert.equal(addQuery.tier, 'heavy');
+
+    const slashHeavy = classifyPromptTier('/heavy tell me a joke');
+    assert.equal(slashHeavy.tier, 'heavy');
+
+    const slashFast = classifyPromptTier('/fast write a python script');
+    assert.equal(slashFast.tier, 'fast');
 });
 
 test('extractRescuedCommand extracts command from thought output across various formats', () => {
@@ -475,6 +494,10 @@ Output: '[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Objec
 Wait, let me verify syntax.
 \`[EXEC]Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10[/EXEC]\``;
     assert.equal(extractRescuedCommand(execText), 'Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10');
+
+    // 1b. [EXEC] with powershell: or bash: shell prefix
+    const prefixedExec = `[EXEC]powershell:Get-ChildItem -Path . -Recurse -File -Name | Select-Object -First 100[/EXEC]`;
+    assert.equal(extractRescuedCommand(prefixedExec), 'Get-ChildItem -Path . -Recurse -File -Name | Select-Object -First 100');
 
     // 2. Fenced code block in thoughts
     const fencedText = `I will run this powershell command:

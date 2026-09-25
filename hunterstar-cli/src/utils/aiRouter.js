@@ -10,6 +10,18 @@ const DEBUG_KEYWORDS = /\b(debug|debugging|bug|fix|error|exception|traceback|sta
 const COMMAND_KEYWORDS = /\b(execute|run|exec|launch|start|stop|restart|kill|terminate|install|uninstall|npm|pip|cargo|git|docker|curl|wget|chmod|chown|ps|pkill|find|search|grep|cat|ls|dir|inspect|folder|directory|files?|delete|remove|erase|clear|clean|purge|destroy|create|make|write|edit|modify|update|copy|move|rename|show|list|open|download|clone|pull|push|commit|diff|add|del|rm|Get-ChildItem|Select-String)\b/i;
 const PATH_PATTERN = /[a-zA-Z]:\\|\/(?:usr|var|etc|bin|home|root|tmp)\b|\b\w+\.(?:js|ts|py|json|html|css|cpp|c|cs|rs|go|sh|ps1|bat|md|yaml|yml)\b/i;
 
+// Add audit/analyze keywords to force Tier: HEAVY
+export const HEAVY_ANALYSIS_REGEX = /\b(analyze|audit|scan|leak|security|inspect|structure|vulnerability|project|refactor|fix|check|overview|recommend|suggestion|improve)\b/i;
+
+export function routeTier(userPrompt) {
+    if (!userPrompt) return 'fast';
+    const clean = userPrompt.trim();
+    if (clean.startsWith('/heavy')) return 'heavy';
+    if (clean.startsWith('/fast')) return 'fast';
+    if (HEAVY_ANALYSIS_REGEX.test(clean)) return 'heavy';
+    return 'fast'; // Only greetings and 3-word chatter stay fast
+}
+
 const SYSTEM_METRIC_KEYWORDS = /\b(ram|memory|cpu|gpu|vram|swap|pagefile|disk|storage|ssd|hdd|drive|drives|partition|partitions|volume|volumes|processes?|tasklist|taskmgr|services?|daemons?|specs|hardware|motherboard|battery|bandwidth|network|wifi|ethernet|ports?|sockets?|netstat|ipconfig|ifconfig|ping|traceroute|dns|firewall|uptime|systeminfo|neofetch|fastfetch)\b/i;
 const SYSTEM_ACTION_KEYWORDS = /\b(analyze|analyzing|analysis|monitor|monitoring|benchmark|benchmarking|diagnose|diagnostic|diagnostics|troubleshoot|troubleshooting|audit|auditing|profile|profiling|measure|measuring|consuming|consumption|utilization|usage|bottleneck|throttl(?:e|ing)|overheat(?:ing)?|temps?|temperature|free space|disk space)\b/i;
 const OS_ADMIN_KEYWORDS = /\b(Get-Process|Stop-Process|Start-Process|Get-Service|Start-Service|Stop-Service|Restart-Service|Get-Counter|Get-WmiObject|Get-CimInstance|Get-Volume|Get-Disk|Get-NetTCPConnection|Get-NetIPAddress|Test-NetConnection|top|htop|btop|free|vmstat|iostat|df|du|lsof|fuser|netstat|ss|systemctl|journalctl|dmesg|tasklist|taskkill|systeminfo|wmic|chkdsk|sfc|dism|netsh)\b/i;
@@ -93,6 +105,38 @@ export function classifyPromptTier(prompt, {
             model: FAST_MODEL,
             reason: 'Empty prompt',
             label: 'Fast Chat Tier (1.5B)'
+        };
+    }
+
+    // Explicit one-off tier commands
+    if (clean.startsWith('/heavy')) {
+        return {
+            tier: 'heavy',
+            endpoint: heavyUrl || HEAVY_API_URL,
+            model: HEAVY_MODEL,
+            reason: 'Manual tier command (/heavy)',
+            label: 'Heavy Coding Tier (35B MoE)'
+        };
+    }
+
+    if (clean.startsWith('/fast')) {
+        return {
+            tier: 'fast',
+            endpoint: fastUrl || FAST_API_URL,
+            model: FAST_MODEL,
+            reason: 'Manual tier command (/fast)',
+            label: 'Fast Chat Tier (1.5B)'
+        };
+    }
+
+    // Audit, security, secret leak detection & project analysis -> Heavy
+    if (HEAVY_ANALYSIS_REGEX.test(clean)) {
+        return {
+            tier: 'heavy',
+            endpoint: heavyUrl || HEAVY_API_URL,
+            model: HEAVY_MODEL,
+            reason: 'Security, audit, or project analysis query',
+            label: 'Heavy Coding Tier (35B MoE)'
         };
     }
 
