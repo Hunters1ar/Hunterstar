@@ -27,6 +27,9 @@ function getConfigFilePath() {
 
 const CONFIG_PATH = getConfigFilePath();
 
+export const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+export const OPENROUTER_DEFAULT_MODEL = 'dots-studio/dots-3-note-preview:free';
+
 export const AI_PRESETS = {
     own: {
         'api-provider': 'own',
@@ -44,6 +47,14 @@ export const AI_PRESETS = {
         'api-key': '',
         'model': 'dots-studio/dots-3-note-preview:free',
         'tier': 'cloud',
+        'max_tokens': 8192
+    },
+    open: {
+        'api-provider': 'openrouter',
+        'api-url': OPENROUTER_API_URL,
+        'api-key': '',
+        'model': OPENROUTER_DEFAULT_MODEL,
+        'tier': 'openrouter',
         'max_tokens': 8192
     }
 };
@@ -71,6 +82,16 @@ export function applyPreset(presetName) {
         Object.assign(config, AI_PRESETS.cloud);
         saveConfig(config);
         return { name: 'cloud', preset: AI_PRESETS.cloud };
+    }
+    if (key === 'open' || key === 'openrouter' || key === 'open-router' || key === 'router') {
+        const config = loadConfig();
+        const savedOpenKey = config['openrouter-api-key'] || (config['api-provider'] === 'openrouter' ? config['api-key'] : '');
+        Object.assign(config, AI_PRESETS.open);
+        if (savedOpenKey) {
+            config['api-key'] = savedOpenKey;
+        }
+        saveConfig(config);
+        return { name: 'open', preset: AI_PRESETS.open };
     }
     return null;
 }

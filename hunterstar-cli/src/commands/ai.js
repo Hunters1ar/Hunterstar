@@ -190,7 +190,7 @@ function getExtendedPath(platformInfo) {
 export function getSystemPrompt(platformInfo, provider = 'cloud', activePersona = null) {
     const memoryGuidance = getLearnedPromptGuidance(3);
 
-    if (provider === 'own') {
+    if (provider === 'own' || provider === 'open' || provider === 'openrouter') {
         let prompt = `You are the Hunterstar CLI AI Assistant.
 Operating system: ${platformInfo.osDisplayName}. Active shell: ${platformInfo.shell}. Command chaining: '${platformInfo.commandSeparator}'.
 
@@ -316,14 +316,19 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
     const platformInfo = runtime.platformInfo || detectPlatform();
     const request = runtime.request || requestAi;
     const execute = runtime.execute || execPromise;
-    const currentProv = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : 'cloud');
+    const currentProv = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : (getConfigValue('api-url')?.includes('openrouter.ai') ? 'open' : 'cloud'));
     const currentTier = (runtime.tier || getConfigValue('tier') || 'auto').toUpperCase();
-    const provLabel = currentProv === 'own' 
-        ? `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 35B 🧠 | Tier: ${currentTier})` 
-        : 'Hunterstar Cloud';
+    let provLabel;
+    if (currentProv === 'own') {
+        provLabel = `Own AI Dual Routing (Fast 1.5B ⚡ / Heavy 35B 🧠 | Tier: ${currentTier})`;
+    } else if (currentProv === 'openrouter' || currentProv === 'open') {
+        provLabel = `OpenRouter (${getConfigValue('model') || 'dots-studio/dots-3-note-preview:free'})`;
+    } else {
+        provLabel = 'Hunterstar Cloud';
+    }
     console.log('\x1b[35mHunterstar AI CLI Initialized (Agent Mode).\x1b[0m');
     console.log(`\x1b[90m[Provider: ${provLabel} | System: ${platformInfo.osDisplayName} | Shell: ${platformInfo.shell} | Chaining: "${platformInfo.commandSeparator}"]\x1b[0m`);
-    console.log('Type \x1b[31m"/exit"\x1b[0m to quit, \x1b[33m"/clear"\x1b[0m to reset, \x1b[36m"/persona <name>"\x1b[0m for persona, \x1b[36m"/tier <auto|fast|heavy>"\x1b[0m to switch tier, or \x1b[36m"/provider <own|cloud>"\x1b[0m.');
+    console.log('Type \x1b[31m"/exit"\x1b[0m to quit, \x1b[33m"/clear"\x1b[0m to reset, \x1b[36m"/persona <name>"\x1b[0m for persona, \x1b[36m"/tier <auto|fast|heavy>"\x1b[0m to switch tier, or \x1b[36m"/provider <own|cloud|open>"\x1b[0m.');
     if (noExec) console.log('\x1b[33m[NO-EXEC MODE ACTIVE]\x1b[0m Command execution is disabled.');
     if (turbo) console.log('\x1b[33m[\u26A1 TURBO MODE ACTIVE]\x1b[0m Safe commands will be auto-executed.\n');
     else console.log();
@@ -440,7 +445,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
         }
         
         if (trimmed.toLowerCase() === '/clear') {
-            const prov = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : 'cloud');
+            const prov = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : (getConfigValue('api-url')?.includes('openrouter.ai') ? 'open' : 'cloud'));
             messages = [{ role: 'system', content: getSystemPrompt(platformInfo, prov) }];
             canRetry = false;
             console.clear();
@@ -526,17 +531,26 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const res = applyPreset(args[0]);
                 if (res) {
                     messages[0] = { role: 'system', content: getSystemPrompt(platformInfo, res.name) };
-                    console.log(`\x1b[32m\u2713 AI Provider updated to:\x1b[0m ${res.name}`);
+                    const provDisplayName = res.name === 'open' ? 'OpenRouter (open)' : res.name;
+                    console.log(`\x1b[32m\u2713 AI Provider updated to:\x1b[0m ${provDisplayName}`);
                     console.log(`  \x1b[90mEndpoint: ${res.preset['api-url']}\x1b[0m`);
-                    console.log(`  \x1b[90mModel:    ${res.preset['model']}\x1b[0m\n`);
+                    console.log(`  \x1b[90mModel:    ${res.preset['model']}\x1b[0m`);
+                    if (res.name === 'open') {
+                        const hasKey = process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API_KEY || getConfigValue('openrouter-api-key') || (getConfigValue('api-provider') === 'openrouter' && getConfigValue('api-key'));
+                        if (!hasKey) {
+                            console.log(`  \x1b[33m\u26A0 Notice: No OpenRouter API key found.\x1b[0m`);
+                            console.log(`  \x1b[90mSet your key with: \x1b[36mhunterstar config set api-key <your-key>\x1b[0m (or export OPENROUTER_API_KEY)`);
+                        }
+                    }
+                    console.log('');
                 } else {
-                    console.log(`\x1b[31mUnknown provider:\x1b[0m ${args[0]}. Choose "own" or "cloud".\n`);
+                    console.log(`\x1b[31mUnknown provider:\x1b[0m ${args[0]}. Choose "own", "cloud", or "open".\n`);
                 }
             } else {
-                const prov = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : 'cloud');
+                const prov = getConfigValue('api-provider') || (getConfigValue('api-url')?.includes('moonlightsoldiers') ? 'own' : (getConfigValue('api-url')?.includes('openrouter.ai') ? 'open' : 'cloud'));
                 const model = getConfigValue('model') || 'default';
                 console.log(`Current AI Provider: \x1b[36m${prov}\x1b[0m (Model: ${model})`);
-                console.log(`Usage: /provider <own|cloud>\n`);
+                console.log(`Usage: /provider <own|cloud|open>\n`);
             }
             continue;
         }
@@ -708,16 +722,27 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 const configUrl = getConfigValue('api-url');
                 const apiUrl = process.env.HUNTERSTAR_API_URL || configUrl || 'https://api.hunterstar.uz';
                 const baseUrl = apiUrl.replace(/\/+$/, '');
-                const provider = getConfigValue('api-provider') || (apiUrl.includes('moonlightsoldiers') || apiUrl.includes('/v1') ? 'own' : 'cloud');
-                const apiKey = process.env.HUNTERSTAR_API_KEY || getConfigValue('api-key') || (provider === 'own' ? API_KEY : null);
-                const isDirectOpenAi = provider === 'own' || baseUrl.includes('/v1') || baseUrl.includes('moonlightsoldiers');
+                const configProv = getConfigValue('api-provider');
+                const provider = configProv || (apiUrl.includes('moonlightsoldiers') || apiUrl.includes('/v1') ? 'own' : (apiUrl.includes('openrouter.ai') ? 'open' : 'cloud'));
+                const isOpenRouter = provider === 'openrouter' || provider === 'open' || apiUrl.includes('openrouter.ai');
+
+                const apiKey = isOpenRouter
+                    ? (process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API_KEY || getConfigValue('openrouter-api-key') || (configProv === 'openrouter' ? getConfigValue('api-key') : null) || process.env.HUNTERSTAR_API_KEY || '')
+                    : (provider === 'own'
+                        ? (process.env.HUNTERSTAR_API_KEY || getConfigValue('api-key') || API_KEY)
+                        : (process.env.HUNTERSTAR_API_KEY || getConfigValue('api-key') || null));
+
+                const isDirectOpenAi = provider === 'own' || isOpenRouter || baseUrl.includes('/v1') || baseUrl.includes('moonlightsoldiers');
 
                 let endpoint;
-                let activeModel = getConfigValue('model') || 'Qwen3-Coder-30B';
+                let activeModel = getConfigValue('model') || (isOpenRouter ? 'dots-studio/dots-3-note-preview:free' : 'Qwen3-Coder-30B');
                 let routedTier = null;
                 let routingReason = '';
 
-                if (provider === 'own' || baseUrl.includes('moonlightsoldiers')) {
+                if (isOpenRouter) {
+                    endpoint = baseUrl.includes('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
+                    activeModel = getConfigValue('model') || 'dots-studio/dots-3-note-preview:free';
+                } else if (provider === 'own' || baseUrl.includes('moonlightsoldiers')) {
                     const tierSetting = runtime.tier || getConfigValue('tier') || 'auto';
                     const fastUrl = getConfigValue('fast-api-url') || FAST_API_URL;
                     const heavyUrl = getConfigValue('heavy-api-url') || HEAVY_API_URL;
@@ -744,6 +769,16 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     }
                 } else {
                     endpoint = baseUrl.endsWith('/api/cli-chat') ? baseUrl : `${baseUrl}/api/cli-chat`;
+                }
+
+                if (isOpenRouter && !apiKey) {
+                    thinkingSpinner.stop();
+                    console.log('\n\x1b[31m\u26A0 [OpenRouter Error] No API key configured.\x1b[0m');
+                    console.log('Set your OpenRouter API key using:');
+                    console.log('  \x1b[36mhunterstar config set api-key <your-openrouter-key>\x1b[0m');
+                    console.log('  or set environment variable: \x1b[36m$env:OPENROUTER_API_KEY="<your-key>"\x1b[0m\n');
+                    isProcessing = false;
+                    continue;
                 }
 
                 if (routedTier === 'fast') {
@@ -859,8 +894,14 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     }
                 };
 
+                const extraHeaders = isOpenRouter ? {
+                    'HTTP-Referer': 'https://hunterstar.uz',
+                    'X-Title': 'Hunterstar CLI'
+                } : {};
+
                 const aiMsg = await request(endpoint, payload, {
                     apiKey,
+                    headers: extraHeaders,
                     timeoutMs,
                     maxAttempts,
                     onReasoningToken,
@@ -940,6 +981,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     let tierTag = '';
                     if (routedTier === 'fast') tierTag = activePersona ? ` · Fast [${activePersona.name}]` : ' · Fast';
                     else if (routedTier === 'heavy') tierTag = activePersona ? ` · MoE [${activePersona.name}]` : ' · MoE';
+                    else if (isOpenRouter) tierTag = ` · OpenRouter [${activeModel}]`;
 
                     const timeBadge = thinkSec 
                         ? `(${totalDurationSec}s · thought ${thinkSec}s${tierTag})` 

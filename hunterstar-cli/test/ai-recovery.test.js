@@ -183,7 +183,34 @@ test('requestAi handles standard OpenAI/llama-server format and bearer auth', as
     assert.equal(capturedBody.model, 'Qwen3-Coder-30B');
 });
 
-test('AI presets apply correctly between own and cloud', async () => {
+test('requestAi handles OpenRouter direct API with Bearer auth and referer headers', async () => {
+    let capturedHeaders = null;
+    let capturedBody = null;
+    const answer = await requestAi('https://openrouter.ai/api/v1/chat/completions', {
+        messages: [{ role: 'user', content: 'hello' }],
+        model: 'dots-studio/dots-3-note-preview:free'
+    }, {
+        apiKey: 'sk-or-v1-testkey12345',
+        headers: {
+            'HTTP-Referer': 'https://hunterstar.uz',
+            'X-Title': 'Hunterstar CLI'
+        },
+        fetchImpl: async (_, options) => {
+            capturedHeaders = options.headers;
+            capturedBody = JSON.parse(options.body);
+            return new Response(JSON.stringify({
+                choices: [{ message: { role: 'assistant', content: 'hello from openrouter' } }]
+            }), { status: 200 });
+        }
+    });
+    assert.equal(answer, 'hello from openrouter');
+    assert.equal(capturedHeaders['Authorization'], 'Bearer sk-or-v1-testkey12345');
+    assert.equal(capturedHeaders['HTTP-Referer'], 'https://hunterstar.uz');
+    assert.equal(capturedHeaders['X-Title'], 'Hunterstar CLI');
+    assert.equal(capturedBody.model, 'dots-studio/dots-3-note-preview:free');
+});
+
+test('AI presets apply correctly between own, cloud, and open (OpenRouter)', async () => {
     const { applyPreset, loadConfig, saveConfig } = await import('../src/utils/configManager.js');
     const original = loadConfig();
     try {
@@ -196,6 +223,15 @@ test('AI presets apply correctly between own and cloud', async () => {
         const cloudRes = applyPreset('cloud');
         assert.equal(cloudRes.name, 'cloud');
         assert.equal(cloudRes.preset['api-url'], 'https://api.hunterstar.uz');
+
+        const openRes = applyPreset('open');
+        assert.equal(openRes.name, 'open');
+        assert.equal(openRes.preset['api-provider'], 'openrouter');
+        assert.equal(openRes.preset['api-url'], 'https://openrouter.ai/api/v1/chat/completions');
+        assert.equal(openRes.preset['model'], 'dots-studio/dots-3-note-preview:free');
+
+        const openRouterAlias = applyPreset('openrouter');
+        assert.equal(openRouterAlias.name, 'open');
     } finally {
         saveConfig(original);
     }

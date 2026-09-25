@@ -18,9 +18,9 @@ export async function runConfig(args) {
             console.log('\x1b[31mUsage:\x1b[0m hunterstar config set <key> <value>');
             return;
         }
-        if (key === 'provider' && (value === 'own' || value === 'cloud')) {
-            applyPreset(value);
-            console.log(`\x1b[32m\u2713 AI Provider set to:\x1b[0m ${value}`);
+        if (key === 'provider' && (value === 'own' || value === 'cloud' || value === 'open' || value === 'openrouter')) {
+            const res = applyPreset(value);
+            console.log(`\x1b[32m\u2713 AI Provider set to:\x1b[0m ${res?.name || value}`);
             return;
         }
         setConfigValue(key, value);
@@ -30,18 +30,20 @@ export async function runConfig(args) {
         if (!target) {
             console.log('\n\x1b[36mAvailable AI Presets:\x1b[0m');
             console.log('  \x1b[33mown\x1b[0m   - Self-hosted AI Dual Routing (Fast 1.5B @ /fast/ + Heavy 35B MoE @ /v1/)');
-            console.log('  \x1b[33mcloud\x1b[0m - Official Hunterstar Cloud AI (api.hunterstar.uz)\n');
-            console.log('Usage: hunterstar config preset <own|cloud>\n');
+            console.log('  \x1b[33mcloud\x1b[0m - Official Hunterstar Cloud AI (api.hunterstar.uz)');
+            console.log('  \x1b[33mopen\x1b[0m  - OpenRouter AI Direct (openrouter.ai)\n');
+            console.log('Usage: hunterstar config preset <own|cloud|open>\n');
             return;
         }
         const res = applyPreset(target);
         if (res) {
             console.log(`\x1b[32m\u2713 Applied AI preset:\x1b[0m ${res.name}`);
-            console.log(`  \x1b[90mHeavy Endpoint: ${res.preset['heavy-api-url'] || res.preset['api-url']}\x1b[0m`);
+            console.log(`  \x1b[90mEndpoint:     ${res.preset['api-url']}\x1b[0m`);
             if (res.preset['fast-api-url']) console.log(`  \x1b[90mFast Endpoint:  ${res.preset['fast-api-url']}\x1b[0m`);
+            console.log(`  \x1b[90mDefault Model: ${res.preset['model']}\x1b[0m`);
             console.log(`  \x1b[90mRouting Tier:   ${res.preset['tier'] || 'auto'}\x1b[0m\n`);
         } else {
-            console.log(`\x1b[31mUnknown preset:\x1b[0m ${target}. Choose "own" or "cloud".`);
+            console.log(`\x1b[31mUnknown preset:\x1b[0m ${target}. Choose "own", "cloud", or "open".`);
         }
     } else {
         console.log('\x1b[31mUnknown config command.\x1b[0m Usage: hunterstar config <get|set|preset>');
