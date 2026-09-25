@@ -273,7 +273,7 @@ test('createStreamParser captures delta.reasoning_content and delta.content', as
     assert.equal(parser.state.isDone, true);
 });
 
-test('createStreamParser routes inline <think> tags in content to reasoning', async () => {
+test('createStreamParser routes inline <think> tags in content to reasoning and handles partial tag splitting', async () => {
     const { createStreamParser } = await import('../src/utils/aiTransport.js');
     const reasoningChunks = [];
     const contentChunks = [];
@@ -282,11 +282,37 @@ test('createStreamParser routes inline <think> tags in content to reasoning', as
         onContentToken: t => contentChunks.push(t),
     });
 
-    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"<think>Internal thought</think>Actual output"}}]}');
+    // Chunk 1 has partial '<th'
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"<th"}}]}');
+    // Chunk 2 completes 'ink>Internal thought</th'
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"ink>Internal thought</th"}}]}');
+    // Chunk 3 completes 'ink>Actual output'
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"ink>Actual output"}}]}');
+    parser.parseLine('data: [DONE]');
+
     assert.equal(parser.state.reasoningContent, 'Internal thought');
     assert.equal(parser.state.content, 'Actual output');
     assert.deepEqual(reasoningChunks, ['Internal thought']);
     assert.deepEqual(contentChunks, ['Actual output']);
+});
+
+test('createStreamParser extracts thinking.content object format', async () => {
+    const { createStreamParser } = await import('../src/utils/aiTransport.js');
+    const reasoningChunks = [];
+    const contentChunks = [];
+    const parser = createStreamParser({
+        onReasoningToken: t => reasoningChunks.push(t),
+        onContentToken: t => contentChunks.push(t),
+    });
+
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"thinking":{"content":"Analyzing codebase architecture"}}}]}');
+    parser.parseLine('data: {"choices":[{"index":0,"delta":{"content":"[EXEC]Get-ChildItem[/EXEC]"}}]}');
+    parser.parseLine('data: [DONE]');
+
+    assert.equal(parser.state.reasoningContent, 'Analyzing codebase architecture');
+    assert.equal(parser.state.content, '[EXEC]Get-ChildItem[/EXEC]');
+    assert.deepEqual(reasoningChunks, ['Analyzing codebase architecture']);
+    assert.deepEqual(contentChunks, ['[EXEC]Get-ChildItem[/EXEC]']);
 });
 
 test('requestAi handles streaming SSE responses with thinking tokens', async () => {

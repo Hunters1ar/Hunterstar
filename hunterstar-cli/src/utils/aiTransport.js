@@ -26,6 +26,7 @@ export function createStreamParser({ onReasoningToken = () => {}, onContentToken
         isDone: false,
         finishReason: null
     };
+    let tagBuffer = '';
 
     function handleReasoningChunk(chunk) {
         if (!chunk) return;
@@ -35,19 +36,33 @@ export function createStreamParser({ onReasoningToken = () => {}, onContentToken
 
     function handleContentChunk(chunk) {
         if (!chunk) return;
-        let remaining = chunk;
+        let remaining = tagBuffer + chunk;
+        tagBuffer = '';
+
         while (remaining.length > 0) {
             if (!state.inThinkTag) {
                 const thinkStart = remaining.indexOf('<think>');
                 if (thinkStart !== -1) {
                     const before = remaining.slice(0, thinkStart);
-                    if (before) {
+                    if (before && before.trim()) {
                         state.content += before;
                         if (onContentToken) onContentToken(before);
+                    } else if (before) {
+                        state.content += before;
                     }
                     state.inThinkTag = true;
                     remaining = remaining.slice(thinkStart + 7);
                 } else {
+                    const partialMatch = remaining.match(/<(?:t(?:h(?:i(?:n(?:k)?)?)?)?)?$/);
+                    if (partialMatch && partialMatch.index !== -1) {
+                        const before = remaining.slice(0, partialMatch.index);
+                        tagBuffer = remaining.slice(partialMatch.index);
+                        if (before) {
+                            state.content += before;
+                            if (onContentToken) onContentToken(before);
+                        }
+                        break;
+                    }
                     state.content += remaining;
                     if (onContentToken) onContentToken(remaining);
                     break;
@@ -60,6 +75,15 @@ export function createStreamParser({ onReasoningToken = () => {}, onContentToken
                     state.inThinkTag = false;
                     remaining = remaining.slice(thinkEnd + 8);
                 } else {
+                    const partialMatch = remaining.match(/<\/(?:t(?:h(?:i(?:n(?:k)?)?)?)?)?$/);
+                    if (partialMatch && partialMatch.index !== -1) {
+                        const thinkText = remaining.slice(0, partialMatch.index);
+                        tagBuffer = remaining.slice(partialMatch.index);
+                        if (thinkText) {
+                            handleReasoningChunk(thinkText);
+                        }
+                        break;
+                    }
                     handleReasoningChunk(remaining);
                     break;
                 }
@@ -72,6 +96,14 @@ export function createStreamParser({ onReasoningToken = () => {}, onContentToken
         if (!trimmed || !trimmed.startsWith('data:')) return;
         const dataStr = trimmed.replace(/^data:\s*/, '');
         if (dataStr === '[DONE]') {
+            if (tagBuffer) {
+                if (state.inThinkTag) handleReasoningChunk(tagBuffer);
+                else {
+                    state.content += tagBuffer;
+                    if (onContentToken) onContentToken(tagBuffer);
+                }
+                tagBuffer = '';
+            }
             state.isDone = true;
             return;
         }
@@ -89,7 +121,21 @@ export function createStreamParser({ onReasoningToken = () => {}, onContentToken
         const delta = choice.delta;
         if (!delta) return;
 
-        const reasoning = delta.reasoning_content ?? delta.reasoning ?? delta.thinking;
+        // Support reasoning_content, delta.thinking.content, delta.thinking, delta.reasoning, delta.thought
+        let reasoning = delta.reasoning_content ?? delta.reasoning ?? delta.thinking ?? delta.thought ?? delta.thoughts ?? delta.thinking_process;
+        if (reasoning && typeof reasoning === 'object') {
+            reasoning = reasoning.content ?? reasoning.text ?? reasoning.thought ?? reasoning.delta ?? '';
+        }
+        if (!reasoning) {
+            let choiceReasoning = choice.reasoning_content ?? choice.reasoning ?? choice.thinking;
+            if (choiceReasoning && typeof choiceReasoning === 'object') {
+                choiceReasoning = choiceReasoning.content ?? choiceReasoning.text ?? '';
+            }
+            if (typeof choiceReasoning === 'string' && choiceReasoning.length > 0) {
+                reasoning = choiceReasoning;
+            }
+        }
+
         if (typeof reasoning === 'string' && reasoning.length > 0) {
             handleReasoningChunk(reasoning);
         }

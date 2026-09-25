@@ -678,6 +678,7 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                 let thinkingDurationMs = 0;
                 let accumulatedThinking = '';
                 let hasStartedReasoning = false;
+                let hasErasedReasoning = false;
                 let hasStartedContent = false;
                 let streamedDirectly = false;
                 let fastTokenBuffer = '';
@@ -714,16 +715,21 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                         return;
                     }
 
-                    if (hasStartedReasoning && !hasStartedContent) {
+                    if (hasStartedReasoning && !hasErasedReasoning) {
+                        hasErasedReasoning = true;
                         hasStartedContent = true;
                         thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
                         process.stdout.write('\x1b[0m');
                         eraseThinkingBlock(accumulatedThinking);
+                        const secs = (thinkingDurationMs / 1000).toFixed(1);
+                        process.stdout.write(`\x1b[90m✓ Thought for ${secs}s\x1b[0m\n`);
                         thinkingSpinner.text = 'Generating response...';
                         thinkingSpinner.start();
                     } else if (!hasStartedReasoning && !hasStartedContent) {
-                        hasStartedContent = true;
-                        thinkingSpinner.text = 'Generating response...';
+                        if (token && token.trim()) {
+                            hasStartedContent = true;
+                            thinkingSpinner.text = 'Generating response...';
+                        }
                     }
                 };
 
@@ -740,38 +746,40 @@ export async function startAiChat({ noExec = false, verbose = false, turbo = fal
                     onReasoningToken,
                     onContentToken,
                     onRetry: ({ attempt, delay }) => {
-                        if (hasStartedReasoning && !hasStartedContent) {
-                            process.stdout.write('\x1b[0m\n');
+                        if (hasStartedReasoning && !hasErasedReasoning) {
+                            process.stdout.write('\x1b[0m');
+                            eraseThinkingBlock(accumulatedThinking);
                         }
                         hasStartedReasoning = false;
+                        hasErasedReasoning = false;
                         hasStartedContent = false;
+                        accumulatedThinking = '';
                         streamedDirectly = false;
                         fastTokenBuffer = '';
                         thinkingSpinner.text = `API busy; retry ${attempt}/${maxAttempts} in ${Math.ceil(delay / 1000)}s...`;
                         if (!thinkingSpinner.isSpinning) thinkingSpinner.start();
                     },
                 });
-                let onlyHadReasoning = hasStartedReasoning && !hasStartedContent;
+                let onlyHadReasoning = hasStartedReasoning && !hasErasedReasoning;
                 if (onlyHadReasoning) {
+                    hasErasedReasoning = true;
+                    thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
+                    process.stdout.write('\x1b[0m');
+                    eraseThinkingBlock(accumulatedThinking);
+                    const secs = (thinkingDurationMs / 1000).toFixed(1);
+                    process.stdout.write(`\x1b[90m✓ Thought for ${secs}s\x1b[0m\n`);
+
                     const rescuedCommand = extractRescuedCommand(aiMsg);
                     if (rescuedCommand) {
                         hasStartedContent = true;
-                        thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
-                        process.stdout.write('\x1b[0m');
-                        eraseThinkingBlock(accumulatedThinking);
                         aiMsg = `[EXEC]${rescuedCommand}[/EXEC]`;
                     } else {
                         const rescuedAnswer = extractRescuedAnswer(aiMsg);
                         if (rescuedAnswer && rescuedAnswer.trim().length > 0) {
                             hasStartedContent = true;
                             onlyHadReasoning = false;
-                            thinkingDurationMs = Date.now() - (thinkingStartTime || requestStartTime);
-                            process.stdout.write('\x1b[0m');
-                            eraseThinkingBlock(accumulatedThinking);
                             aiMsg = rescuedAnswer.trim();
                         } else {
-                            process.stdout.write('\x1b[0m');
-                            eraseThinkingBlock(accumulatedThinking);
                             console.log('\x1b[33m\u26A0 [Notice] Response ended inside the thinking block without an executable action.\x1b[0m');
                             console.log('\x1b[90mTip: Rephrase your request or specify the action directly.\x1b[0m\n');
                             isProcessing = false;
