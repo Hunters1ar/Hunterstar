@@ -135,6 +135,7 @@
         let facing = 1;
         let airborne = false;
         let landingBounce = false;
+        let landingImpact = 0;
         let pointer = null;
         let suppressClick = false;
         let holdTimer = 0;
@@ -164,6 +165,12 @@
         let scenery = { surfaces: [], zones: [], interests: [] };
         root.dataset.state = state;
         root.dataset.mode = 'free';
+
+        function emitLife(kind, detail = {}) {
+            document.dispatchEvent(new CustomEvent('hunterstar:pet-life', {
+                detail: { pet: root, kind, enabled, ...detail }
+            }));
+        }
 
         function bounds() {
             // Keep every pose inside the viewport, including outstretched airborne
@@ -220,6 +227,7 @@
         }
         function detach() {
             support = null; airborne = true; landingBounce = false;
+            landingImpact = 0;
             walkTarget = null; root.dataset.surface = 'air';
         }
         function releaseWorld(now = performance.now(), quietMs = 1400) {
@@ -391,7 +399,11 @@
             panel.style.bottom = y < panel.offsetHeight + 20 ? 'auto' : 'calc(100% + 10px)';
             panel.style.top = y < panel.offsetHeight + 20 ? 'calc(100% + 10px)' : 'auto';
         }
-        function closePanel() { panel.hidden = true; }
+        function closePanel() {
+            const wasOpen = !panel.hidden;
+            panel.hidden = true;
+            if (wasOpen) emitLife('controls-close');
+        }
         function trimCache() {
             for (const [name, bitmap] of cache) {
                 if (cache.size <= 3) break;
@@ -488,6 +500,7 @@
                 if (surface || y >= floor) {
                     const landing = surface || floorSurface();
                     const impact = Math.abs(vy);
+                    landingImpact = Math.max(landingImpact, impact);
                     y = landing.top - foot.y;
                     if (!landingBounce) {
                         changeState(impact > 950 || Math.abs(vx) > 850 ? 'dizzy' : 'land', now);
@@ -502,6 +515,9 @@
                         attach(landing);
                         if (chatActive) changeState(chatThinking ? 'think' : 'idle', now);
                         delete root.dataset.destination;
+                        emitLife('land', { impact: landingImpact,
+                            surface: { name: landing.name, kind: landing.kind || 'floor', element: landing.element } });
+                        landingImpact = 0;
                     }
                 }
             } else if (state === 'walk') {
@@ -695,6 +711,7 @@
             if (pointer.held) return;
             if (!pointer.moved && Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) < 5) return;
             clearTimeout(holdTimer); lastTap = null;
+            const firstMove = !pointer.moved;
             pointer.moved = true;
             support = null;
             root.dataset.sheltered = 'false';
@@ -703,6 +720,7 @@
             samplePointer(event.timeStamp);
             vx = 0; vy = 0; landingBounce = false;
             changeState('drag'); place(); draw(performance.now());
+            if (firstMove) emitLife('drag-start');
         });
         function release(event) {
             if (!pointer || pointer.id !== event.pointerId) return;
@@ -738,12 +756,14 @@
                     changeState(vy < -80 ? 'jump' : 'fall');
                 }
                 else settle();
+                emitLife('drag-end', { speed: Math.hypot(vx, vy), cancelled: event.type !== 'pointerup' });
             }
         }
         character.addEventListener('pointerup', release);
         character.addEventListener('pointercancel', release);
         character.addEventListener('lostpointercapture', release);
         function togglePanel() {
+            if (!panel.hidden) { closePanel(); return; }
             panel.hidden = !panel.hidden;
             if (!panel.hidden) {
                 releaseWorld(performance.now());
@@ -818,6 +838,7 @@
                 storePreference(enabled ? 'play' : 'pause');
                 updatePause(); accumulator = 0; lastDraw = ''; draw(performance.now());
                 if (enabled) startLoop(); else stopLoop();
+                emitLife('pause');
             } else if (enabled) {
                 closePanel(); character.focus();
                 if (action === 'jump') {
@@ -865,7 +886,9 @@
             } else startLoop();
         });
         reducedMotion.addEventListener('change', () => {
-            if (reducedMotion.matches) { enabled = false; stopLoop(); updatePause(); draw(performance.now()); }
+            if (reducedMotion.matches) {
+                enabled = false; stopLoop(); updatePause(); draw(performance.now()); emitLife('pause');
+            }
         });
         y = bounds().floor;
         scenery = world?.scan(performance.now(), true) || scenery;
@@ -874,10 +897,12 @@
         if (firstSpot !== null && firstSpot !== undefined) x = firstSpot - anchor().x;
         protectContent(performance.now());
         place(); draw(performance.now()); updatePause(); startLoop();
+        emitLife('ready');
         return { show() {
             root.hidden = false;
             enabled = !reducedMotion.matches && !constrained;
             updatePause(); settle(); startLoop();
+            emitLife('show');
         } };
     }
 

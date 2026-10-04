@@ -69,7 +69,17 @@ function harness({ hostname = '127.0.0.1', pathname = '/', fetchReply } = {}) {
     const send = value => { input.value = value; return dialog.querySelector('form').fire('submit'); };
     return { document, window, context, dialog, bubble, pet, character, input, requests, timers, states, open, reply, button, send,
         move(nextRect) { rect = nextRect; void document.fire('hunterstar:pet-move'); },
-        timeout() { for (const timer of timers.values()) timer.fn(); }
+        async comment(content, options = {}) {
+            const detail = { pet, text: content, kind: 'drag', ...options };
+            await document.fire('hunterstar:pet-comment', { detail });
+            return detail;
+        },
+        timeout(delay) {
+            for (const [id, timer] of [...timers]) {
+                if (delay !== undefined && timer.delay !== delay) continue;
+                timers.delete(id); timer.fn();
+            }
+        }
     };
 }
 
@@ -262,4 +272,104 @@ test('dismissing during streaming cancels the reader and prevents partial replie
     assert.equal(cancelled, true);
     assert.equal(h.bubble.hidden, true);
     assert.equal(h.requests[0].options.signal.aborted, true);
+});
+
+test('ambient comments use plain text without a request, chat state, focus change or conversation history', async () => {
+    const h = harness();
+    const originalFocus = { name: 'Site contact input' }; h.document.activeElement = originalFocus;
+    const remark = '<b>Hey! Put me down.</b>';
+    const detail = await h.comment(remark);
+    assert.equal(detail.accepted, true);
+    assert.equal(h.bubble.hidden, false); assert.equal(h.bubble.dataset.mode, 'comment');
+    assert.equal(h.reply(), remark); assert.equal(h.bubble.querySelector('.pet-speech-text').markup, undefined);
+    assert.equal(h.requests.length, 0); assert.equal(h.states.length, 0);
+    assert.equal(h.document.activeElement, originalFocus);
+    assert.equal(h.bubble.querySelector('nav').hidden, true);
+    assert.equal(h.button('ask').textContent, 'Talk');
+    await h.button('ask').fire('click'); await h.send('Who are you?');
+    assert.deepEqual(JSON.parse(h.requests[0].options.body).messages, [{ role: 'user', content: 'Who are you?' }]);
+    assert.equal(h.bubble.dataset.mode, 'reply'); assert.equal(h.button('ask').textContent, 'Ask again');
+    assert.equal(h.bubble.querySelector('.pet-speech-count').textContent, '1 / 1');
+});
+
+test('ambient comments yield to a dialog, an in-flight request and a visible reply', async () => {
+    let resolve;
+    const h = harness({ fetchReply: () => new Promise(done => { resolve = done; }) });
+    await h.open();
+    assert.equal((await h.comment('Hello!')).accepted, false);
+    assert.equal(h.dialog.open, true); assert.equal(h.document.activeElement, h.input);
+    const sending = h.send('Tell me about your projects');
+    const pendingText = h.reply();
+    assert.equal((await h.comment('Drag remark')).accepted, false);
+    assert.equal(h.reply(), pendingText); assert.equal(h.requests[0].options.signal.aborted, false);
+    resolve({ ok: true, json: async () => ({ ok: true, data: { choices: [{ message: { content: 'Actual reply.' } }] } }) });
+    await sending;
+    const replyTimer = [...h.timers.keys()];
+    assert.equal((await h.comment('Idle remark')).accepted, false);
+    assert.equal(h.reply(), 'Actual reply.'); assert.deepEqual([...h.timers.keys()], replyTimer);
+    assert.equal(h.states.at(-1).active, true);
+});
+
+test('comment expiry and dismissal leave focus alone and keep the twenty-second reply timer intact', async () => {
+    const h = harness(); const originalFocus = { name: 'Site link' }; h.document.activeElement = originalFocus;
+    await h.comment('Welcome!', { duration: 8000 });
+    assert.equal([...h.timers.values()][0].delay, 8000);
+    h.timeout(8000);
+    assert.equal(h.bubble.hidden, true); assert.equal(h.document.activeElement, originalFocus);
+    await h.comment('Careful with the coat.'); await h.button('dismiss').fire('click');
+    assert.equal(h.bubble.hidden, true); assert.equal(h.document.activeElement, originalFocus);
+    assert.equal(h.timers.size, 0); assert.equal(h.states.length, 0);
+    await h.open(); await h.send('Hello');
+    assert.equal([...h.timers.values()][0].delay, 20000);
+    h.timeout(20000);
+    assert.equal(h.bubble.hidden, true); assert.equal(h.states.at(-1).active, false);
+});
+
+test('talking from a comment cannot restore that comment or an older hidden reply on cancel', async () => {
+    const h = harness(); await h.open(); await h.send('Hello');
+    await h.button('dismiss').fire('click');
+    await h.comment('This is my favorite corner.'); await h.open();
+    assert.equal(h.bubble.hidden, true); assert.equal(h.timers.size, 0);
+    h.dialog.close();
+    assert.equal(h.bubble.hidden, true); assert.equal(h.states.at(-1).active, false);
+    await h.open(); await h.send('Another question');
+    assert.equal(JSON.parse(h.requests[1].options.body).messages.length, 3);
+    assert.equal(h.bubble.querySelector('.pet-speech-count').textContent, '2 / 2');
+});
+
+test('ambient comments follow the moving pet and clear when controls, visibility or hiding change', async () => {
+    const h = harness(); const originalFocus = { name: 'Site button' }; h.document.activeElement = originalFocus;
+    await h.comment('Put me down, please.');
+    const originalLeft = h.bubble.style.left;
+    h.move({ left: 500, top: 8, width: 228, bottom: 274 });
+    assert.notEqual(h.bubble.style.left, originalLeft); assert.equal(h.bubble.dataset.placement, 'below');
+    assert.equal(h.bubble.style.top, '286px');
+    await h.document.fire('hunterstar:pet-controls');
+    assert.equal(h.bubble.hidden, true); assert.equal(h.document.activeElement, originalFocus);
+    h.pet.nodes['.pet-panel'] = { hidden: false };
+    assert.equal((await h.comment('Another remark')).accepted, false);
+    h.pet.nodes['.pet-panel'].hidden = true;
+    await h.comment('Welcome back.'); h.document.hidden = true;
+    await h.document.fire('visibilitychange');
+    assert.equal(h.bubble.hidden, true); assert.equal(h.timers.size, 0);
+    assert.equal((await h.comment('Hidden page remark')).accepted, false);
+    h.document.hidden = false; h.pet.hidden = true;
+    assert.equal((await h.comment('Hidden pet remark')).accepted, false);
+    h.pet.hidden = false; await h.comment('Hi again.');
+    await h.document.fire('hunterstar:pet-hidden');
+    assert.equal(h.bubble.hidden, true); assert.equal(h.document.activeElement, originalFocus);
+});
+
+test('ambient duration is bounded and page visibility does not cancel a real chat request', async () => {
+    let resolve;
+    const h = harness({ fetchReply: () => new Promise(done => { resolve = done; }) });
+    await h.comment('An unreasonable duration', { duration: 60000 });
+    assert.equal([...h.timers.values()][0].delay, 10000);
+    await h.comment('An empty duration', { duration: -10 });
+    assert.equal([...h.timers.values()][0].delay, 1500);
+    await h.open(); const sending = h.send('A real question');
+    h.document.hidden = true; await h.document.fire('visibilitychange');
+    assert.equal(h.requests[0].options.signal.aborted, false); assert.equal(h.bubble.hidden, false);
+    resolve({ ok: true, json: async () => ({ ok: true, data: { choices: [{ message: { content: 'A real response' } }] } }) });
+    await sending; assert.equal(h.reply(), 'A real response');
 });

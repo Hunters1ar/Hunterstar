@@ -833,3 +833,56 @@ test('a held pointer outside the pet suppresses autonomous goals until release a
     await h.advance(2500);
     assert.equal(h.pet().dataset.mode, 'perched'); assert.equal(h.pet().dataset.surface, 'After-drag destination');
 });
+
+test('personality receives one actual drag start, release speed, and cancellation instead of click or hold gestures', async () => {
+    const h = harness(), events = [];
+    h.document.addEventListener('hunterstar:pet-life', event => events.push(event.detail));
+    await h.boot();
+    assert.equal(events[0].kind, 'ready');
+    assert.equal(events[0].pet, h.pet()); assert.equal(events[0].enabled, true);
+    h.beginDrag(); await h.release();
+    assert.equal(events.filter(event => event.kind.startsWith('drag')).length, 0);
+    h.beginDrag(); await h.move(220, 180, 200); await h.move(260, 180, 40); await h.release(4);
+    const gestures = events.filter(event => event.kind.startsWith('drag'));
+    assert.deepEqual(gestures.map(event => event.kind), ['drag-start', 'drag-end']);
+    assert.ok(gestures[1].speed > 350 && gestures[1].speed <= 1100.001);
+    assert.equal(gestures[1].cancelled, false);
+    h.beginDrag(); await h.move(300, 150, 100); await h.release(0, 'pointercancel');
+    assert.equal(events.at(-1).kind, 'drag-end');
+    assert.equal(events.at(-1).cancelled, true); assert.equal(events.at(-1).speed, 0);
+});
+
+test('one final landing remark retains the hard-drop impact across the small rebound', async () => {
+    const h = harness({ random: () => .9 }), events = [];
+    h.document.addEventListener('hunterstar:pet-life', event => events.push(event.detail));
+    await h.boot(); h.beginDrag(); await h.move(280, 70, 200); await h.release(200);
+    await h.advance(1600);
+    const landings = events.filter(event => event.kind === 'land');
+    assert.equal(landings.length, 1, 'the bounce must not trigger a second remark');
+    assert.ok(landings[0].impact > 700, 'use the original impact instead of the gentle rebound');
+    assert.equal(landings[0].surface.name, 'floor');
+    assert.equal(h.pet().dataset.surface, 'floor');
+});
+
+test('autonomous landing reports the chosen DOM surface for contextual remarks', async () => {
+    const ledge = { name: 'Core stacks', left: 100, right: 650, top: 500, bottom: 620 };
+    const h = harness({ platforms: [ledge], random: () => .9 }), events = [];
+    h.document.addEventListener('hunterstar:pet-life', event => events.push(event.detail));
+    await perch(h, ledge);
+    const landing = events.find(event => event.kind === 'land' && event.surface.element === h.element(ledge));
+    assert.ok(landing); assert.equal(landing.surface.name, 'Core stacks');
+    assert.equal(h.pet().dataset.mode, 'perched');
+});
+
+test('personality receives pause, controls close, and restore without another initial welcome event', async () => {
+    const h = harness(), events = [];
+    h.document.addEventListener('hunterstar:pet-life', event => events.push(event.detail));
+    await h.boot(); await h.action('pause');
+    assert.equal(events.at(-1).kind, 'pause'); assert.equal(events.at(-1).enabled, false);
+    h.pet().character.fire('contextmenu', { preventDefault() {} });
+    h.pet().character.fire('contextmenu', { preventDefault() {} });
+    assert.equal(events.at(-1).kind, 'controls-close');
+    await h.action('hide'); h.restore().fire('click'); await h.flush();
+    assert.equal(events.at(-1).kind, 'show'); assert.equal(events.at(-1).enabled, true);
+    assert.equal(events.filter(event => event.kind === 'ready').length, 1);
+});

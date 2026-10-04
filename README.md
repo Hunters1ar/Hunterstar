@@ -114,6 +114,18 @@ soft boundary rebounds. Hard landings have one small bounce; jump, landing, and
 dizzy animations play once. Walking accelerates and slows near the edges.
 Physics uses fixed steps so movement stays consistent across display refresh rates.
 
+The companion welcomes visitors once per page, playfully complains about being
+dragged, reacts to fast throws and hard landings, and remarks on the section being
+explored after scrolling settles. Quiet idle comments occur at most every 60–90
+seconds. These short lines are local personality text, so they add no AI requests.
+Ordinary remarks have a 35-second cooldown; drag reactions have a separate
+cooldown and one complaint per gesture. Comments follow the pet and disappear
+after 8–10 seconds without stopping its movement or changing keyboard focus.
+Opening a conversation takes priority, and comments never enter chat history.
+Hiding the pet, opening its controls, typing, and backgrounding the tab suppress
+automatic chatter. The welcome and manual drag reactions also work when animation
+is paused; autonomous remarks wait until animation is enabled.
+
 The companion discovers headings, buttons and links, technology labels, terminal
 parts, forms, media shells, footer edges, and cards from the DOM. Custom surfaces
 can also expose their top borders with `data-pet-platform`. Headings use their

@@ -91,6 +91,7 @@
         const previous = bubble.querySelector('[data-chat="previous"]');
         const next = bubble.querySelector('[data-chat="next"]');
         const ask = bubble.querySelector('[data-chat="ask"]');
+        const dismissButton = bubble.querySelector('[data-chat="dismiss"]');
         let pet = null;
         let request = null;
         let messages = [];
@@ -106,8 +107,15 @@
 
         function syncPet() {
             document.dispatchEvent(new CustomEvent('hunterstar:chat-state', {
-                detail: { active: dialog.open || !bubble.hidden, thinking: Boolean(request) }
+                detail: { active: dialog.open || (!bubble.hidden && bubble.dataset.mode !== 'comment'), thinking: Boolean(request) }
             }));
+        }
+
+        function setBubbleMode(mode) {
+            bubble.dataset.mode = mode;
+            bubble.setAttribute('aria-label', mode === 'comment' ? 'Hunterstar comment' : 'Hunterstar reply');
+            dismissButton.setAttribute('aria-label', mode === 'comment' ? 'Dismiss comment' : 'Dismiss reply');
+            ask.textContent = mode === 'comment' ? 'Talk' : 'Ask again';
         }
 
         function layoutBubble() {
@@ -131,6 +139,7 @@
             const reply = replies[replyIndex];
             if (!reply) return;
             clearReplyTimer();
+            setBubbleMode('reply');
             bubble.hidden = false;
             bubble.dataset.error = String(reply.error);
             bubble.removeAttribute('aria-busy');
@@ -157,8 +166,8 @@
         function openTalk() {
             if (!pet || pet.hidden || request || dialog.open) return;
             clearReplyTimer();
+            restoreReplyOnClose = !bubble.hidden && bubble.dataset.mode === 'reply' && replyIndex >= 0;
             bubble.hidden = true;
-            restoreReplyOnClose = true;
             dialog.showModal();
             input.focus({ preventScroll: true });
             syncPet();
@@ -168,6 +177,7 @@
         dialog.querySelectorAll('[data-chat="cancel"]').forEach(button => button.addEventListener('click', cancelDialog));
         dialog.addEventListener('close', () => {
             if (restoreReplyOnClose && !pet?.hidden && !request && replyIndex >= 0) showReply();
+            restoreReplyOnClose = false;
             syncPet(); focusPet();
         });
         input.addEventListener('keydown', event => {
@@ -177,15 +187,18 @@
         });
 
         function dismiss(restoreFocus = true) {
+            const wasComment = bubble.dataset.mode === 'comment';
             clearReplyTimer();
-            request?.abort();
-            request = null;
+            if (!wasComment) {
+                request?.abort();
+                request = null;
+            }
             bubble.hidden = true;
             bubble.removeAttribute('aria-busy');
-            syncPet();
-            if (restoreFocus) focusPet();
+            if (!wasComment) syncPet();
+            if (restoreFocus && !wasComment) focusPet();
         }
-        bubble.querySelector('[data-chat="dismiss"]').addEventListener('click', dismiss);
+        dismissButton.addEventListener('click', () => dismiss());
         ask.addEventListener('click', openTalk);
         previous.addEventListener('click', () => { if (replyIndex > 0) { replyIndex--; showReply(); } });
         next.addEventListener('click', () => { if (replyIndex < replies.length - 1) { replyIndex++; showReply(); } });
@@ -197,12 +210,42 @@
             pet = event.detail.pet;
             openTalk();
         });
+        document.addEventListener('hunterstar:pet-comment', event => {
+            const detail = event.detail;
+            if (!detail) return;
+            detail.accepted = false;
+            if (!detail.pet || detail.pet.hidden || document.hidden || dialog.open || request
+                || (!bubble.hidden && bubble.dataset.mode !== 'comment')
+                || detail.pet.querySelector('.pet-panel')?.hidden === false
+                || typeof detail.text !== 'string' || !detail.text.trim()) return;
+            pet = detail.pet;
+            clearReplyTimer();
+            setBubbleMode('comment');
+            bubble.dataset.commentKind = typeof detail.kind === 'string' ? detail.kind.slice(0, 32) : 'comment';
+            bubble.dataset.error = 'false';
+            bubble.removeAttribute('aria-busy');
+            text.textContent = detail.text.trim().slice(0, 300);
+            text.scrollTop = 0;
+            historyNav.hidden = true;
+            counter.textContent = '';
+            previous.disabled = true;
+            next.disabled = true;
+            ask.disabled = false;
+            bubble.hidden = false;
+            layoutBubble();
+            const duration = Number.isFinite(detail.duration) ? Math.max(1500, Math.min(10000, detail.duration)) : 6500;
+            replyTimer = setTimeout(() => dismiss(false), duration);
+            detail.accepted = true;
+        });
         document.addEventListener('hunterstar:pet-move', layoutBubble);
         document.addEventListener('hunterstar:pet-controls', () => { if (!bubble.hidden) dismiss(); });
         document.addEventListener('hunterstar:pet-hidden', () => {
             restoreReplyOnClose = false;
             if (dialog.open) dialog.close();
-            dismiss();
+            dismiss(false);
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && !bubble.hidden && bubble.dataset.mode === 'comment') dismiss(false);
         });
         window.addEventListener('resize', layoutBubble);
 
@@ -225,6 +268,7 @@
             const conversation = [...recent, { role: 'user', content: prompt }];
             restoreReplyOnClose = false;
             dialog.close();
+            setBubbleMode('reply');
             bubble.hidden = false;
             bubble.dataset.error = 'false';
             bubble.setAttribute('aria-busy', 'true');

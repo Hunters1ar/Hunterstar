@@ -87,6 +87,12 @@
 .pet-speech .pet-chat-close { position: absolute; top: 9px; right: 9px; border-color: transparent; background: var(--pet-chat-bg); }
 .pet-speech[data-error="true"] { border-top-color: #e19b75; }
 .pet-speech[aria-busy="true"] .pet-speech-name { color: var(--pet-chat-muted); }
+.pet-speech[data-mode="comment"] {
+    width: min(320px, calc(100vw - 24px));
+    padding: 16px 18px 12px;
+}
+.pet-speech[data-mode="comment"] .pet-speech-text { max-height: 140px; }
+.pet-speech[data-mode="comment"] .pet-speech-footer { margin-top: 10px; }
 [data-theme="light"] .pet-talk-dialog, [data-theme="light"] .pet-speech {
     --pet-chat-bg: #fffdf6;
     --pet-chat-text: #252531;
