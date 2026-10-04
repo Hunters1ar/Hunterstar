@@ -24,7 +24,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/chat-widget.css">
+    <link rel="stylesheet" href="css/chat-widget.css?v=3">
+    <link rel="stylesheet" href="css/web-pet.css?v=4">
     <meta property="og:title" content="Hunterstar Developer Portfolio | Backend Architect &amp; AI Engineer">
     <meta property="og:description" content="Hunterstar developer portfolio for backend architecture, AI engineering, fullstack builds, and secure systems.">
     <meta property="og:type" content="website">
@@ -230,7 +231,7 @@
             </header>
 
             <div class="terminal-layout">
-                <article class="portfolio-terminal" aria-label="Interactive Hunterstar terminal">
+                <article class="portfolio-terminal" data-pet-platform="Terminal" aria-label="Interactive Hunterstar terminal">
                     <div class="terminal-topbar" aria-hidden="true">
                         <div class="terminal-lights">
                             <span></span><span></span><span></span>
@@ -269,7 +270,7 @@
                 </article>
 
                 <aside class="terminal-sidecar" aria-label="Portfolio command shortcuts and signals">
-                    <div class="terminal-sidecar-panel">
+                    <div class="terminal-sidecar-panel" data-pet-platform="Commands">
                         <span class="sidecar-label">Quick Commands</span>
                         <div class="command-chip-grid">
                             <button type="button" class="command-chip" data-terminal-command="help">help</button>
@@ -296,7 +297,7 @@
             </header>
 
             <div class="cabinet redline-service-grid">
-                <article class="index-card">
+                <article class="index-card" data-pet-platform="Backend">
                     <div class="card-tab">Backend</div>
                     <div class="card-header"><div class="card-icon">API</div><h3 class="card-title">Backend Architecture</h3></div>
                     <ul class="skill-list"><li class="skill-item">Node.js</li><li class="skill-item">Express</li><li class="skill-item">NestJS</li><li class="skill-item">REST APIs</li><li class="skill-item">GraphQL</li><li class="skill-item">Microservices</li></ul>
@@ -304,7 +305,7 @@
                     <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill proficiency-fill-95"></div></div></div>
                 </article>
 
-                <article class="index-card">
+                <article class="index-card" data-pet-platform="Data">
                     <div class="card-tab">Data</div>
                     <div class="card-header"><div class="card-icon">DB</div><h3 class="card-title">Database Systems</h3></div>
                     <ul class="skill-list"><li class="skill-item">Firebase</li><li class="skill-item">MongoDB</li><li class="skill-item">PostgreSQL</li><li class="skill-item">MySQL</li><li class="skill-item">Redis</li><li class="skill-item">Prisma</li></ul>
@@ -312,7 +313,7 @@
                     <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill proficiency-fill-90"></div></div></div>
                 </article>
 
-                <article class="index-card">
+                <article class="index-card" data-pet-platform="AI">
                     <div class="card-tab">AI</div>
                     <div class="card-header"><div class="card-icon">AI</div><h3 class="card-title">AI Engineering</h3></div>
                     <ul class="skill-list"><li class="skill-item">Machine Learning</li><li class="skill-item">TensorFlow</li><li class="skill-item">PyTorch</li><li class="skill-item">LLMs</li><li class="skill-item">NLP</li><li class="skill-item">Computer Vision</li></ul>
@@ -320,7 +321,7 @@
                     <div class="proficiency-bar"><div class="proficiency-label">Proficiency</div><div class="proficiency-track"><div class="proficiency-fill proficiency-fill-88"></div></div></div>
                 </article>
 
-                <article class="index-card">
+                <article class="index-card" data-pet-platform="Fullstack">
                     <div class="card-tab">Fullstack</div>
                     <div class="card-header"><div class="card-icon">UI</div><h3 class="card-title">Fullstack Development</h3></div>
                     <ul class="skill-list"><li class="skill-item">React</li><li class="skill-item">Next.js</li><li class="skill-item">TypeScript</li><li class="skill-item">Python</li><li class="skill-item">Three.js</li><li class="skill-item">Security</li></ul>
@@ -333,10 +334,10 @@
 
     <section id="stats" class="stats-section">
         <div class="container stats-grid">
-            <div class="stat-card"><span class="stat-num">8+</span><span class="stat-label">Builds</span></div>
-            <div class="stat-card"><span class="stat-num">2</span><span class="stat-label">Core Stacks</span></div>
-            <div class="stat-card"><span class="stat-num">2+</span><span class="stat-label">Years Exp</span></div>
-            <div class="stat-card"><span class="stat-num">24/7</span><span class="stat-label">Learning Mode</span></div>
+            <div class="stat-card" data-pet-platform="Builds"><span class="stat-num">8+</span><span class="stat-label">Builds</span></div>
+            <div class="stat-card" data-pet-platform="Core Stacks"><span class="stat-num">2</span><span class="stat-label">Core Stacks</span></div>
+            <div class="stat-card" data-pet-platform="Years Exp"><span class="stat-num">2+</span><span class="stat-label">Years Exp</span></div>
+            <div class="stat-card" data-pet-platform="Learning Mode"><span class="stat-num">24/7</span><span class="stat-label">Learning Mode</span></div>
         </div>
     </section>
 
@@ -392,7 +393,7 @@
             <div class="tech-cloud"><span>HTML</span><span>CSS</span><span>JavaScript</span><span>TypeScript</span><span>React</span><span>Next.js</span><span>Node.js</span><span>Firebase</span><span>Python</span><span>SQL</span><span>NoSQL</span><span>Three.js</span></div>
 
             <section class="game-menu" id="game-menu" aria-labelledby="gameMenuTitle">
-                <div class="game-menu-bar">
+                <div class="game-menu-bar" data-pet-platform="Game">
                     <div class="game-menu-heading">
                         <span class="game-menu-kicker">Game</span>
                         <h3 class="game-menu-title" id="gameMenuTitle">ScriptRunner 3D</h3>
@@ -475,7 +476,9 @@
     <script src="js/three-scene.js"></script>
     <script src="js/main.js"></script>
     <script src="js/name-morph.js"></script>
-    <script src="js/chat-widget.js"></script>
+    <script src="js/chat-widget.js?v=6" defer></script>
+    <script src="js/pet-world.js?v=2" defer></script>
+    <script src="js/web-pet.js?v=11" defer></script>
     <script>
     /* Sync theme to model iframes & handle navigation messages */
     (function() {

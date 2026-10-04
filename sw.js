@@ -21,7 +21,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'v1.0.3';
+const CACHE_VERSION = 'v1.0.7';
 const CORE_CACHE = `hs-core-${CACHE_VERSION}`;
 const ASSET_CACHE = `hs-assets-${CACHE_VERSION}`;
 
@@ -121,6 +121,13 @@ self.addEventListener('fetch', (event) => {
     // Let the browser handle everything we don't explicitly own: Firebase,
     // Cloud Functions, the playlist API, the game iframe, analytics, etc.
     if (!sameOrigin && !cdnCacheable) return;
+
+    // The small pet manifest points at content-hashed atlases. Revalidate it;
+    // cache atlases only when requested, never prefetch the animation library.
+    if (sameOrigin && url.pathname === '/assets/pet/manifest.json') {
+        event.respondWith(staleWhileRevalidate(request));
+        return;
+    }
 
     // HTML / navigations -> network-first so content stays fresh.
     if (request.mode === 'navigate' || (sameOrigin && request.destination === 'document')) {

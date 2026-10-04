@@ -1,0 +1,24 @@
+[Unit]
+Description=Portfolio companion API
+After=network.target llama-portfolio-pet.service
+Wants=llama-portfolio-pet.service
+
+[Service]
+Type=simple
+User=portfolio-pet
+Group=portfolio-pet
+WorkingDirectory=/opt/portfolio-pet
+Environment=PET_MODEL_KEY_FILE=/etc/portfolio-pet/model.key
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -u /opt/portfolio-pet/server.py
+Restart=on-failure
+RestartSec=5
+MemoryMax=128M
+TasksMax=64
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

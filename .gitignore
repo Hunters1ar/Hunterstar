@@ -39,6 +39,7 @@ assets/[Tt]engdosh3d/
 youtubebot/
 
 # Build artifacts, IDE & OS
+__pycache__/
 .DS_Store
 .ds_store
 [Tt]humbs.db

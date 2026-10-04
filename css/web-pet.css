@@ -1,0 +1,66 @@
+.web-pet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 228px;
+    height: 266px;
+    z-index: 9000;
+    font-family: 'Inter', sans-serif;
+    user-select: none;
+    pointer-events: none;
+}
+.web-pet[hidden], .pet-panel[hidden], .pet-restore[hidden] { display: none; }
+.pet-character {
+    position: absolute;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    pointer-events: auto;
+}
+.pet-character:active { cursor: grabbing; }
+.pet-character:focus-visible { outline: 2px solid var(--color-accent-primary, #cc1111); border-radius: 12px; }
+.web-pet > canvas { position: absolute; top: 0; left: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
+.pet-contact-shadow {
+    position: absolute;
+    width: 44px;
+    height: 8px;
+    border-radius: 50%;
+    background: #000;
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: -1;
+}
+.pet-panel {
+    pointer-events: auto;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    width: min(224px, calc(100vw - 24px));
+    padding: 14px;
+    border: 1px solid var(--color-surface-border, #442222);
+    border-radius: 14px;
+    background: var(--color-bg-elevated, #151515);
+    color: var(--color-text-primary, #fff);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+}
+.pet-panel p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; }
+.pet-panel strong { display: block; margin-bottom: 4px; }
+.pet-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.pet-actions button, .pet-restore {
+    border: 1px solid var(--color-surface-border, #442222);
+    border-radius: 8px;
+    background: var(--color-bg-secondary, #080808);
+    color: var(--color-text-primary, #fff);
+    padding: 7px 10px;
+    font: 11px 'Inter', sans-serif;
+    cursor: pointer;
+}
+.pet-actions button:hover, .pet-restore:hover { border-color: var(--color-accent-primary, #cc1111); }
+.pet-actions button:disabled { opacity: .45; cursor: default; }
+.pet-restore { position: fixed; bottom: 18px; left: 18px; z-index: 9000; }
+@media (max-width: 600px) { .web-pet { width: 168px; height: 196px; } }

@@ -55,6 +55,9 @@ htmlcov
 *.wma
 
 hunterstar-cli/
+frames/
+scripts/
+tests/
 api/
 YoutubeBot/
 

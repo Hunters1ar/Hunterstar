@@ -1,0 +1,23 @@
+[Unit]
+Description=Portfolio pet Hermes 3 model (dedicated port 8090)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/models
+ExecStart=/root/llama.cpp/build/bin/llama-server -m /root/models/Hermes-3-Llama-3.1-8B-Q4_K_M.gguf -c 8192 -t 4 --threads-batch 4 -b 256 -ub 128 -np 1 --host 127.0.0.1 --port 8090 --api-key-file /etc/portfolio-pet/model.key --alias Hunterstar-Pet-Hermes-3 --jinja --flash-attn on --poll 0 --poll-batch 0 --cache-reuse 256 --no-webui --no-slots
+Restart=on-failure
+RestartSec=5
+Nice=10
+CPUWeight=25
+MemoryMax=8G
+OOMScoreAdjust=200
+TasksMax=64
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
