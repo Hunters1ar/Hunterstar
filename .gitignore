@@ -7,6 +7,9 @@
 !.env.example
 !api/.env.example
 service-account.json
+api/bucket/
+api/memory/
+api/backups/
 *-firebase-adminsdk-*.json
 
 # Vercel

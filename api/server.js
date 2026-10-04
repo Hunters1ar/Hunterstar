@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
-const admin = require('firebase-admin');
+const { createStore } = require('./postgres-store');
+const { createBucket } = require('./local-bucket');
+const { verifyPassword } = require('./local-auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -33,17 +35,6 @@ function loadEnvFile(filePath) {
     }
 }
 
-function resolveLocalFile(filePath) {
-    if (path.isAbsolute(filePath)) return filePath;
-
-    const candidates = [
-        path.resolve(__dirname, filePath),
-        path.resolve(process.cwd(), filePath)
-    ];
-
-    return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
-}
-
 loadEnvFile(path.join(__dirname, '.env'));
 
 function stripWrappingQuotes(value) {
@@ -72,6 +63,8 @@ const ALLOWED_ORIGINS = Array.from(new Set([
     'https://hunterstar.uz',
     'https://www.hunterstar.uz',
     'https://admin.hunterstar.uz',
+    'https://queue.hunterstar.uz',
+    'https://private.hunterstar.uz',
     'https://opener.hunterstar.uz'
 ]));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
@@ -87,7 +80,7 @@ const YOUTUBE_API_KEY = stripWrappingQuotes(process.env.YOUTUBE_API_KEY) || '';
 const YOUTUBE_PLAYLIST_ID = stripWrappingQuotes(process.env.YOUTUBE_PLAYLIST_ID) || 'PLrEYU1gx-0UOsV8mDxgkbBc_qqleKsRxW';
 const PLAYLIST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Firebase collections (mirrored from firebase-config.js)
+// Portfolio collections
 const PRIMARY_SUBMISSION_COLLECTION = 'my comments';
 const LEGACY_SUBMISSION_COLLECTIONS = ['contact-submissions'];
 const SUBMISSION_COLLECTIONS = [...new Set([PRIMARY_SUBMISSION_COLLECTION, ...LEGACY_SUBMISSION_COLLECTIONS])];
@@ -101,29 +94,9 @@ const PRIVATE_DIARY_STORAGE_FOLDER = 'private-diary';
 const PRIVATE_DIARY_TEXT_MAX_LENGTH = 120000;
 const OPENER_ACCOUNTS_COLLECTION = 'opener_accounts';
 
-// Cloud Function storage relay (used when VPS cannot reach Firebase Storage directly)
-const CLOUD_FUNCTION_UPLOAD_URL = stripWrappingQuotes(process.env.CLOUD_FUNCTION_UPLOAD_URL) || '';
-const CLOUD_FUNCTION_UPLOAD_SECRET = stripWrappingQuotes(process.env.CLOUD_FUNCTION_UPLOAD_SECRET) || '';
-
-// ---------------------------------------------------------------------------
-// Firebase Admin SDK Init
-// ---------------------------------------------------------------------------
-const serviceAccountPath = resolveLocalFile(process.env.FIREBASE_SERVICE_ACCOUNT || 'service-account.json');
-
-try {
-    admin.initializeApp({
-        credential: admin.credential.cert(require(serviceAccountPath)),
-        storageBucket: 'portfolio-9b8a5.firebasestorage.app'
-    });
-    console.log('Firebase Admin SDK initialized');
-} catch (error) {
-    console.error('Failed to initialize Firebase Admin SDK:', error.message);
-    process.exit(1);
-}
-
-const db = admin.firestore();
-const auth = admin.auth();
-const bucket = admin.storage().bucket();
+// PostgreSQL and filesystem storage
+const db = createStore();
+const bucket = createBucket(db.pool);
 const adminTwoFactorCollection = db.collection(ADMIN_TWO_FACTOR_COLLECTION);
 const privateTwoFactorCollection = db.collection(PRIVATE_TWO_FACTOR_COLLECTION);
 const privateDiaryCollection = db.collection(PRIVATE_DIARY_COLLECTION);
@@ -135,6 +108,7 @@ const app = express();
 
 // Trust proxy (behind Nginx)
 app.set('trust proxy', 1);
+app.get('/api/files/:key', cors({ origin: '*' }), bucket.serve);
 
 // ---------------------------------------------------------------------------
 // PUBLIC YOUTUBE PLAYLIST PROXY
@@ -799,32 +773,6 @@ function isProgramAttachment(contentType, fileName) {
 }
 
 // ---------------------------------------------------------------------------
-// Upload a file to Firebase Storage via Cloud Function relay
-// (bypasses VPS geo-block on googleapis.com)
-// ---------------------------------------------------------------------------
-async function uploadFileViaCloudFunction(file, { folder, boxId }) {
-    const fetch = require('node-fetch');
-
-    const body = JSON.stringify({
-        secret: CLOUD_FUNCTION_UPLOAD_SECRET,
-        folder,
-        boxId,
-        fileName: file.originalname,
-        contentType: file.mimetype || 'application/octet-stream',
-        dataBase64: file.buffer.toString('base64')
-    });
-
-    const response = await fetch(`${CLOUD_FUNCTION_UPLOAD_URL}/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body
-    });
-
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || 'Cloud Function upload failed');
-    return data; // { id, url, path, name, contentType, size, kind, uploadedAt }
-}
-
 function normalizeLinks(rawLinks) {
     if (!Array.isArray(rawLinks)) return [];
     return rawLinks.map(link => {
@@ -1113,11 +1061,11 @@ async function saveTwoFactor(collection, uid, email, secret, issuer) {
         secret,
         enabled: true,
         issuer,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: new Date().toISOString()
     };
 
     if (!snapshot.exists) {
-        payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        payload.createdAt = new Date().toISOString();
     }
 
     await docRef.set(payload, { merge: true });
@@ -1131,41 +1079,8 @@ function savePrivateTwoFactor(uid, email, secret) {
     return saveTwoFactor(privateTwoFactorCollection, uid, email, secret, PRIVATE_TWO_FACTOR_ISSUER);
 }
 
-async function verifyFirebasePassword(email, password) {
-    if (!email || !password) {
-        const error = new Error('Email and password are required.');
-        error.statusCode = 400;
-        throw error;
-    }
-
-    const fetch = (await import('node-fetch')).default;
-    const firebaseApiKey = process.env.FIREBASE_API_KEY;
-    if (!firebaseApiKey) {
-        const error = new Error('Server configuration error.');
-        error.statusCode = 500;
-        throw error;
-    }
-
-    const authResponse = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseApiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, returnSecureToken: true })
-        }
-    );
-
-    const authData = await authResponse.json();
-    if (!authResponse.ok || !authData.localId) {
-        const error = new Error('Invalid email or password.');
-        error.statusCode = 401;
-        throw error;
-    }
-
-    return {
-        uid: authData.localId,
-        email: authData.email || email
-    };
+async function verifyLocalPassword(email, password) {
+    return verifyPassword(db.pool, email, password);
 }
 
 // ---------------------------------------------------------------------------
@@ -1173,8 +1088,45 @@ async function verifyFirebasePassword(email, password) {
 // ---------------------------------------------------------------------------
 
 // Health check
-app.get('/api/health', (req, res) => {
-    res.json({ ok: true, service: 'portfolio-api' });
+app.get('/api/health', async (req, res) => {
+    try {
+        await db.pool.query('SELECT 1');
+        res.json({ ok: true, service: 'portfolio-api', database: 'postgresql', storage: 'local' });
+    } catch (error) {
+        res.status(503).json({ ok: false, service: 'portfolio-api' });
+    }
+});
+
+// Account queue has the same public access as the previous Firestore rules.
+const queueWriteLimiter=rateLimit({windowMs:15*60*1000,max:120,standardHeaders:true,legacyHeaders:false});
+app.get('/api/account-queue', publicLimiter, async (req, res, next) => {
+    try {
+        const result=await db.collection('account_queue').get();
+        res.json({ok:true,items:result.docs.map(doc=>({id:doc.id,...doc.data()}))});
+    } catch(error) { next(error); }
+});
+app.post('/api/account-queue', queueWriteLimiter, async (req, res, next) => {
+    try {
+        const {text,date}=req.body;
+        if(typeof text!=='string' || !text.trim() || text.length>500 || !isIsoDate(date)) return res.status(400).json({ok:false,error:'Text and a valid date are required.'});
+        const ref=await db.collection('account_queue').add({text:text.trim(),date,createdAt:Date.now()});
+        res.json({ok:true,id:ref.id});
+    } catch(error) { next(error); }
+});
+app.patch('/api/account-queue/:id', queueWriteLimiter, async (req, res, next) => {
+    try {
+        if(!isIsoDate(req.body.date)) return res.status(400).json({ok:false,error:'A valid date is required.'});
+        const ref=db.collection('account_queue').doc(req.params.id);
+        if(!(await ref.get()).exists) return res.status(404).json({ok:false,error:'Item not found.'});
+        await ref.update({date:req.body.date});
+        res.json({ok:true});
+    } catch(error) { next(error); }
+});
+app.delete('/api/account-queue/:id', queueWriteLimiter, async (req, res, next) => {
+    try {
+        await db.collection('account_queue').doc(req.params.id).delete();
+        res.json({ok:true});
+    } catch(error) { next(error); }
 });
 
 // Contact form submission
@@ -1207,8 +1159,8 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
             message: sanitizeInput(message),
             comment: sanitizeInput(message),
             read: false,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            timestamp: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             source: 'portfolio-contact-form',
             page: req.headers.referer || 'unknown'
         };
@@ -1274,7 +1226,7 @@ app.get('/api/archives/:id', publicLimiter, async (req, res) => {
 app.post('/api/admin/login', adminAuthLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
-        const account = await verifyFirebasePassword(email, password);
+        const account = await verifyLocalPassword(email, password);
         const twoFactor = await getAdminTwoFactor(account.uid);
 
         if (!twoFactor) {
@@ -1417,12 +1369,12 @@ app.post('/api/admin/logout', (req, res) => {
 // PRIVATE ROOM ROUTES
 // ---------------------------------------------------------------------------
 
-// Private room login uses the same Firebase password check as admin, but with
+// Private room login uses the same local password check as admin, but with
 // its own authenticator secret and session cookie.
 app.post('/api/private/login', adminAuthLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
-        const account = await verifyFirebasePassword(email, password);
+        const account = await verifyLocalPassword(email, password);
         const twoFactor = await getPrivateTwoFactor(account.uid);
 
         if (!twoFactor) {
@@ -1616,11 +1568,11 @@ app.put('/api/private/diary/:date', requirePrivate, adminLimiter, async (req, re
             photoCount: normalized.photoCount,
             wordCount: normalized.wordCount,
             source: 'private-book',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: new Date().toISOString()
         };
 
         if (!existing.exists) {
-            payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+            payload.createdAt = new Date().toISOString();
         }
 
         await docRef.set(payload, { merge: true });
@@ -1673,7 +1625,7 @@ app.post('/api/private/diary/:date/photos', requirePrivate, adminLimiter, upload
                     contentType,
                     cacheControl: 'private, max-age=0, no-transform',
                     metadata: {
-                        firebaseStorageDownloadTokens: downloadToken,
+                        downloadTokens: downloadToken,
                         date,
                         photoId,
                         originalName: file.originalname || 'diary-photo',
@@ -1682,7 +1634,7 @@ app.post('/api/private/diary/:date/photos', requirePrivate, adminLimiter, upload
                 }
             });
 
-            const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
+            const url = bucket.url(storagePath, downloadToken);
 
             uploadedPhotos.push({
                 id: photoId,
@@ -1713,11 +1665,11 @@ app.post('/api/private/diary/:date/photos', requirePrivate, adminLimiter, upload
             photoCount: photos.length,
             wordCount: countWords(existingPage?.text || ''),
             source: 'private-book',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: new Date().toISOString()
         };
 
         if (!snapshot.exists) {
-            payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+            payload.createdAt = new Date().toISOString();
         }
 
         await docRef.set(payload, { merge: true });
@@ -1751,7 +1703,7 @@ app.delete('/api/private/diary/:date/photos/:photoId', requirePrivate, adminLimi
         await docRef.set({
             photos,
             photoCount: photos.length,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: new Date().toISOString()
         }, { merge: true });
 
         res.json({ ok: true, page: mapPrivateDiaryPage(await docRef.get()) });
@@ -1914,58 +1866,39 @@ app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, upload.array('f
             : db.collection(CONTENT_BOXES_COLLECTION).doc();
         const boxId = docRef.id;
 
-        // Upload new files to Firebase Storage (via Cloud Function relay if VPS is geo-blocked)
+        // Upload new files to the VPS bucket
         const uploadedAttachments = [];
         if (req.files && req.files.length > 0) {
             for (const file of req.files) {
-                if (CLOUD_FUNCTION_UPLOAD_URL && CLOUD_FUNCTION_UPLOAD_SECRET) {
-                    // Route through Cloud Function (bypasses VPS geo-block on googleapis.com)
-                    const result = await uploadFileViaCloudFunction(file, {
-                        folder: ARCHIVE_STORAGE_FOLDER,
-                        boxId
-                    });
-                    uploadedAttachments.push({
-                        id: result.id,
-                        name: file.originalname,
-                        path: result.path,
-                        url: result.url,
-                        contentType: result.contentType,
-                        size: file.size,
-                        kind: result.kind,
-                        uploadedAt: result.uploadedAt
-                    });
-                } else {
-                    // Direct upload (only works if VPS is not geo-blocked)
-                    const attachmentId = crypto.randomBytes(16).toString('hex');
-                    const safeName = sanitizeStorageFileName(file.originalname);
-                    const storagePath = `${ARCHIVE_STORAGE_FOLDER}/${boxId}/${Date.now()}-${attachmentId}-${safeName}`;
-                    const contentType = file.mimetype || 'application/octet-stream';
-                    const downloadToken = crypto.randomBytes(16).toString('hex');
-                    const fileRef = bucket.file(storagePath);
-                    await fileRef.save(file.buffer, {
-                        metadata: {
-                            contentType,
-                            cacheControl: 'private, max-age=0, no-transform',
-                            metadata: {
-                                firebaseStorageDownloadTokens: downloadToken,
-                                boxId,
-                                originalName: file.originalname,
-                                uploadedBy: req.adminSession.uid
-                            }
-                        }
-                    });
-                    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
-                    uploadedAttachments.push({
-                        id: attachmentId,
-                        name: file.originalname,
-                        path: storagePath,
-                        url,
+                const attachmentId = crypto.randomBytes(16).toString('hex');
+                const safeName = sanitizeStorageFileName(file.originalname);
+                const storagePath = `${ARCHIVE_STORAGE_FOLDER}/${boxId}/${Date.now()}-${attachmentId}-${safeName}`;
+                const contentType = file.mimetype || 'application/octet-stream';
+                const downloadToken = crypto.randomBytes(16).toString('hex');
+                const fileRef = bucket.file(storagePath);
+                await fileRef.save(file.buffer, {
+                    metadata: {
                         contentType,
-                        size: file.size,
-                        kind: getAttachmentKind(contentType, file.originalname),
-                        uploadedAt: new Date().toISOString()
-                    });
-                }
+                        cacheControl: 'private, max-age=0, no-transform',
+                        metadata: {
+                            downloadTokens: downloadToken,
+                            boxId,
+                            originalName: file.originalname,
+                            uploadedBy: req.adminSession.uid
+                        }
+                    }
+                });
+                const url = bucket.url(storagePath, downloadToken);
+                uploadedAttachments.push({
+                    id: attachmentId,
+                    name: file.originalname,
+                    path: storagePath,
+                    url,
+                    contentType,
+                    size: file.size,
+                    kind: getAttachmentKind(contentType, file.originalname),
+                    uploadedAt: new Date().toISOString()
+                });
             }
         }
 
@@ -1987,11 +1920,11 @@ app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, upload.array('f
             })),
             order,
             published,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: new Date().toISOString()
         };
 
         if (!payload.id) {
-            boxData.createdAt = admin.firestore.FieldValue.serverTimestamp();
+            boxData.createdAt = new Date().toISOString();
         }
 
         await docRef.set(boxData, { merge: Boolean(payload.id) });
@@ -2107,7 +2040,7 @@ app.post('/api/admin/playlists', requireAdmin, adminLimiter, async (req, res) =>
             title,
             order: maxOrder + 1,
             addedBy: req.adminSession.uid,
-            addedAt: admin.firestore.FieldValue.serverTimestamp()
+            addedAt: new Date().toISOString()
         });
 
         playlistsCache.data = null; // bust public cache so it shows immediately
@@ -2387,7 +2320,7 @@ app.use((err, req, res, next) => {
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-app.listen(PORT, () => {
+db.initialize().then(() => app.listen(PORT, process.env.API_BIND_HOST || '127.0.0.1', () => {
     console.log(`Portfolio API running on port ${PORT}`);
     console.log(`Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
-});
+})).catch(error => { console.error('Database initialization failed:', error.message); process.exit(1); });

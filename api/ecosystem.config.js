@@ -13,8 +13,6 @@ module.exports = {
             NODE_ENV: 'production',
             PORT: env('PORT', '3001'),
             ALLOWED_ORIGINS: env('ALLOWED_ORIGINS', 'https://hunterstar.uz,https://www.hunterstar.uz,https://admin.hunterstar.uz'),
-            FIREBASE_SERVICE_ACCOUNT: env('FIREBASE_SERVICE_ACCOUNT', '/opt/portfolio-api/service-account.json'),
-            FIREBASE_API_KEY: env('FIREBASE_API_KEY', 'AIzaSyDCmF8y4DXFqABNOuDtz6ytEUqJJcIFlMs'),
             SESSION_SECRET: env('SESSION_SECRET', crypto.randomBytes(32).toString('hex')),
             TWO_FACTOR_ISSUER: env('TWO_FACTOR_ISSUER', 'Hunterstar Admin'),
             PRIVATE_TWO_FACTOR_ISSUER: env('PRIVATE_TWO_FACTOR_ISSUER', 'Hunterstar Private'),

@@ -101,46 +101,21 @@ echo "=== Setting up Portfolio API ==="
 mkdir -p "$APP_DIR"
 
 # Copy API files when this script is run from an upload or extract directory.
-for file in server.js ai-provider.js cli-prompt.js package.json package-lock.json ecosystem.config.js .env.example; do
+for file in server.js ai-provider.js cli-prompt.js postgres-store.js local-auth.js local-bucket.js setup-postgres.sh backup-selfhosted.sh package.json package-lock.json ecosystem.config.js .env.example; do
     if [ -f "$SCRIPT_DIR/$file" ]; then
         cp "$SCRIPT_DIR/$file" "$APP_DIR/$file"
     fi
 done
 
-if [ -f "$SCRIPT_DIR/service-account.json" ]; then
-    cp "$SCRIPT_DIR/service-account.json" "$APP_DIR/service-account.json"
-fi
-
 cd "$APP_DIR"
 
-if [ ! -f service-account.json ]; then
-    echo "Missing $APP_DIR/service-account.json"
-    echo "Upload your Firebase service account JSON as service-account.json, then rerun this script."
-    exit 1
+# Keep all existing settings, including DATABASE_URL and local AI endpoints.
+if [ ! -f .env ]; then
+    printf 'PORT=3001\nSESSION_SECRET=%s\n' "$SESSION_SECRET" > .env
 fi
-
-chmod 600 service-account.json
-
-cat > .env << EOF
-PORT=3001
-ALLOWED_ORIGINS=https://hunterstar.uz,https://www.hunterstar.uz,https://admin.hunterstar.uz,https://private.hunterstar.uz
-SESSION_SECRET=$(env_quote "$SESSION_SECRET")
-TWO_FACTOR_ISSUER=$(env_quote "$TWO_FACTOR_ISSUER")
-PRIVATE_TWO_FACTOR_ISSUER=$(env_quote "$PRIVATE_TWO_FACTOR_ISSUER")
-FIREBASE_SERVICE_ACCOUNT=$(env_quote "$APP_DIR/service-account.json")
-FIREBASE_API_KEY=AIzaSyDCmF8y4DXFqABNOuDtz6ytEUqJJcIFlMs
-YOUTUBE_API_KEY=$(env_quote "$YOUTUBE_API_KEY")
-YOUTUBE_PLAYLIST_ID=$(env_quote "$YOUTUBE_PLAYLIST_ID")
-OPEN_ROUTER_API_KEY=$(env_quote "$OPEN_ROUTER_API_KEY")
-OPENROUTER_MODEL=$(env_quote "${OPENROUTER_MODEL:-qwen/qwen3.8-27b:free}")
-EOF
-
-# Preserve multiple Gemini AI keys from existing .env if they exist
-if [ -f ".env.bak" ]; then
-    grep -E '^AI_STUDIO_API_KEY[0-9]*=' ".env.bak" >> .env || true
-fi
-
-echo "OK .env created"
+chmod 600 .env
+bash "$APP_DIR/setup-postgres.sh"
+echo "OK PostgreSQL and existing environment ready"
 
 if [ -f package-lock.json ]; then
     npm ci --omit=dev

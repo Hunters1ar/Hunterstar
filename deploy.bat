@@ -85,7 +85,7 @@ REM ---- Step 2: SCP backend and admin code to VPS ---------
 echo.
 echo [2/3] Uploading backend API and admin files to %VPS_HOST%...
 ssh %SSH_OPTS% %VPS_HOST% "mkdir -p %VPS_API_DIR% %VPS_ADMIN_DIR%/css %VPS_ADMIN_DIR%/js"
-scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%PROJECT_ROOT%\api\ai-provider.js" "%VPS_HOST%:%VPS_API_DIR%/"
+scp %SSH_OPTS% "%PROJECT_ROOT%\api\server.js" "%PROJECT_ROOT%\api\ai-provider.js" "%PROJECT_ROOT%\api\cli-prompt.js" "%PROJECT_ROOT%\api\postgres-store.js" "%PROJECT_ROOT%\api\local-auth.js" "%PROJECT_ROOT%\api\local-bucket.js" "%PROJECT_ROOT%\api\package.json" "%PROJECT_ROOT%\api\package-lock.json" "%VPS_HOST%:%VPS_API_DIR%/"
 if errorlevel 1 (
     echo ERROR: SCP backend API upload failed.
     goto fail
@@ -117,7 +117,7 @@ echo       Upload OK.
 REM ---- Step 3: Restart PM2 ------------------------------------
 echo.
 echo [3/3] Restarting PM2 app "%PM2_APP%"...
-ssh %SSH_OPTS% %VPS_HOST% "pm2 restart %PM2_APP% && sleep 2 && pm2 show %PM2_APP% | grep -E 'status|uptime|restarts'"
+ssh %SSH_OPTS% %VPS_HOST% "cd %VPS_API_DIR% && npm ci --omit=dev && pm2 restart %PM2_APP% --update-env && sleep 2 && pm2 show %PM2_APP% | grep -E 'status|uptime|restarts'"
 if errorlevel 1 (
     echo ERROR: PM2 restart failed.
     goto fail

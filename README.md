@@ -1,6 +1,6 @@
 # 🎭 Poetic Retro Portfolio - Static Version
 
-A stunning, completely static portfolio website featuring a 3D chess piece hero, dark academia aesthetic, and Firebase-powered contact form. No server required!
+A stunning, completely static portfolio website featuring a 3D chess piece hero, dark academia aesthetic, and a contact form backed by your own PostgreSQL API.
 
 ![Portfolio Preview](preview.png)
 
@@ -20,10 +20,10 @@ A stunning, completely static portfolio website featuring a 3D chess piece hero,
 - **Orbiting Particles** - 150 glowing data nodes
 - **Scroll Animation** - Chess piece disassembles as you scroll
 
-### 🔥 Firebase Integration
-- **Contact Form** - Messages stored in Firestore
-- **No Server Required** - 100% static, can be hosted anywhere
-- **Security Rules** - Built-in validation and rate limiting
+### Self-hosted data
+- **Contact Form** - Messages stored in PostgreSQL on your VPS
+- **File Storage** - Attachments stored in `/opt/portfolio-api/bucket`
+- **Authentication** - Local password verification and authenticator codes
 
 ---
 
@@ -37,7 +37,7 @@ portfolio-static/
 ├── js/
 │   ├── main.js             # Theme toggle, animations, form handler
 │   ├── three-scene.js      # Three.js 3D chess piece
-│   └── firebase-config.js  # Firebase configuration
+│   └── firebase-config.js  # VPS API client (legacy filename)
 ├── assets/                 # Images, fonts (optional)
 └── README.md
 ```
@@ -67,20 +67,11 @@ npx serve
 php -S localhost:8000
 ```
 
-### 3. Configure Firebase (Optional but Recommended)
+### 3. Configure the API
 
-Edit `js/firebase-config.js`:
-
-```javascript
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-```
+See [the self-hosted data guide](api/SELF_HOSTED.md) for PostgreSQL, file storage,
+deployment, backups, and migration details. The static pages use
+`https://api.hunterstar.uz`.
 
 ---
 **Made with ❤️ and a passion for elegant code**

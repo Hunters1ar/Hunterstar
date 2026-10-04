@@ -75,6 +75,11 @@ $apiFiles = @(
     'api/server.js',
     'api/ai-provider.js',
     'api/cli-prompt.js',
+    'api/postgres-store.js',
+    'api/local-auth.js',
+    'api/local-bucket.js',
+    'api/setup-postgres.sh',
+    'api/backup-selfhosted.sh',
     'api/package.json',
     'api/ecosystem.config.js',
     'api/.env.example',
@@ -83,10 +88,6 @@ $apiFiles = @(
 
 if (Test-Path -LiteralPath 'api/package-lock.json') {
     $apiFiles += 'api/package-lock.json'
-}
-
-if (Test-Path -LiteralPath 'api/service-account.json') {
-    $apiFiles += 'api/service-account.json'
 }
 
 $apiDest = $vpsHost + ':' + $remoteDir + '/api/'

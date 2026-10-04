@@ -360,30 +360,19 @@
     <script src="js/main.js"></script>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot } 
-            from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
-
-        // Firebase configuration
-        const firebaseConfig = {
-            projectId: "portfolio-9b8a5",
-            appId: "1:181987994223:web:303a755503ecbd5ddcfb9a",
-            databaseURL: "https://portfolio-9b8a5-default-rtdb.firebaseio.com",
-            storageBucket: "portfolio-9b8a5.firebasestorage.app",
-            apiKey: "AIzaSyDCmF8y4DXFqABNOuDtz6ytEUqJJcIFlMs",
-            authDomain: "portfolio-9b8a5.firebaseapp.com",
-            messagingSenderId: "181987994223",
-            measurementId: "G-RR93XNL49Q"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const queueRef = collection(db, "account_queue");
+        const API_BASE='https://api.hunterstar.uz';
+        async function queueRequest(route='', method='GET', body) {
+            const response=await fetch(API_BASE+'/api/account-queue'+route, {
+                method, headers:body ? {'Content-Type':'application/json'} : {},
+                body:body ? JSON.stringify(body) : undefined
+            });
+            const data=await response.json();
+            if(!response.ok || !data.ok) throw new Error(data.error || 'Queue request failed');
+            return data;
+        }
 
         // --- State ---
         let items = [];
-        let isPopulating = false; 
 
         // --- DOM ---
         const infoInput = document.getElementById('infoInput');
@@ -395,6 +384,11 @@
         const pastCountEl = document.getElementById('pastCount');
 
         // --- Helpers ---
+        function escapeHtml(value) {
+            const span=document.createElement('span');
+            span.textContent=String(value || '');
+            return span.innerHTML;
+        }
         function isPast(dateString) {
             if (!dateString) return false;
             const d = new Date(dateString);
@@ -424,13 +418,14 @@
             }
 
             try {
-                await addDoc(queueRef, {
+                await queueRequest('', 'POST', {
                     text: text,
                     date: date,
                     createdAt: Date.now()
                 });
                 infoInput.value = '';
-                dateInput.value = ''; 
+                dateInput.value = '';
+                await loadData();
             } catch (e) {
                 console.error("Error adding document: ", e);
                 alert("Failed to add to database");
@@ -440,7 +435,8 @@
         window.deleteItem = async function(id) {
             if(confirm("CONFIRM_DELETION?")) {
                 try {
-                    await deleteDoc(doc(db, "account_queue", id));
+                    await queueRequest('/'+encodeURIComponent(id), 'DELETE');
+                    await loadData();
                 } catch (e) {
                     console.error("Error deleting document: ", e);
                 }
@@ -459,11 +455,12 @@
             const mm = String(nextWeek.getMonth() + 1).padStart(2, '0');
             const dd = String(nextWeek.getDate()).padStart(2, '0');
             const newDateStr = `${yyyy}-${mm}-${dd}`;
-            
+
             try {
-                await updateDoc(doc(db, "account_queue", id), {
+                await queueRequest('/'+encodeURIComponent(id), 'PATCH', {
                     date: newDateStr
                 });
+                await loadData();
             } catch (e) {
                 console.error("Error updating document: ", e);
             }
@@ -475,75 +472,31 @@
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
             const newDateStr = `${yyyy}-${mm}-${dd}`;
-            
+
             try {
-                await updateDoc(doc(db, "account_queue", id), {
+                await queueRequest('/'+encodeURIComponent(id), 'PATCH', {
                     date: newDateStr
                 });
+                await loadData();
             } catch (e) {
                 console.error("Error updating document: ", e);
             }
         }
 
-        async function populateInitialData() {
-            if (isPopulating) return;
-            isPopulating = true;
-            
-            const initialAccounts = [
-                { text: "yeslichto09@gmail.com", date: "2026-08-02" },
-                { text: "hunterstardeveloper@gmail.com", date: "2026-08-02" },
-                { text: "kyuter789@gmail.com", date: "2026-08-05" },
-                { text: "infonotavailable01@gmail.com", date: "2026-08-05" },
-                { text: "heyitsmedevhun@gmail.com", date: "2026-08-05" },
-                { text: "howlingmoon007", date: "2026-08-06" }
-            ];
-            
+        async function loadData() {
             try {
-                for (const acc of initialAccounts) {
-                    await addDoc(queueRef, {
-                        text: acc.text,
-                        date: acc.date,
-                        createdAt: Date.now()
-                    });
-                }
-                console.log("Initial data populated successfully.");
-            } catch (e) {
-                console.error("Failed to populate initial data", e);
+                const data=await queueRequest();
+                items=data.items.map(item=>({...item,isPast:isPast(item.date)}));
+                render();
+            } catch(error) {
+                console.error('Error loading queue:',error);
             }
-        }
-
-        function loadData() {
-            let initialLoad = true;
-            // Subscribe to real-time updates
-            onSnapshot(queueRef, (snapshot) => {
-                items = [];
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    items.push({
-                        id: doc.id,
-                        text: data.text || '',
-                        date: data.date || '',
-                        isPast: isPast(data.date),
-                        createdAt: data.createdAt || 0
-                    });
-                });
-                
-                // Initialization check: if empty, populate with default data
-                if (items.length === 0 && initialLoad) {
-                    populateInitialData();
-                } else {
-                    render();
-                }
-                initialLoad = false;
-            }, (error) => {
-                console.error("Error listening to queue: ", error);
-            });
         }
 
         function render() {
             // Upcoming (Right): Ascending date (soonest first)
             const upcoming = items.filter(i => !i.isPast).sort((a,b) => new Date(a.date) - new Date(b.date));
-            
+
             // Archive (Left): Descending date (most recent past first)
             const past = items.filter(i => i.isPast).sort((a,b) => new Date(b.date) - new Date(a.date));
 
@@ -571,7 +524,7 @@
                     const dragData = { id: item.id, type: type };
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
-                    
+
                     // Delay opacity change to not affect the drag ghost image
                     requestAnimationFrame(() => {
                         el.style.opacity = '0.5';
@@ -595,7 +548,7 @@
 
                 el.innerHTML = `
                     <div class="item-top">
-                        <div class="item-text">${item.text}</div>
+                        <div class="item-text">${escapeHtml(item.text)}</div>
                         <div class="item-date">${formatDateDisplay(item.date)}</div>
                     </div>
                     <div class="item-actions">
@@ -605,36 +558,36 @@
                 container.appendChild(el);
             });
         }
-        
+
         function setupDragAndDrop() {
             [pastListEl, upcomingListEl].forEach(container => {
                 container.addEventListener('dragenter', e => {
                     e.preventDefault(); // Necessary for allowing drop
                     container.classList.add('drag-over');
                 });
-                
+
                 container.addEventListener('dragover', e => {
                     e.preventDefault(); // Necessary for allowing drop
                     e.dataTransfer.dropEffect = 'move';
                     container.classList.add('drag-over');
                 });
-                
+
                 container.addEventListener('dragleave', e => {
                     if (!container.contains(e.relatedTarget)) {
                         container.classList.remove('drag-over');
                     }
                 });
-                
+
                 container.addEventListener('drop', e => {
                     e.preventDefault();
                     container.classList.remove('drag-over');
-                    
+
                     try {
                         const dataStr = e.dataTransfer.getData('text/plain');
                         if (!dataStr) return;
-                        
+
                         const dragData = JSON.parse(dataStr);
-                        
+
                         if (container.id === 'upcomingList' && dragData.type === 'archive') {
                             rescheduleOneWeek(dragData.id);
                         } else if (container.id === 'pastList' && dragData.type === 'active') {
@@ -650,11 +603,12 @@
         // --- Init ---
         window.addEventListener('DOMContentLoaded', () => {
             loadData();
+            setInterval(loadData, 15000);
             setupDragAndDrop();
         });
 
         addBtn.addEventListener('click', addItem);
-        
+
         [infoInput, dateInput].forEach(inp => {
             inp.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') addItem();
