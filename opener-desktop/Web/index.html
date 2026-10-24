@@ -663,7 +663,7 @@
         // Fetch Accounts
         async function fetchAccounts() {
             document.body.dataset.loadState = 'loading';
-            accountGrid.textContent = 'Loading accounts from Firebase...';
+            accountGrid.textContent = 'Loading accounts...';
             try {
                 const data = await desktopRequest('accounts');
                 accountsData = Array.isArray(data.accounts) ? data.accounts : [];
@@ -674,7 +674,7 @@
                 accountGrid.replaceChildren();
                 const message = document.createElement('div');
                 message.style.cssText = 'grid-column:1/-1;color:var(--color-accent-primary);font-family:var(--font-mono);padding:2rem';
-                message.textContent = `Could not load Firebase accounts: ${err.message} `;
+                message.textContent = `Could not load accounts: ${err.message} `;
                 const retry = document.createElement('button');
                 retry.className = 'status-indicator';
                 retry.textContent = 'Retry';

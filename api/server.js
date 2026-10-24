@@ -1107,25 +1107,109 @@ app.get('/api/account-queue', publicLimiter, async (req, res, next) => {
 });
 app.post('/api/account-queue', queueWriteLimiter, async (req, res, next) => {
     try {
-        const {text,date}=req.body;
-        if(typeof text!=='string' || !text.trim() || text.length>500 || !isIsoDate(date)) return res.status(400).json({ok:false,error:'Text and a valid date are required.'});
-        const ref=await db.collection('account_queue').add({text:text.trim(),date,createdAt:Date.now()});
-        res.json({ok:true,id:ref.id});
+        const { text, date, allowDuplicate } = req.body;
+        if (typeof text !== 'string' || !text.trim() || text.length > 500 || !isIsoDate(date)) {
+            return res.status(400).json({ ok: false, error: 'Text and a valid date are required.' });
+        }
+        const trimmed = text.trim();
+        if (!allowDuplicate) {
+            const allDocs = await db.collection('account_queue').get();
+            const lower = trimmed.toLowerCase();
+            const existing = allDocs.docs.find(d => {
+                const itemData = d.data();
+                return typeof itemData.text === 'string' && itemData.text.trim().toLowerCase() === lower;
+            });
+            if (existing) {
+                return res.status(409).json({
+                    ok: false,
+                    duplicate: true,
+                    existingItem: { id: existing.id, ...existing.data() },
+                    error: `Account "${trimmed}" already exists in queue.`
+                });
+            }
+        }
+        const ref = await db.collection('account_queue').add({ text: trimmed, date, createdAt: Date.now() });
+        res.json({ ok: true, id: ref.id });
+    } catch(error) { next(error); }
+});
+app.post('/api/account-queue/batch', queueWriteLimiter, async (req, res, next) => {
+    try {
+        const { items: batchItems, allowDuplicates } = req.body;
+        if (!Array.isArray(batchItems) || batchItems.length === 0) {
+            return res.status(400).json({ ok: false, error: 'Items array is required.' });
+        }
+        if (batchItems.length > 200) {
+            return res.status(400).json({ ok: false, error: 'Maximum 200 items per batch.' });
+        }
+        const allDocs = await db.collection('account_queue').get();
+        const existingSet = new Set(
+            allDocs.docs
+                .map(d => typeof d.data().text === 'string' ? d.data().text.trim().toLowerCase() : '')
+                .filter(Boolean)
+        );
+
+        const added = [];
+        const skipped = [];
+        const now = Date.now();
+
+        for (const item of batchItems) {
+            const trimmed = typeof item.text === 'string' ? item.text.trim() : '';
+            const date = item.date;
+            if (!trimmed || trimmed.length > 500 || !isIsoDate(date)) {
+                skipped.push({ text: trimmed || '(empty)', reason: 'Invalid text or date' });
+                continue;
+            }
+            const lower = trimmed.toLowerCase();
+            if (!allowDuplicates && existingSet.has(lower)) {
+                skipped.push({ text: trimmed, reason: 'Duplicate' });
+                continue;
+            }
+            existingSet.add(lower);
+            const ref = await db.collection('account_queue').add({ text: trimmed, date, createdAt: now });
+            added.push({ id: ref.id, text: trimmed, date });
+        }
+        res.json({ ok: true, addedCount: added.length, skippedCount: skipped.length, added, skipped });
     } catch(error) { next(error); }
 });
 app.patch('/api/account-queue/:id', queueWriteLimiter, async (req, res, next) => {
     try {
-        if(!isIsoDate(req.body.date)) return res.status(400).json({ok:false,error:'A valid date is required.'});
-        const ref=db.collection('account_queue').doc(req.params.id);
-        if(!(await ref.get()).exists) return res.status(404).json({ok:false,error:'Item not found.'});
-        await ref.update({date:req.body.date});
-        res.json({ok:true});
+        const { date, text } = req.body;
+        if (date === undefined && text === undefined) {
+            return res.status(400).json({ ok: false, error: 'Nothing to update.' });
+        }
+        const updateData = {};
+        if (date !== undefined) {
+            if (!isIsoDate(date)) return res.status(400).json({ ok: false, error: 'A valid date is required.' });
+            updateData.date = date;
+        }
+        if (text !== undefined) {
+            if (typeof text !== 'string' || !text.trim() || text.length > 500) {
+                return res.status(400).json({ ok: false, error: 'Valid text is required.' });
+            }
+            updateData.text = text.trim();
+        }
+        const ref = db.collection('account_queue').doc(req.params.id);
+        if (!(await ref.get()).exists) return res.status(404).json({ ok: false, error: 'Item not found.' });
+        await ref.update(updateData);
+        res.json({ ok: true });
+    } catch(error) { next(error); }
+});
+app.delete('/api/account-queue/batch', queueWriteLimiter, async (req, res, next) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ ok: false, error: 'Array of ids required.' });
+        }
+        for (const id of ids) {
+            await db.collection('account_queue').doc(id).delete();
+        }
+        res.json({ ok: true, deletedCount: ids.length });
     } catch(error) { next(error); }
 });
 app.delete('/api/account-queue/:id', queueWriteLimiter, async (req, res, next) => {
     try {
         await db.collection('account_queue').doc(req.params.id).delete();
-        res.json({ok:true});
+        res.json({ ok: true });
     } catch(error) { next(error); }
 });
 

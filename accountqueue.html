@@ -18,13 +18,384 @@
     <style>
         .queue-container {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
             padding-top: calc(var(--space-4xl) + 2rem);
             padding-bottom: var(--space-4xl);
+        }
+
+        /* Stats Header Pill Bar */
+        .stats-strip {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-chip {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 4px 12px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--color-text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-chip strong {
+            color: var(--color-text-primary);
+        }
+
+        .stat-chip.stat-dup-alert {
+            background: rgba(204, 17, 17, 0.15);
+            border-color: var(--color-accent-primary);
+            color: var(--color-accent-secondary);
+            animation: pulseDup 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseDup {
+            0%, 100% { box-shadow: 0 0 0 rgba(204, 17, 17, 0); }
+            50% { box-shadow: 0 0 12px var(--color-accent-glow); }
+        }
+
+        .stat-btn {
+            background: transparent;
+            border: 1px solid currentColor;
+            color: inherit;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: var(--transition-fast);
+        }
+
+        .stat-btn:hover {
+            background: var(--color-accent-primary);
+            color: #fff;
+        }
+
+        /* Input Panel */
+        .input-panel {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 20px var(--color-shadow-medium);
+            position: relative;
+            transition: border-color var(--transition-fast);
+        }
+
+        .input-panel.has-duplicate-warning {
+            border-color: rgba(255, 170, 0, 0.6);
+            box-shadow: 0 0 20px rgba(255, 170, 0, 0.15);
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            color: var(--color-text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .queue-input {
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-primary);
+            padding: 0.8rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            outline: none;
+            transition: var(--transition-fast);
+            width: 100%;
+            border-radius: var(--radius-sm);
+        }
+
+        .queue-input:focus {
+            border-color: var(--color-accent-primary);
+            box-shadow: inset 0 0 10px var(--color-accent-glow);
+        }
+
+        .queue-input.input-warning {
+            border-color: #ffaa00 !important;
+            box-shadow: inset 0 0 10px rgba(255, 170, 0, 0.25) !important;
+        }
+
+        .btn-add {
+            background: transparent;
+            color: var(--color-accent-primary);
+            border: 1px solid var(--color-accent-primary);
+            padding: 0 1.5rem;
+            height: 44px;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+        }
+
+        .btn-add:hover {
+            background: var(--color-accent-primary);
+            color: #fff;
+            box-shadow: 0 0 15px var(--color-accent-glow);
+        }
+
+        /* Preset pills row */
+        .presets-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding-top: 0.25rem;
+        }
+
+        .preset-label {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            margin-right: 4px;
+        }
+
+        .btn-pill {
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .btn-pill:hover, .btn-pill.active {
+            border-color: var(--color-accent-primary);
+            color: var(--color-text-primary);
+            background: var(--color-bg-elevated);
+        }
+
+        .extra-actions-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            border-top: 1px dashed var(--color-surface-border);
+            padding-top: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .quick-tool-btn {
+            background: transparent;
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+        }
+
+        .quick-tool-btn:hover {
+            border-color: var(--color-text-primary);
+            color: var(--color-text-primary);
+            background: var(--color-bg-tertiary);
+        }
+
+        /* Inline Duplicate Warning Banner */
+        .duplicate-inline-banner {
+            display: none;
+            background: rgba(255, 170, 0, 0.12);
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            padding: 0.65rem 1rem;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: #ffbb33;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            animation: slideDown 200ms ease;
+        }
+
+        .duplicate-inline-banner.show {
+            display: flex;
+        }
+
+        .duplicate-inline-banner .banner-msg {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .duplicate-inline-banner .banner-jump-btn {
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid #ffbb33;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            white-space: nowrap;
+            text-transform: uppercase;
+            transition: var(--transition-fast);
+        }
+
+        .duplicate-inline-banner .banner-jump-btn:hover {
+            background: #ffbb33;
+            color: #000;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Toolbar Panel (Search, Filters, Sort) */
+        .toolbar-panel {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-surface-border);
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1 1 280px;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-primary);
+            padding: 0.55rem 2rem 0.55rem 0.8rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: var(--transition-fast);
+        }
+
+        .search-input:focus {
+            border-color: var(--color-accent-primary);
+            box-shadow: inset 0 0 6px var(--color-accent-glow);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            display: none;
+            padding: 2px;
+        }
+
+        .search-clear.show {
+            display: block;
+        }
+
+        .search-clear:hover {
+            color: var(--color-text-primary);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            background: transparent;
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            text-transform: uppercase;
+        }
+
+        .filter-chip:hover, .filter-chip.active {
+            background: var(--color-bg-elevated);
+            color: var(--color-text-primary);
+            border-color: var(--color-accent-primary);
+        }
+
+        .filter-chip.chip-duplicate {
+            border-color: rgba(255, 170, 0, 0.4);
+            color: #ffaa00;
+        }
+
+        .filter-chip.chip-duplicate.active {
+            background: rgba(255, 170, 0, 0.15);
+            border-color: #ffaa00;
+            color: #fff;
+        }
+
+        .sort-select {
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 5px 8px;
+            border-radius: var(--radius-sm);
+            outline: none;
+            cursor: pointer;
         }
 
         /* Main Grid Layout */
@@ -48,7 +419,7 @@
             align-items: center;
             border-bottom: 1px solid var(--color-surface-border);
             padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.25rem;
         }
 
         .col-header h2 {
@@ -67,73 +438,6 @@
             padding: 2px 8px;
             font-family: var(--font-mono);
             border-radius: var(--radius-sm);
-        }
-
-        /* Input Panel */
-        .input-panel {
-            background: var(--color-surface-card);
-            border: 1px solid var(--color-surface-border);
-            padding: 1.5rem;
-            display: grid;
-            grid-template-columns: 1fr auto auto;
-            gap: 1rem;
-            align-items: end;
-            margin-bottom: 1rem;
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 20px var(--color-shadow-medium);
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .input-group label {
-            font-size: 0.7rem;
-            color: var(--color-text-muted);
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-
-        .queue-input {
-            background: var(--color-bg-tertiary);
-            border: 1px solid var(--color-surface-border);
-            color: var(--color-text-primary);
-            padding: 0.8rem;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            outline: none;
-            transition: var(--transition-fast);
-            width: 100%;
-            border-radius: var(--radius-sm);
-        }
-
-        .queue-input:focus {
-            border-color: var(--color-accent-primary);
-            box-shadow: inset 0 0 10px var(--color-accent-glow);
-        }
-
-        .btn-add {
-            background: transparent;
-            color: var(--color-accent-primary);
-            border: 1px solid var(--color-accent-primary);
-            padding: 0 1.5rem;
-            height: 44px;
-            font-family: var(--font-mono);
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: var(--transition-fast);
-            border-radius: var(--radius-sm);
-        }
-
-        .btn-add:hover {
-            background: var(--color-accent-primary);
-            color: #fff;
-            box-shadow: 0 0 15px var(--color-accent-glow);
         }
 
         /* List Items */
@@ -180,18 +484,40 @@
             border-left: 3px solid var(--color-accent-primary);
         }
         .item-card.active:hover {
-            transform: translateX(5px);
+            transform: translateX(4px);
             box-shadow: -5px 0 15px var(--color-accent-glow);
         }
 
         /* Archive (Left) */
         .item-card.archive {
             border-left: 3px solid var(--color-text-muted);
-            opacity: 0.7;
+            opacity: 0.85;
         }
         .item-card.archive:hover {
             opacity: 1;
             border-left-color: var(--color-text-primary);
+        }
+
+        /* Duplicate visual indicator */
+        .item-card.is-duplicate {
+            border-right: 3px solid #ffaa00;
+            background: linear-gradient(90deg, rgba(15, 15, 15, 0.85) 0%, rgba(255, 170, 0, 0.05) 100%);
+        }
+
+        .item-card.is-duplicate:hover {
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.2);
+        }
+
+        /* Highlight animation when jumped to */
+        .item-card.highlight-pulse {
+            animation: cardPulse 2.5s ease;
+        }
+
+        @keyframes cardPulse {
+            0% { box-shadow: 0 0 0px var(--color-accent-primary); transform: scale(1); }
+            20% { box-shadow: 0 0 25px var(--color-accent-primary), 0 0 40px var(--color-accent-glow); transform: scale(1.02); }
+            40% { box-shadow: 0 0 20px var(--color-accent-primary); }
+            100% { box-shadow: 0 0 0px transparent; transform: scale(1); }
         }
 
         .item-top {
@@ -201,12 +527,39 @@
             gap: 1rem;
         }
 
+        .item-text-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
         .item-text {
             font-size: 1rem;
             font-family: var(--font-mono);
             color: var(--color-text-primary);
             font-weight: 500;
             word-break: break-all;
+        }
+
+        .item-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .badge-dup {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         .item-date {
@@ -228,7 +581,8 @@
         /* Action Buttons Row */
         .item-actions {
             display: flex;
-            gap: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
             justify-content: flex-end;
             margin-top: 10px;
             border-top: 1px dashed var(--color-surface-border);
@@ -238,7 +592,7 @@
         .btn-action {
             font-family: var(--font-mono);
             font-size: 0.75rem;
-            padding: 5px 12px;
+            padding: 5px 10px;
             cursor: pointer;
             border: 1px solid var(--color-text-muted);
             background: transparent;
@@ -246,11 +600,26 @@
             transition: var(--transition-fast);
             text-transform: uppercase;
             border-radius: var(--radius-sm);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .btn-action:hover {
             border-color: var(--color-text-primary);
             color: var(--color-text-primary);
+        }
+
+        .btn-copy:hover {
+            border-color: #3b82f6;
+            color: #60a5fa;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-copy.copied {
+            border-color: #10b981;
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.15);
         }
 
         .btn-delete:hover {
@@ -263,25 +632,278 @@
             border-color: var(--color-text-secondary);
         }
 
+        .btn-now {
+            border-color: rgba(16, 185, 129, 0.5);
+            color: #34d399;
+        }
+
+        .btn-now:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .btn-edit:hover {
+            border-color: #f59e0b;
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        /* Inline Edit Form in Card */
+        .card-edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        .card-edit-inputs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .card-edit-text {
+            flex: 1 1 200px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+        }
+
+        .card-edit-date {
+            flex: 0 0 150px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+        }
+
+        .card-edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
         .empty-msg {
             color: var(--color-text-muted);
             font-family: var(--font-mono);
             font-size: 0.9rem;
             text-align: center;
-            padding: 2rem;
+            padding: 2.5rem 1rem;
             border: 1px dashed var(--color-surface-border);
             border-radius: var(--radius-sm);
         }
 
-        @media (max-width: 768px) {
+        /* Modal Backdrop & Cards */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-surface-border);
+            box-shadow: 0 10px 40px var(--color-shadow-deep);
+            border-radius: var(--radius-md);
+            width: 100%;
+            max-width: 560px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalPop 200ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalPop {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--color-surface-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            color: var(--color-accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--color-text-primary);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--color-text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--color-surface-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            background: var(--color-bg-primary);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--color-surface-border);
+            color: var(--color-text-secondary);
+            padding: 0.5rem 1.2rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: var(--transition-fast);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-text-primary);
+            color: var(--color-text-primary);
+        }
+
+        .btn-primary {
+            background: var(--color-accent-primary);
+            border: 1px solid var(--color-accent-primary);
+            color: #fff;
+            padding: 0.5rem 1.2rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            font-weight: bold;
+            transition: var(--transition-fast);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 0 15px var(--color-accent-glow);
+            background: var(--color-accent-secondary);
+        }
+
+        .btn-warning {
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid #ffaa00;
+            color: #ffbb33;
+            padding: 0.5rem 1.2rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            font-weight: bold;
+            transition: var(--transition-fast);
+        }
+
+        .btn-warning:hover {
+            background: #ffaa00;
+            color: #000;
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .toast-card {
+            pointer-events: auto;
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-surface-border);
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--color-text-primary);
+            box-shadow: 0 4px 20px var(--color-shadow-deep);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 260px;
+            max-width: 420px;
+            animation: toastIn 200ms ease;
+            transition: opacity 200ms ease, transform 200ms ease;
+        }
+
+        .toast-card.toast-success {
+            border-left: 4px solid #10b981;
+        }
+        .toast-card.toast-warning {
+            border-left: 4px solid #f59e0b;
+        }
+        .toast-card.toast-error {
+            border-left: 4px solid var(--color-accent-primary);
+        }
+        .toast-card.toast-info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        @keyframes toastIn {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 820px) {
             .main-grid {
                 grid-template-columns: 1fr;
             }
-            .input-panel {
+            .input-row {
                 grid-template-columns: 1fr;
             }
             .btn-add {
                 width: 100%;
+            }
+            .toolbar-panel {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
     </style>
@@ -317,23 +939,97 @@
             <span class="section-number">System / Queue</span>
             <h1 class="section-title">Account Queue</h1>
             <p class="section-subtitle">Manage upcoming and available accounts.</p>
+            
+            <!-- Live stats strip -->
+            <div class="stats-strip" id="statsStrip">
+                <div class="stat-chip">// TOTAL: <strong id="statTotal">0</strong></div>
+                <div class="stat-chip">// AVAILABLE: <strong id="statPast">0</strong></div>
+                <div class="stat-chip">// UPCOMING: <strong id="statUpcoming">0</strong></div>
+                <div class="stat-chip stat-dup-alert" id="dupStatChip" style="display: none;">
+                    ⚠ <strong id="statDupCount">0</strong> DUPLICATES DETECTED
+                    <button class="stat-btn" id="btnHighlightDups" title="Filter to show duplicates">Highlight</button>
+                    <button class="stat-btn" id="btnCleanDups" title="Clean redundant duplicates">Clean</button>
+                </div>
+            </div>
         </header>
 
         <!-- Input Module (Top, full width) -->
-        <div class="input-panel">
-            <div class="input-group">
-                <label for="infoInput">New Entry</label>
-                <input type="text" id="infoInput" class="queue-input" placeholder="> Enter account email..." autocomplete="off">
+        <div class="input-panel" id="inputPanel">
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="infoInput">
+                        <span>New Entry</span>
+                        <span id="inputStatusText" style="font-size: 0.65rem; color: var(--color-text-muted);"></span>
+                    </label>
+                    <input type="text" id="infoInput" class="queue-input" placeholder="> Enter account email or username..." autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <label for="dateInput">Target Date</label>
+                    <input type="date" id="dateInput" class="queue-input">
+                </div>
+                <button class="btn-add" id="addBtn">+ Add</button>
             </div>
-            <div class="input-group">
-                <label for="dateInput">Target Date</label>
-                <input type="date" id="dateInput" class="queue-input">
+
+            <!-- Quick Date Presets -->
+            <div class="presets-row">
+                <span class="preset-label">// Quick Date:</span>
+                <button type="button" class="btn-pill" data-offset="0">Today</button>
+                <button type="button" class="btn-pill" data-offset="1">Tomorrow</button>
+                <button type="button" class="btn-pill" data-offset="3">+3 Days</button>
+                <button type="button" class="btn-pill" data-offset="7">+1 Week</button>
+                <button type="button" class="btn-pill" data-offset="14">+2 Weeks</button>
+                <button type="button" class="btn-pill" data-offset="30">+1 Month</button>
             </div>
-            <button class="btn-add" id="addBtn">Add</button>
+
+            <!-- Inline Real-time Duplicate Banner -->
+            <div class="duplicate-inline-banner" id="dupBanner">
+                <div class="banner-msg">
+                    <span>⚠</span>
+                    <span id="dupBannerText">Duplicate account detected</span>
+                </div>
+                <button type="button" class="banner-jump-btn" id="btnJumpExisting">Focus Card ➔</button>
+            </div>
+
+            <!-- Extra Tools Row (Bulk Import, Export) -->
+            <div class="extra-actions-row">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="quick-tool-btn" id="openBulkBtn">
+                        <span>⚡</span> Bulk Import
+                    </button>
+                    <button type="button" class="quick-tool-btn" id="openExportBtn">
+                        <span>📥</span> Export
+                    </button>
+                </div>
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-muted);" id="queueSyncIndicator">
+                    ● Synced
+                </div>
+            </div>
         </div>
 
+        <!-- Filter / Search Toolbar -->
+        <div class="toolbar-panel">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search accounts by email, text, or date..." autocomplete="off">
+                <button type="button" class="search-clear" id="searchClearBtn" title="Clear search">✕</button>
+            </div>
+
+            <div class="filter-group">
+                <button type="button" class="filter-chip active" data-filter="all">All</button>
+                <button type="button" class="filter-chip" data-filter="available">Available</button>
+                <button type="button" class="filter-chip" data-filter="upcoming">Upcoming</button>
+                <button type="button" class="filter-chip chip-duplicate" data-filter="duplicates" id="filterDupBtn" style="display: none;">Duplicates (<span id="filterDupCount">0</span>)</button>
+
+                <select id="sortSelect" class="sort-select" title="Sort order">
+                    <option value="date-asc">Sort: Target Date</option>
+                    <option value="text-asc">Sort: Account (A-Z)</option>
+                    <option value="created-desc">Sort: Recently Added</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Two Column Main Grid -->
         <div class="main-grid">
-            <!-- LEFT COLUMN: ARCHIVE (PAST) -->
+            <!-- LEFT COLUMN: AVAILABLE (PAST / READY) -->
             <div class="column">
                 <div class="col-header">
                     <h2>// Available</h2>
@@ -357,24 +1053,182 @@
         </div>
     </div>
 
+    <!-- MODAL: DUPLICATE CONFIRMATION -->
+    <div class="modal-backdrop" id="duplicateModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title"><span>⚠</span> Duplicate Entry Detected</div>
+                <button type="button" class="modal-close" data-close="duplicateModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>The account you are trying to add already exists in the queue:</p>
+                <div style="background: var(--color-bg-tertiary); padding: 1rem; border: 1px solid var(--color-surface-border); border-radius: var(--radius-sm);">
+                    <div style="font-weight: bold; color: var(--color-text-primary); font-size: 0.95rem; word-break: break-all;" id="modalDupText">account@example.com</div>
+                    <div style="margin-top: 6px; font-size: 0.75rem; color: var(--color-text-muted);" id="modalDupMeta">In Available • Target: 24 Oct 2026</div>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--color-text-muted);">
+                    What would you like to do?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" data-close="duplicateModal">Cancel</button>
+                <button type="button" class="btn-secondary" id="modalDupFocusBtn">Jump to Existing</button>
+                <button type="button" class="btn-warning" id="modalDupForceAddBtn">Add Duplicate Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: BULK IMPORT -->
+    <div class="modal-backdrop" id="bulkModal">
+        <div class="modal-card" style="max-width: 620px;">
+            <div class="modal-header">
+                <div class="modal-title"><span>⚡</span> Bulk Import Accounts</div>
+                <button type="button" class="modal-close" data-close="bulkModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="bulkTextarea">Paste accounts (one email / username per line):</label>
+                    <textarea id="bulkTextarea" class="queue-input" rows="8" placeholder="user1@gmail.com&#10;user2@gmail.com&#10;user3@domain.com" style="resize: vertical; font-size: 0.85rem;"></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label for="bulkDateInput">Target Date for Imported Accounts:</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                        <input type="date" id="bulkDateInput" class="queue-input" style="max-width: 180px;">
+                        <button type="button" class="btn-pill" id="bulkPresetToday">Today</button>
+                        <button type="button" class="btn-pill" id="bulkPresetWeek">+1 Week</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="bulkSkipDuplicates" checked style="accent-color: var(--color-accent-primary); cursor: pointer;">
+                    <label for="bulkSkipDuplicates" style="cursor: pointer; font-size: 0.8rem; user-select: none;">
+                        Skip duplicate accounts (prevent adding accounts already in queue)
+                    </label>
+                </div>
+
+                <div id="bulkSummaryBox" style="background: var(--color-bg-tertiary); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.75rem; color: var(--color-text-secondary);">
+                    Detected: <strong id="bulkCountTotal" style="color: var(--color-text-primary);">0</strong> accounts | 
+                    New: <strong id="bulkCountNew" style="color: #34d399;">0</strong> | 
+                    Duplicates to skip: <strong id="bulkCountDup" style="color: #ffaa00;">0</strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" data-close="bulkModal">Cancel</button>
+                <button type="button" class="btn-primary" id="btnExecuteBulk">Import Accounts</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CLEAN DUPLICATES -->
+    <div class="modal-backdrop" id="cleanDupsModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title"><span>🧹</span> Clean Duplicate Accounts</div>
+                <button type="button" class="modal-close" data-close="cleanDupsModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>The queue scanner found redundant duplicate accounts. You can clean them automatically by keeping one copy per unique account.</p>
+                <div id="cleanDupsList" style="max-height: 200px; overflow-y: auto; background: var(--color-bg-tertiary); padding: 0.75rem; border: 1px solid var(--color-surface-border); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Rendered duplicate groups -->
+                </div>
+                <div style="font-size: 0.75rem; color: var(--color-text-muted);">
+                    Strategy: Keep the entry with the <strong>most recent target date</strong> and remove older copies.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" data-close="cleanDupsModal">Cancel</button>
+                <button type="button" class="btn-warning" id="btnExecuteCleanDups">Remove Redundant Copies</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EXPORT -->
+    <div class="modal-backdrop" id="exportModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title"><span>📥</span> Export Account Queue</div>
+                <button type="button" class="modal-close" data-close="exportModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>Select your export option:</p>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <button type="button" class="quick-tool-btn" id="btnExportCopyAvailable">
+                        📋 Copy Available Accounts to Clipboard (newline separated)
+                    </button>
+                    <button type="button" class="quick-tool-btn" id="btnExportCopyAll">
+                        📋 Copy All Accounts to Clipboard
+                    </button>
+                    <button type="button" class="quick-tool-btn" id="btnExportCsv">
+                        📄 Download as CSV file (.csv)
+                    </button>
+                    <button type="button" class="quick-tool-btn" id="btnExportJson">
+                        { } Download as JSON file (.json)
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" data-close="exportModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRM DELETE -->
+    <div class="modal-backdrop" id="deleteConfirmModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title"><span>🗑</span> Confirm Deletion</div>
+                <button type="button" class="modal-close" data-close="deleteConfirmModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this account from the queue?</p>
+                <div style="background: var(--color-bg-tertiary); padding: 0.75rem; border-radius: var(--radius-sm); font-weight: bold; word-break: break-all; color: var(--color-text-primary);" id="deleteTargetText">
+                    ...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" data-close="deleteConfirmModal">Cancel</button>
+                <button type="button" class="btn-primary" id="btnConfirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <script src="js/main.js"></script>
 
     <script type="module">
-        const API_BASE='https://api.hunterstar.uz';
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001'
+            : 'https://api.hunterstar.uz';
+
         async function queueRequest(route='', method='GET', body) {
-            const response=await fetch(API_BASE+'/api/account-queue'+route, {
-                method, headers:body ? {'Content-Type':'application/json'} : {},
-                body:body ? JSON.stringify(body) : undefined
+            const response = await fetch(API_BASE + '/api/account-queue' + route, {
+                method,
+                headers: body ? { 'Content-Type': 'application/json' } : {},
+                body: body ? JSON.stringify(body) : undefined
             });
-            const data=await response.json();
-            if(!response.ok || !data.ok) throw new Error(data.error || 'Queue request failed');
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                const err = new Error(data.error || 'Queue request failed');
+                err.status = response.status;
+                err.data = data;
+                throw err;
+            }
             return data;
         }
 
         // --- State ---
         let items = [];
+        let searchQuery = '';
+        let currentFilter = 'all'; // 'all' | 'available' | 'upcoming' | 'duplicates'
+        let currentSort = 'date-asc'; // 'date-asc' | 'text-asc' | 'created-desc'
+        let editingItemId = null;
+        let pendingDeleteId = null;
+        let pendingDuplicateAction = null;
 
-        // --- DOM ---
+        // --- DOM Elements ---
         const infoInput = document.getElementById('infoInput');
         const dateInput = document.getElementById('dateInput');
         const addBtn = document.getElementById('addBtn');
@@ -382,13 +1236,36 @@
         const pastListEl = document.getElementById('pastList');
         const upcomingCountEl = document.getElementById('upcomingCount');
         const pastCountEl = document.getElementById('pastCount');
+        const statTotal = document.getElementById('statTotal');
+        const statPast = document.getElementById('statPast');
+        const statUpcoming = document.getElementById('statUpcoming');
+        const dupStatChip = document.getElementById('dupStatChip');
+        const statDupCount = document.getElementById('statDupCount');
+        const btnHighlightDups = document.getElementById('btnHighlightDups');
+        const btnCleanDups = document.getElementById('btnCleanDups');
+        const inputPanel = document.getElementById('inputPanel');
+        const inputStatusText = document.getElementById('inputStatusText');
+        const dupBanner = document.getElementById('dupBanner');
+        const dupBannerText = document.getElementById('dupBannerText');
+        const btnJumpExisting = document.getElementById('btnJumpExisting');
+        const searchInput = document.getElementById('searchInput');
+        const searchClearBtn = document.getElementById('searchClearBtn');
+        const sortSelect = document.getElementById('sortSelect');
+        const filterDupBtn = document.getElementById('filterDupBtn');
+        const filterDupCount = document.getElementById('filterDupCount');
+        const toastContainer = document.getElementById('toastContainer');
+        const queueSyncIndicator = document.getElementById('queueSyncIndicator');
 
-        // --- Helpers ---
-        function escapeHtml(value) {
-            const span=document.createElement('span');
-            span.textContent=String(value || '');
-            return span.innerHTML;
+        // --- Date Utilities ---
+        function getIsoDate(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + offsetDays);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
         }
+
         function isPast(dateString) {
             if (!dateString) return false;
             const d = new Date(dateString);
@@ -407,98 +1284,720 @@
             return d.toLocaleDateString('en-GB', options);
         }
 
-        // --- Core Logic ---
-        async function addItem() {
-            const text = infoInput.value.trim();
-            const date = dateInput.value;
-
-            if (!text || !date) {
-                alert("ERR: INPUT_FIELDS_REQUIRED");
-                return;
-            }
-
-            try {
-                await queueRequest('', 'POST', {
-                    text: text,
-                    date: date,
-                    createdAt: Date.now()
-                });
-                infoInput.value = '';
-                dateInput.value = '';
-                await loadData();
-            } catch (e) {
-                console.error("Error adding document: ", e);
-                alert("Failed to add to database");
-            }
+        function escapeHtml(value) {
+            const span = document.createElement('span');
+            span.textContent = String(value || '');
+            return span.innerHTML;
         }
 
-        window.deleteItem = async function(id) {
-            if(confirm("CONFIRM_DELETION?")) {
-                try {
-                    await queueRequest('/'+encodeURIComponent(id), 'DELETE');
-                    await loadData();
-                } catch (e) {
-                    console.error("Error deleting document: ", e);
+        function normalizeKey(str) {
+            return String(str || '').trim().toLowerCase();
+        }
+
+        // --- Toast System ---
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast-card toast-${type}`;
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            toast.innerHTML = `
+                <span style="font-weight: bold;">${icons[type] || '●'}</span>
+                <span>${escapeHtml(message)}</span>
+            `;
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(30px)';
+                setTimeout(() => toast.remove(), 250);
+            }, 3500);
+        }
+
+        // --- Modal Helpers ---
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('active');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active');
+        }
+
+        document.querySelectorAll('[data-close]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modalId = btn.getAttribute('data-close');
+                closeModal(modalId);
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-backdrop.active').forEach(m => m.classList.remove('active'));
+            }
+        });
+
+        // --- Duplicate Detection Core ---
+        function getDuplicateMap() {
+            const map = new Map();
+            for (const item of items) {
+                const key = normalizeKey(item.text);
+                if (!key) continue;
+                if (!map.has(key)) map.set(key, []);
+                map.get(key).push(item);
+            }
+            return map;
+        }
+
+        function findExistingItem(text) {
+            const key = normalizeKey(text);
+            if (!key) return null;
+            return items.find(i => normalizeKey(i.text) === key) || null;
+        }
+
+        function updateDuplicateStats() {
+            const dupMap = getDuplicateMap();
+            let duplicateTotal = 0;
+            for (const [key, list] of dupMap) {
+                if (list.length > 1) {
+                    duplicateTotal += list.length;
+                }
+            }
+
+            if (duplicateTotal > 0) {
+                dupStatChip.style.display = 'inline-flex';
+                statDupCount.textContent = duplicateTotal;
+                filterDupBtn.style.display = 'inline-block';
+                filterDupCount.textContent = duplicateTotal;
+            } else {
+                dupStatChip.style.display = 'none';
+                filterDupBtn.style.display = 'none';
+                if (currentFilter === 'duplicates') {
+                    setFilter('all');
                 }
             }
         }
 
-        window.rescheduleOneWeek = async function(id) {
+        // Real-time input checking
+        function checkInputForDuplicate() {
+            const val = infoInput.value.trim();
+            if (!val) {
+                inputPanel.classList.remove('has-duplicate-warning');
+                infoInput.classList.remove('input-warning');
+                dupBanner.classList.remove('show');
+                inputStatusText.textContent = '';
+                return;
+            }
+
+            const existing = findExistingItem(val);
+            if (existing) {
+                inputPanel.classList.add('has-duplicate-warning');
+                infoInput.classList.add('input-warning');
+                dupBanner.classList.add('show');
+                const colName = existing.isPast ? 'Available' : 'Upcoming';
+                dupBannerText.innerHTML = `Account already in <strong>${colName}</strong> (${formatDateDisplay(existing.date)})`;
+                inputStatusText.textContent = '⚠ DUPLICATE DETECTED';
+                inputStatusText.style.color = '#ffaa00';
+
+                btnJumpExisting.onclick = () => scrollToCard(existing.id);
+            } else {
+                inputPanel.classList.remove('has-duplicate-warning');
+                infoInput.classList.remove('input-warning');
+                dupBanner.classList.remove('show');
+                inputStatusText.textContent = '✓ Unique Entry';
+                inputStatusText.style.color = '#34d399';
+            }
+        }
+
+        infoInput.addEventListener('input', checkInputForDuplicate);
+
+        function scrollToCard(id) {
+            // Check if item is hidden by filter
             const item = items.find(i => i.id === id);
             if (!item) return;
 
-            const today = new Date();
-            const nextWeek = new Date(today);
-            nextWeek.setDate(today.getDate() + 7);
+            if (currentFilter !== 'all') {
+                setFilter('all');
+            }
+            if (searchQuery) {
+                searchInput.value = '';
+                searchQuery = '';
+                searchClearBtn.classList.remove('show');
+                render();
+            }
 
-            const yyyy = nextWeek.getFullYear();
-            const mm = String(nextWeek.getMonth() + 1).padStart(2, '0');
-            const dd = String(nextWeek.getDate()).padStart(2, '0');
-            const newDateStr = `${yyyy}-${mm}-${dd}`;
+            requestAnimationFrame(() => {
+                const el = document.getElementById(`card-${id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-pulse');
+                    setTimeout(() => el.classList.remove('highlight-pulse'), 3000);
+                }
+            });
+        }
+
+        // --- Core Add Item Flow ---
+        async function addItem(forceDuplicate = false) {
+            const text = infoInput.value.trim();
+            const date = dateInput.value;
+
+            if (!text || !date) {
+                showToast('Text and target date are required.', 'warning');
+                return;
+            }
+
+            // Check for duplicate on client first
+            if (!forceDuplicate) {
+                const existing = findExistingItem(text);
+                if (existing) {
+                    // Open duplicate warning modal
+                    document.getElementById('modalDupText').textContent = text;
+                    document.getElementById('modalDupMeta').textContent = 
+                        `Currently in ${existing.isPast ? 'Available' : 'Upcoming'} • Target: ${formatDateDisplay(existing.date)}`;
+                    
+                    document.getElementById('modalDupFocusBtn').onclick = () => {
+                        closeModal('duplicateModal');
+                        scrollToCard(existing.id);
+                    };
+
+                    document.getElementById('modalDupForceAddBtn').onclick = () => {
+                        closeModal('duplicateModal');
+                        addItem(true);
+                    };
+
+                    openModal('duplicateModal');
+                    return;
+                }
+            }
 
             try {
-                await queueRequest('/'+encodeURIComponent(id), 'PATCH', {
-                    date: newDateStr
+                setSyncStatus(false);
+                await queueRequest('', 'POST', {
+                    text: text,
+                    date: date,
+                    allowDuplicate: forceDuplicate,
+                    createdAt: Date.now()
                 });
+                infoInput.value = '';
+                checkInputForDuplicate();
+                showToast(`Added "${text}" to queue`, 'success');
                 await loadData();
             } catch (e) {
-                console.error("Error updating document: ", e);
+                console.error("Error adding item: ", e);
+                if (e.data && e.data.duplicate) {
+                    showToast(e.data.error || 'Duplicate account detected.', 'warning');
+                } else {
+                    showToast('Failed to add to database.', 'error');
+                }
+            } finally {
+                setSyncStatus(true);
             }
         }
 
-        window.setToday = async function(id) {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
+        // --- Reschedule & Date Modifiers ---
+        async function rescheduleDays(id, days) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            let baseDate = new Date();
+            // If the item date is in the future, add to its current date; otherwise add to today
+            const currentItemDate = new Date(item.date);
+            if (!isNaN(currentItemDate.getTime()) && currentItemDate > baseDate) {
+                baseDate = currentItemDate;
+            }
+            baseDate.setDate(baseDate.getDate() + days);
+
+            const yyyy = baseDate.getFullYear();
+            const mm = String(baseDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(baseDate.getDate()).padStart(2, '0');
             const newDateStr = `${yyyy}-${mm}-${dd}`;
 
             try {
-                await queueRequest('/'+encodeURIComponent(id), 'PATCH', {
+                setSyncStatus(false);
+                await queueRequest('/' + encodeURIComponent(id), 'PATCH', {
                     date: newDateStr
                 });
+                showToast(`Rescheduled to ${formatDateDisplay(newDateStr)}`, 'success');
                 await loadData();
             } catch (e) {
-                console.error("Error updating document: ", e);
+                console.error("Error updating date: ", e);
+                showToast('Failed to reschedule item.', 'error');
+            } finally {
+                setSyncStatus(true);
             }
         }
 
+        async function setDateToToday(id) {
+            const todayStr = getIsoDate(0);
+            try {
+                setSyncStatus(false);
+                await queueRequest('/' + encodeURIComponent(id), 'PATCH', {
+                    date: todayStr
+                });
+                showToast('Marked as Available (Today)', 'success');
+                await loadData();
+            } catch (e) {
+                console.error("Error setting date: ", e);
+                showToast('Failed to update date.', 'error');
+            } finally {
+                setSyncStatus(true);
+            }
+        }
+
+        // --- In-Place Editing ---
+        function startEditing(id) {
+            editingItemId = id;
+            render();
+        }
+
+        function cancelEditing() {
+            editingItemId = null;
+            render();
+        }
+
+        async function saveEditing(id) {
+            const cardEl = document.getElementById(`card-${id}`);
+            if (!cardEl) return;
+
+            const textInput = cardEl.querySelector('.card-edit-text');
+            const dateInputEl = cardEl.querySelector('.card-edit-date');
+
+            const newText = textInput.value.trim();
+            const newDate = dateInputEl.value;
+
+            if (!newText || !newDate) {
+                showToast('Text and valid date are required.', 'warning');
+                return;
+            }
+
+            try {
+                setSyncStatus(false);
+                await queueRequest('/' + encodeURIComponent(id), 'PATCH', {
+                    text: newText,
+                    date: newDate
+                });
+                editingItemId = null;
+                showToast('Account updated', 'success');
+                await loadData();
+            } catch (e) {
+                console.error("Error editing item: ", e);
+                showToast('Failed to update account.', 'error');
+            } finally {
+                setSyncStatus(true);
+            }
+        }
+
+        // --- Deletion Flow ---
+        function promptDelete(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            pendingDeleteId = id;
+            document.getElementById('deleteTargetText').textContent = item.text;
+            openModal('deleteConfirmModal');
+        }
+
+        document.getElementById('btnConfirmDelete').addEventListener('click', async () => {
+            if (!pendingDeleteId) return;
+            const id = pendingDeleteId;
+            closeModal('deleteConfirmModal');
+            try {
+                setSyncStatus(false);
+                await queueRequest('/' + encodeURIComponent(id), 'DELETE');
+                showToast('Account removed from queue', 'info');
+                await loadData();
+            } catch (e) {
+                console.error("Error deleting item: ", e);
+                showToast('Failed to delete item.', 'error');
+            } finally {
+                pendingDeleteId = null;
+                setSyncStatus(true);
+            }
+        });
+
+        // --- Copy to Clipboard ---
+        async function copyAccountText(text, btnElement) {
+            try {
+                await navigator.clipboard.writeText(text);
+                if (btnElement) {
+                    const originalText = btnElement.innerHTML;
+                    btnElement.innerHTML = `✓ Copied!`;
+                    btnElement.classList.add('copied');
+                    setTimeout(() => {
+                        btnElement.innerHTML = originalText;
+                        btnElement.classList.remove('copied');
+                    }, 1800);
+                }
+                showToast(`Copied "${text}" to clipboard`, 'success');
+            } catch (err) {
+                showToast('Failed to copy to clipboard', 'error');
+            }
+        }
+
+        // --- Bulk Import ---
+        const bulkModal = document.getElementById('bulkModal');
+        const bulkTextarea = document.getElementById('bulkTextarea');
+        const bulkDateInput = document.getElementById('bulkDateInput');
+        const bulkSkipDuplicates = document.getElementById('bulkSkipDuplicates');
+        const bulkCountTotal = document.getElementById('bulkCountTotal');
+        const bulkCountNew = document.getElementById('bulkCountNew');
+        const bulkCountDup = document.getElementById('bulkCountDup');
+
+        document.getElementById('openBulkBtn').addEventListener('click', () => {
+            bulkDateInput.value = dateInput.value || getIsoDate(0);
+            updateBulkSummary();
+            openModal('bulkModal');
+        });
+
+        document.getElementById('bulkPresetToday').addEventListener('click', () => {
+            bulkDateInput.value = getIsoDate(0);
+        });
+
+        document.getElementById('bulkPresetWeek').addEventListener('click', () => {
+            bulkDateInput.value = getIsoDate(7);
+        });
+
+        function parseBulkEntries() {
+            const raw = bulkTextarea.value || '';
+            const lines = raw.split(/[\r\n,]+/).map(s => s.trim()).filter(Boolean);
+            const existingKeys = new Set(items.map(i => normalizeKey(i.text)));
+            
+            const seenInBatch = new Set();
+            const uniqueNew = [];
+            const duplicates = [];
+
+            for (const entry of lines) {
+                const key = normalizeKey(entry);
+                if (!key) continue;
+
+                if (seenInBatch.has(key) || existingKeys.has(key)) {
+                    duplicates.push(entry);
+                } else {
+                    seenInBatch.add(key);
+                    uniqueNew.push(entry);
+                }
+            }
+
+            return { total: lines.length, uniqueNew, duplicates, allLines: lines };
+        }
+
+        function updateBulkSummary() {
+            const { total, uniqueNew, duplicates } = parseBulkEntries();
+            bulkCountTotal.textContent = total;
+            bulkCountNew.textContent = uniqueNew.length;
+            bulkCountDup.textContent = duplicates.length;
+        }
+
+        bulkTextarea.addEventListener('input', updateBulkSummary);
+        bulkSkipDuplicates.addEventListener('change', updateBulkSummary);
+
+        document.getElementById('btnExecuteBulk').addEventListener('click', async () => {
+            const date = bulkDateInput.value;
+            if (!date) {
+                showToast('Please select a target date.', 'warning');
+                return;
+            }
+
+            const { uniqueNew, allLines } = parseBulkEntries();
+            const skipDup = bulkSkipDuplicates.checked;
+            const entriesToImport = skipDup ? uniqueNew : allLines;
+
+            if (entriesToImport.length === 0) {
+                showToast('No valid accounts to import.', 'warning');
+                return;
+            }
+
+            closeModal('bulkModal');
+            setSyncStatus(false);
+            showToast(`Importing ${entriesToImport.length} accounts...`, 'info');
+
+            try {
+                // Try batch endpoint first
+                const batchItems = entriesToImport.map(t => ({ text: t, date }));
+                let batchSucceeded = false;
+                try {
+                    const res = await queueRequest('/batch', 'POST', { items: batchItems, allowDuplicates: !skipDup });
+                    if (res.ok) {
+                        batchSucceeded = true;
+                        showToast(`Successfully imported ${res.addedCount} accounts!`, 'success');
+                    }
+                } catch (batchErr) {
+                    console.warn('Batch endpoint unavailable, falling back to sequential import:', batchErr);
+                }
+
+                // Fallback sequential if batch failed or unsupported on VPS
+                if (!batchSucceeded) {
+                    let successCount = 0;
+                    for (const t of entriesToImport) {
+                        try {
+                            await queueRequest('', 'POST', { text: t, date, allowDuplicate: !skipDup, createdAt: Date.now() });
+                            successCount++;
+                        } catch (e) {
+                            console.error('Failed importing', t, e);
+                        }
+                    }
+                    showToast(`Imported ${successCount} accounts!`, 'success');
+                }
+
+                bulkTextarea.value = '';
+                await loadData();
+            } catch (err) {
+                console.error("Bulk import failed: ", err);
+                showToast('Bulk import had errors.', 'error');
+            } finally {
+                setSyncStatus(true);
+            }
+        });
+
+        // --- Clean Duplicates Tool ---
+        document.getElementById('btnCleanDups').addEventListener('click', () => {
+            const dupMap = getDuplicateMap();
+            const listEl = document.getElementById('cleanDupsList');
+            listEl.innerHTML = '';
+
+            let dupCount = 0;
+            for (const [key, group] of dupMap) {
+                if (group.length > 1) {
+                    dupCount++;
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; border-bottom:1px dashed var(--color-surface-border); padding:4px 0;';
+                    row.innerHTML = `
+                        <span style="font-weight:bold; color:var(--color-text-primary);">${escapeHtml(group[0].text)}</span>
+                        <span style="color:#ffaa00;">${group.length} copies</span>
+                    `;
+                    listEl.appendChild(row);
+                }
+            }
+
+            if (dupCount === 0) {
+                showToast('No duplicates found.', 'info');
+                return;
+            }
+
+            openModal('cleanDupsModal');
+        });
+
+        document.getElementById('btnExecuteCleanDups').addEventListener('click', async () => {
+            closeModal('cleanDupsModal');
+            const dupMap = getDuplicateMap();
+            const idsToDelete = [];
+
+            for (const [key, group] of dupMap) {
+                if (group.length > 1) {
+                    // Sort descending by target date and createdAt to find the best copy to keep
+                    const sorted = [...group].sort((a,b) => {
+                        const dateDiff = new Date(b.date) - new Date(a.date);
+                        if (dateDiff !== 0) return dateDiff;
+                        return (b.createdAt || 0) - (a.createdAt || 0);
+                    });
+                    // Keep index 0, mark the rest for deletion
+                    for (let i = 1; i < sorted.length; i++) {
+                        idsToDelete.push(sorted[i].id);
+                    }
+                }
+            }
+
+            if (idsToDelete.length === 0) {
+                showToast('No redundant copies found.', 'info');
+                return;
+            }
+
+            setSyncStatus(false);
+            showToast(`Cleaning ${idsToDelete.length} redundant duplicate entries...`, 'info');
+
+            try {
+                // Try batch delete first
+                let batchDeleteSucceeded = false;
+                try {
+                    const res = await queueRequest('/batch', 'DELETE', { ids: idsToDelete });
+                    if (res.ok) {
+                        batchDeleteSucceeded = true;
+                    }
+                } catch(e) {
+                    console.warn('Batch delete unavailable, deleting sequentially:', e);
+                }
+
+                if (!batchDeleteSucceeded) {
+                    for (const id of idsToDelete) {
+                        try {
+                            await queueRequest('/' + encodeURIComponent(id), 'DELETE');
+                        } catch(e) {
+                            console.error('Delete error:', e);
+                        }
+                    }
+                }
+
+                showToast(`Cleaned ${idsToDelete.length} duplicates successfully!`, 'success');
+                await loadData();
+            } catch (err) {
+                console.error("Clean duplicates error: ", err);
+                showToast('Failed to clean some duplicates.', 'error');
+            } finally {
+                setSyncStatus(true);
+            }
+        });
+
+        // --- Export Feature ---
+        document.getElementById('openExportBtn').addEventListener('click', () => openModal('exportModal'));
+
+        document.getElementById('btnExportCopyAvailable').addEventListener('click', () => {
+            const available = items.filter(i => i.isPast).map(i => i.text).join('\n');
+            navigator.clipboard.writeText(available);
+            closeModal('exportModal');
+            showToast('Available accounts copied to clipboard!', 'success');
+        });
+
+        document.getElementById('btnExportCopyAll').addEventListener('click', () => {
+            const all = items.map(i => `${i.text} (${i.date})`).join('\n');
+            navigator.clipboard.writeText(all);
+            closeModal('exportModal');
+            showToast('All accounts copied to clipboard!', 'success');
+        });
+
+        document.getElementById('btnExportCsv').addEventListener('click', () => {
+            let csv = 'Text,TargetDate,Status,CreatedAt\n';
+            items.forEach(i => {
+                const status = i.isPast ? 'Available' : 'Upcoming';
+                csv += `"${(i.text||'').replace(/"/g, '""')}","${i.date}","${status}","${i.createdAt||''}"\n`;
+            });
+            downloadFile(csv, 'account-queue.csv', 'text/csv');
+            closeModal('exportModal');
+            showToast('CSV downloaded', 'success');
+        });
+
+        document.getElementById('btnExportJson').addEventListener('click', () => {
+            const json = JSON.stringify(items, null, 2);
+            downloadFile(json, 'account-queue.json', 'application/json');
+            closeModal('exportModal');
+            showToast('JSON downloaded', 'success');
+        });
+
+        function downloadFile(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Search, Filter & Sort Controls ---
+        searchInput.addEventListener('input', () => {
+            searchQuery = searchInput.value.trim().toLowerCase();
+            searchClearBtn.classList.toggle('show', !!searchQuery);
+            render();
+        });
+
+        searchClearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            searchQuery = '';
+            searchClearBtn.classList.remove('show');
+            render();
+        });
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+            });
+            render();
+        }
+
+        document.querySelectorAll('.filter-chip').forEach(btn => {
+            btn.addEventListener('click', () => setFilter(btn.getAttribute('data-filter')));
+        });
+
+        btnHighlightDups.addEventListener('click', () => setFilter('duplicates'));
+
+        sortSelect.addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            render();
+        });
+
+        // Quick Date Presets in Input Panel
+        document.querySelectorAll('.presets-row .btn-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const offset = parseInt(btn.getAttribute('data-offset'), 10);
+                dateInput.value = getIsoDate(offset);
+                document.querySelectorAll('.presets-row .btn-pill').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        function setSyncStatus(synced) {
+            if (synced) {
+                queueSyncIndicator.innerHTML = '● Synced';
+                queueSyncIndicator.style.color = '#34d399';
+            } else {
+                queueSyncIndicator.innerHTML = '◐ Syncing...';
+                queueSyncIndicator.style.color = '#ffaa00';
+            }
+        }
+
+        // --- Data Loading & Rendering ---
         async function loadData() {
             try {
-                const data=await queueRequest();
-                items=data.items.map(item=>({...item,isPast:isPast(item.date)}));
+                const data = await queueRequest();
+                items = data.items.map(item => ({ ...item, isPast: isPast(item.date) }));
+                updateDuplicateStats();
                 render();
             } catch(error) {
-                console.error('Error loading queue:',error);
+                console.error('Error loading queue:', error);
+                showToast('Failed to connect to API.', 'error');
             }
+        }
+
+        function filterAndSortItems(list) {
+            const dupMap = getDuplicateMap();
+
+            let filtered = list.filter(item => {
+                // Search filter
+                if (searchQuery) {
+                    const matchText = (item.text || '').toLowerCase().includes(searchQuery);
+                    const matchDate = (item.date || '').toLowerCase().includes(searchQuery);
+                    if (!matchText && !matchDate) return false;
+                }
+
+                // Status Filter
+                if (currentFilter === 'available' && !item.isPast) return false;
+                if (currentFilter === 'upcoming' && item.isPast) return false;
+                if (currentFilter === 'duplicates') {
+                    const key = normalizeKey(item.text);
+                    const group = dupMap.get(key) || [];
+                    if (group.length <= 1) return false;
+                }
+
+                return true;
+            });
+
+            // Sort
+            if (currentSort === 'date-asc') {
+                filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
+            } else if (currentSort === 'text-asc') {
+                filtered.sort((a,b) => (a.text || '').localeCompare(b.text || ''));
+            } else if (currentSort === 'created-desc') {
+                filtered.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+            }
+
+            return filtered;
         }
 
         function render() {
-            // Upcoming (Right): Ascending date (soonest first)
-            const upcoming = items.filter(i => !i.isPast).sort((a,b) => new Date(a.date) - new Date(b.date));
+            const upcomingRaw = items.filter(i => !i.isPast);
+            const pastRaw = items.filter(i => i.isPast);
 
-            // Archive (Left): Descending date (most recent past first)
-            const past = items.filter(i => i.isPast).sort((a,b) => new Date(b.date) - new Date(a.date));
+            // Update stats
+            statTotal.textContent = items.length;
+            statPast.textContent = pastRaw.length;
+            statUpcoming.textContent = upcomingRaw.length;
+
+            const upcoming = filterAndSortItems(upcomingRaw);
+            const past = filterAndSortItems(pastRaw);
 
             upcomingCountEl.textContent = upcoming.length;
             pastCountEl.textContent = past.length;
@@ -509,65 +2008,101 @@
 
         function renderList(data, container, type) {
             container.innerHTML = '';
+            const dupMap = getDuplicateMap();
 
             if (data.length === 0) {
-                container.innerHTML = `<div class="empty-msg">// ${type === 'active' ? 'NO_ACTIVE_DATA' : 'ARCHIVE_EMPTY'}</div>`;
+                let msg = type === 'active' ? 'NO_UPCOMING_DATA' : 'AVAILABLE_EMPTY';
+                if (searchQuery || currentFilter !== 'all') msg = 'NO_MATCHING_RECORDS';
+                container.innerHTML = `<div class="empty-msg">// ${msg}</div>`;
                 return;
             }
 
             data.forEach(item => {
                 const el = document.createElement('div');
-                el.className = `item-card ${type}`;
-                el.draggable = true;
+                const key = normalizeKey(item.text);
+                const isDup = (dupMap.get(key) || []).length > 1;
 
+                el.id = `card-${item.id}`;
+                el.className = `item-card ${type} ${isDup ? 'is-duplicate' : ''}`;
+                el.draggable = (editingItemId !== item.id);
+
+                // Drag Events
                 el.addEventListener('dragstart', (e) => {
                     const dragData = { id: item.id, type: type };
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
-
-                    // Delay opacity change to not affect the drag ghost image
-                    requestAnimationFrame(() => {
-                        el.style.opacity = '0.5';
-                    });
+                    requestAnimationFrame(() => { el.style.opacity = '0.5'; });
                 });
 
-                el.addEventListener('dragend', (e) => {
-                    el.style.opacity = '1';
-                });
+                el.addEventListener('dragend', () => { el.style.opacity = '1'; });
 
-                let buttonsHtml = `
-                    <button class="btn-action btn-delete" onclick="deleteItem('${item.id}')">Delete</button>
-                `;
+                if (editingItemId === item.id) {
+                    // Inline Edit Mode
+                    el.innerHTML = `
+                        <div class="card-edit-form">
+                            <div class="card-edit-inputs">
+                                <input type="text" class="queue-input card-edit-text" value="${escapeHtml(item.text)}" placeholder="Account email/username">
+                                <input type="date" class="queue-input card-edit-date" value="${item.date}">
+                            </div>
+                            <div class="card-edit-actions">
+                                <button type="button" class="btn-action" style="border-color:#10b981; color:#34d399;" onclick="window.saveItem('${item.id}')">✓ Save</button>
+                                <button type="button" class="btn-action" onclick="window.cancelItemEdit()">✕ Cancel</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Normal View Mode
+                    let actionButtonsHtml = `
+                        <button type="button" class="btn-action btn-copy" onclick="window.copyItemText('${escapeHtml(item.text)}', this)">📋 Copy</button>
+                        <button type="button" class="btn-action btn-edit" onclick="window.startItemEdit('${item.id}')">✏ Edit</button>
+                    `;
 
-                if (type === 'archive') {
-                    buttonsHtml = `
-                        <button class="btn-action btn-reschedule" onclick="rescheduleOneWeek('${item.id}')">+1 WK</button>
-                        <button class="btn-action btn-delete" onclick="deleteItem('${item.id}')">Delete</button>
+                    if (type === 'archive') {
+                        actionButtonsHtml += `
+                            <button type="button" class="btn-action btn-reschedule" onclick="window.rescheduleDays('${item.id}', 7)">+1 WK</button>
+                            <button type="button" class="btn-action btn-reschedule" onclick="window.rescheduleDays('${item.id}', 30)">+1 MO</button>
+                        `;
+                    } else {
+                        actionButtonsHtml += `
+                            <button type="button" class="btn-action btn-now" onclick="window.makeAvailableNow('${item.id}')">⚡ Available Now</button>
+                            <button type="button" class="btn-action btn-reschedule" onclick="window.rescheduleDays('${item.id}', 7)">+1 WK</button>
+                        `;
+                    }
+
+                    actionButtonsHtml += `
+                        <button type="button" class="btn-action btn-delete" onclick="window.deleteItem('${item.id}')">Delete</button>
+                    `;
+
+                    el.innerHTML = `
+                        <div class="item-top">
+                            <div class="item-text-wrapper">
+                                <div class="item-text">${escapeHtml(item.text)}</div>
+                                <div class="item-badges">
+                                    ${isDup ? `<span class="badge-dup" title="This account appears multiple times">⚠ Duplicate (${dupMap.get(key).length})</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="item-date">${formatDateDisplay(item.date)}</div>
+                        </div>
+                        <div class="item-actions">
+                            ${actionButtonsHtml}
+                        </div>
                     `;
                 }
 
-                el.innerHTML = `
-                    <div class="item-top">
-                        <div class="item-text">${escapeHtml(item.text)}</div>
-                        <div class="item-date">${formatDateDisplay(item.date)}</div>
-                    </div>
-                    <div class="item-actions">
-                        ${buttonsHtml}
-                    </div>
-                `;
                 container.appendChild(el);
             });
         }
 
+        // --- Setup Drag and Drop ---
         function setupDragAndDrop() {
             [pastListEl, upcomingListEl].forEach(container => {
                 container.addEventListener('dragenter', e => {
-                    e.preventDefault(); // Necessary for allowing drop
+                    e.preventDefault();
                     container.classList.add('drag-over');
                 });
 
                 container.addEventListener('dragover', e => {
-                    e.preventDefault(); // Necessary for allowing drop
+                    e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
                     container.classList.add('drag-over');
                 });
@@ -585,13 +2120,12 @@
                     try {
                         const dataStr = e.dataTransfer.getData('text/plain');
                         if (!dataStr) return;
-
                         const dragData = JSON.parse(dataStr);
 
                         if (container.id === 'upcomingList' && dragData.type === 'archive') {
-                            rescheduleOneWeek(dragData.id);
+                            rescheduleDays(dragData.id, 7);
                         } else if (container.id === 'pastList' && dragData.type === 'active') {
-                            setToday(dragData.id);
+                            setDateToToday(dragData.id);
                         }
                     } catch (err) {
                         console.error("Drop error: ", err);
@@ -600,18 +2134,29 @@
             });
         }
 
+        // Window exposed helpers for inline onclicks
+        window.deleteItem = promptDelete;
+        window.rescheduleDays = rescheduleDays;
+        window.makeAvailableNow = setDateToToday;
+        window.copyItemText = copyAccountText;
+        window.startItemEdit = startEditing;
+        window.cancelItemEdit = cancelEditing;
+        window.saveItem = saveEditing;
+
         // --- Init ---
         window.addEventListener('DOMContentLoaded', () => {
+            // Set default date to today
+            dateInput.value = getIsoDate(0);
             loadData();
-            setInterval(loadData, 15000);
+            setInterval(loadData, 20000); // Polling sync
             setupDragAndDrop();
         });
 
-        addBtn.addEventListener('click', addItem);
+        addBtn.addEventListener('click', () => addItem(false));
 
         [infoInput, dateInput].forEach(inp => {
             inp.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addItem();
+                if (e.key === 'Enter') addItem(false);
             });
         });
     </script>

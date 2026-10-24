@@ -92,7 +92,7 @@ internal sealed class OpenerWindow : Form
             }
             Reply(new { id, ok = true, result });
         }
-        catch (Exception error) { Reply(new { id, ok = false, error = error is OperationCanceledException ? "Firebase timed out. Check your internet connection and retry." : error.Message }); }
+        catch (Exception error) { Reply(new { id, ok = false, error = error is OperationCanceledException ? "Request timed out. Check your internet connection and retry." : error.Message }); }
     }
 
     private void Reply(object response)
