@@ -146,8 +146,8 @@ if [ -f "$ADMIN_SITE_SOURCE/admin.html" ]; then
         cp "$ADMIN_SITE_SOURCE/css/admin-dashboard.css" "$ADMIN_DIR/css/admin-dashboard.css"
     fi
 
-    if [ -f "$ADMIN_SITE_SOURCE/js/firebase-config.js" ]; then
-        cp "$ADMIN_SITE_SOURCE/js/firebase-config.js" "$ADMIN_DIR/js/firebase-config.js"
+    if [ -f "$ADMIN_SITE_SOURCE/js/portfolio-api.js" ]; then
+        cp "$ADMIN_SITE_SOURCE/js/portfolio-api.js" "$ADMIN_DIR/js/portfolio-api.js"
     fi
 
     if [ -f "$ADMIN_SITE_SOURCE/js/admin.js" ]; then
@@ -201,8 +201,8 @@ if [ -n "$PRIVATE_INDEX_SOURCE" ]; then
         cp "$ADMIN_SITE_SOURCE/css/styles.css" "$PRIVATE_DIR/css/styles.css"
     fi
 
-    if [ -f "$ADMIN_SITE_SOURCE/js/firebase-config.js" ]; then
-        cp "$ADMIN_SITE_SOURCE/js/firebase-config.js" "$PRIVATE_DIR/js/firebase-config.js"
+    if [ -f "$ADMIN_SITE_SOURCE/js/portfolio-api.js" ]; then
+        cp "$ADMIN_SITE_SOURCE/js/portfolio-api.js" "$PRIVATE_DIR/js/portfolio-api.js"
     fi
 
     if [ -f "$ADMIN_SITE_SOURCE/assets/logo.png" ]; then
@@ -227,16 +227,23 @@ server {
     listen 80;
     server_name api.hunterstar.uz;
 
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+
+    location = /api/admin/content-boxes {
+        proxy_pass http://127.0.0.1:3001;
+        client_max_body_size 152M;
+        proxy_request_buffering off;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
         client_max_body_size 50M;
     }
 }

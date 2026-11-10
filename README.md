@@ -37,7 +37,7 @@ portfolio-static/
 ├── js/
 │   ├── main.js             # Theme toggle, animations, form handler
 │   ├── three-scene.js      # Three.js 3D chess piece
-│   └── firebase-config.js  # VPS API client (legacy filename)
+│   └── portfolio-api.js   # VPS API client
 ├── assets/                 # Images, fonts (optional)
 └── README.md
 ```
@@ -94,7 +94,7 @@ drag and release to throw it. Shift + F10 opens controls from the keyboard.
 Hidden and paused preferences persist in local storage.
 
 The pet uses a dedicated Hermes 3 instance on Hunterella's port 8090 through
-`https://api.moonlightsoldiers.xyz/api/pet/chat`, including in local previews.
+`https://image.hunterstar.uz/api/pet/chat`, including in local previews.
 Casual replies are capped at 60 tokens. Port 8080 retains the CLI's Q4_K_M model.
 Deployment, limits, and API checks are
 documented in [api/pet/README.md](api/pet/README.md).

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Portfolio API Client
-// Replaces direct Firebase SDK calls with fetch requests to the backend API.
-// Maintains the same window.firebaseConfig interface for compatibility.
+// Browser client for the self-hosted portfolio API.
+// Exposes the portfolio services used by the public site and Control Room.
 // ---------------------------------------------------------------------------
 
 let API_BASE = 'https://api.hunterstar.uz';
@@ -104,7 +104,7 @@ const submissionCollectionNames = Array.from(new Set([
 ]));
 const contentBoxesCollectionName = 'content_boxes';
 const archiveStorageFolderName = 'archives';
-const maxArchiveFileSizeBytes = null;
+const maxArchiveFileSizeBytes = 150 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // State tracking
@@ -198,7 +198,7 @@ function normalizeTimestamp(value) {
 // ---------------------------------------------------------------------------
 // PUBLIC: Contact form submission
 // ---------------------------------------------------------------------------
-async function submitToFirebase(formData) {
+async function submitContactForm(formData) {
     try {
         const { response, data } = await apiRequest('/api/contact', {
             method: 'POST',
@@ -678,22 +678,50 @@ async function saveContentBox(payload) {
 
     formData.append('payload', JSON.stringify(payloadData));
 
-    // Append files
-    if (payload.files) {
-        const files = Array.from(payload.files);
-        for (const file of files) {
-            formData.append('files', file);
-        }
+    const files = Array.from(payload.files || []);
+    if (files.length > 20) throw new Error('Attach up to 20 files per save.');
+    if (files.reduce((total, file) => total + file.size, 0) > maxArchiveFileSizeBytes) {
+        throw new Error('Archive attachments must total 150 MiB or less per save.');
+    }
+    for (const file of files) formData.append('files', file);
+
+    if (!files.length) {
+        const { data } = await apiRequest('/api/admin/content-boxes', {
+            method: 'POST',
+            body: formData,
+            isFormData: true,
+            forceActivity: true
+        });
+        if (!data.ok) throw new Error(data.error || 'Could not save the archive box.');
+        return data;
     }
 
-    const { data } = await apiRequest('/api/admin/content-boxes', {
-        method: 'POST',
-        body: formData,
-        isFormData: true
+    return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.upload.addEventListener('progress', event => {
+            if (event.lengthComputable) {
+                payload.onUploadProgress?.(Math.floor(event.loaded / event.total * 100));
+            }
+        });
+        request.open('POST', getApiUrl('/api/admin/content-boxes'));
+        request.withCredentials = true;
+        request.responseType = 'json';
+        request.setRequestHeader('X-Admin-Activity', '1');
+        request.onload = () => {
+            if (request.status === 401) clearCurrentAdminUser();
+            const data = request.response;
+            if (request.status >= 200 && request.status < 300 && data?.ok) {
+                resolve(data);
+            } else {
+                const fallback = request.status === 413
+                    ? 'Archive attachments must total 150 MiB or less per save.'
+                    : `Could not save the archive box (HTTP ${request.status}).`;
+                reject(new Error(data?.error || fallback));
+            }
+        };
+        request.onerror = () => reject(new Error('The archive upload lost its connection. Try saving again.'));
+        request.send(formData);
     });
-
-    if (!data.ok) throw new Error(data.error);
-    return data.id;
 }
 
 async function deleteContentBox(id) {
@@ -762,6 +790,32 @@ async function listAdminOpenerAccounts() {
     return Array.isArray(data.accounts) ? data.accounts : [];
 }
 
+async function getOpenerDefaults() {
+    const { data } = await apiRequest('/api/admin/opener-accounts/defaults');
+    if (!data.ok) throw new Error(data.error || 'Failed to load default opener links.');
+    return Array.isArray(data.enabledApps) ? data.enabledApps : [];
+}
+
+async function saveOpenerDefaults(enabledApps) {
+    const { data } = await apiRequest('/api/admin/opener-accounts/defaults', {
+        method: 'PUT',
+        body: { enabledApps },
+        forceActivity: true
+    });
+    if (!data.ok) throw new Error(data.error || 'Failed to save default opener links.');
+    return Array.isArray(data.enabledApps) ? data.enabledApps : [];
+}
+
+async function addLinksToAllOpenerAccounts(enabledApps) {
+    const { data } = await apiRequest('/api/admin/opener-accounts/bulk-links', {
+        method: 'POST',
+        body: { enabledApps },
+        forceActivity: true
+    });
+    if (!data.ok) throw new Error(data.error || 'Failed to add links to opener accounts.');
+    return data;
+}
+
 async function addOpenerAccount(account) {
     const { data } = await apiRequest('/api/admin/opener-accounts', {
         method: 'POST',
@@ -773,12 +827,16 @@ async function addOpenerAccount(account) {
 }
 
 async function updateOpenerAccount(id, updates) {
-    const { data } = await apiRequest(`/api/admin/opener-accounts/${encodeURIComponent(id)}`, {
+    const { response, data } = await apiRequest(`/api/admin/opener-accounts/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         body: updates,
         forceActivity: true
     });
-    if (!data.ok) throw new Error(data.error || 'Failed to update opener account.');
+    if (!data.ok) {
+        const error = new Error(data.error || 'Failed to update opener account.');
+        error.status = response.status;
+        throw error;
+    }
     return data;
 }
 
@@ -794,8 +852,8 @@ async function deleteOpenerAccount(id) {
 // ---------------------------------------------------------------------------
 // Export same interface as before
 // ---------------------------------------------------------------------------
-window.firebaseConfig = {
-    submitToFirebase,
+window.portfolioApi = {
+    submitContactForm,
     validateFormData,
     sanitizeInput,
     signInAdmin,
@@ -833,6 +891,9 @@ window.firebaseConfig = {
     deleteAdminPlaylist,
     listOpenerAccounts,
     listAdminOpenerAccounts,
+    getOpenerDefaults,
+    saveOpenerDefaults,
+    addLinksToAllOpenerAccounts,
     addOpenerAccount,
     updateOpenerAccount,
     deleteOpenerAccount,

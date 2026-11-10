@@ -11,7 +11,7 @@
  *   - Models / textures / images /
  *     fonts / .bin / .glb / .gltf . cache-first    (download once, instant forever)
  *
- * Anything dynamic (Firebase, Cloud Functions, the playlist API, the game
+ * Dynamic requests (the portfolio API, the playlist API, the game
  * iframe, analytics) is cross-origin and NOT in the cacheable allowlist, so it
  * passes straight through to the network and is never cached.
  *
@@ -21,7 +21,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'v1.0.7';
+const CACHE_VERSION = 'v1.0.9';
 const CORE_CACHE = `hs-core-${CACHE_VERSION}`;
 const ASSET_CACHE = `hs-assets-${CACHE_VERSION}`;
 
@@ -36,12 +36,12 @@ const CORE_ASSETS = [
     '/index.html',
     '/css/styles.css',
     '/css/chat-widget.css',
-    '/js/main.js',
+    '/js/main.js?v=portfolio-api-1',
     '/js/chat-widget.js',
     '/js/three-scene.js',
     '/js/server-room-scene.js',
     '/js/emblem-scene.js',
-    '/js/firebase-config.js',
+    '/js/portfolio-api.js',
     '/assets/logo.png',
     '/site.webmanifest',
     '/favicon.svg'
@@ -118,8 +118,7 @@ self.addEventListener('fetch', (event) => {
     const sameOrigin = url.origin === self.location.origin;
     const cdnCacheable = CACHEABLE_ORIGINS.includes(url.origin);
 
-    // Let the browser handle everything we don't explicitly own: Firebase,
-    // Cloud Functions, the playlist API, the game iframe, analytics, etc.
+    // Leave cross-origin API requests, the game iframe, and analytics to the network.
     if (!sameOrigin && !cdnCacheable) return;
 
     // The small pet manifest points at content-hashed atlases. Revalidate it;

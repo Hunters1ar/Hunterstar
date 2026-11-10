@@ -10,6 +10,7 @@ import socket
 import subprocess
 import time
 import urllib.request
+from proxy import add_pet_route
 
 SOURCE = Path(__file__).resolve().parent
 DEST = Path('/opt/portfolio-pet')
@@ -18,29 +19,6 @@ MODEL_UNIT = 'llama-portfolio-pet.service'
 API_UNIT = 'portfolio-pet-api.service'
 CLI_UNIT = 'llama-hunter.service'
 CADDY = Path('/etc/caddy/Caddyfile')
-PET_PROXY = '''api.moonlightsoldiers.xyz {
-    request_body {
-        max_size 10MB
-    }
-
-    # Portfolio companion: its own API and Hermes 3 model on port 8090.
-    handle /api/pet/* {
-        reverse_proxy 127.0.0.1:8091 {
-            flush_interval -1
-            header_up X-Real-IP {remote_host}
-            header_up Authorization ""
-        }
-    }
-
-    # Preserve the existing gateway relay for every other route.
-    handle {
-        reverse_proxy 108.181.215.246:8090 {
-            flush_interval -1
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-        }
-    }
-}'''
 
 
 def run(*args):
@@ -58,19 +36,6 @@ def check_port(port, unit):
         occupied = sock.connect_ex(('127.0.0.1', port)) == 0
     if occupied and not service_pid(unit):
         raise RuntimeError(f'Port {port} already belongs to another process; nothing was changed.')
-
-
-def replace_proxy(text):
-    start = text.index('api.moonlightsoldiers.xyz {')
-    depth = 0
-    for index in range(text.index('{', start), len(text)):
-        if text[index] == '{':
-            depth += 1
-        elif text[index] == '}':
-            depth -= 1
-            if depth == 0:
-                return text[:start] + PET_PROXY + text[index + 1:]
-    raise RuntimeError('Could not identify the existing API relay block.')
 
 
 def wait_ready():
@@ -99,7 +64,7 @@ def install():
     cli_file = Path('/etc/systemd/system/llama-hunter.service')
     cli_before = (service_pid(CLI_UNIT), hashlib.sha256(cli_file.read_bytes()).hexdigest())
     old_proxy = CADDY.read_text()
-    new_proxy = replace_proxy(old_proxy)
+    new_proxy = add_pet_route(old_proxy)
     print(f'CLI on 8080 recorded: PID {cli_before[0]}. Installing separate pet services.', flush=True)
 
     try:
@@ -150,7 +115,7 @@ def install():
     if cli_after != cli_before:
         raise RuntimeError('The CLI changed during deployment; investigate concurrent changes.')
     print(json.dumps({'ok': True, 'modelPort': 8090, 'apiPort': 8091,
-                      'endpoint': 'https://api.moonlightsoldiers.xyz/api/pet/chat',
+                      'endpoint': 'https://image.hunterstar.uz/api/pet/chat',
                       'cliPidBefore': cli_before[0], 'cliPidAfter': cli_after[0], 'cliConfigUnchanged': True}), flush=True)
 
 

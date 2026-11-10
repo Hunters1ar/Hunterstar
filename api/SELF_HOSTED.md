@@ -1,8 +1,7 @@
 # Self-hosted portfolio data
 
-The portfolio API now uses PostgreSQL and files on the Hunterstar VPS. The browser
-client still uses the historical `window.firebaseConfig` name for compatibility;
-it sends HTTP requests to the VPS and does not load Firebase.
+The portfolio API uses PostgreSQL and files on the Hunterstar VPS. The browser
+client in `js/portfolio-api.js` sends HTTP requests to the VPS.
 
 ## Server layout
 
@@ -14,12 +13,10 @@ it sends HTTP requests to the VPS and does not load Firebase.
 - API: `https://api.hunterstar.uz`; health reports `postgresql` and `local`.
 - Other VPS databases stay in their existing PostgreSQL cluster on port 5432.
 
-Firestore documents retain collection names, document IDs, and all fields in the
-`documents` JSONB table. Timestamp seconds/nanoseconds and special Firestore types
-are preserved. The `users` table stores exported password hashes and their hash
-settings. Password verification runs locally using Node crypto, following the
-[Firebase scrypt algorithm](https://github.com/firebase/scrypt). Existing UIDs and
-both authenticator secrets are retained, so passwords and 2FA codes stay valid.
+Documents retain their collection names, IDs, and fields in the `documents` JSONB
+table. Timestamps preserve seconds and nanoseconds. The `users` table stores
+password hashes and their settings. The API verifies passwords locally using Node
+crypto. Existing UIDs and authenticator secrets keep logins and 2FA codes valid.
 `files` stores object metadata; HTTP downloads support tokens and byte ranges.
 The account queue keeps its previous public access and refreshes every 15 seconds.
 
@@ -28,8 +25,6 @@ The account queue keeps its previous public access and refreshes every 15 second
 Both `deploy.bat` and `api/deploy-vps.ps1` ship the PostgreSQL modules and install
 dependencies. Full deployment preserves `.env` instead of regenerating credentials.
 `setup-postgres.sh` initializes a separate portfolio cluster on first install.
-Firebase Admin is needed only to run `migrate-firebase.js`, not by the live API.
-The production install omits this development dependency and the service account.
 
 Never put the bucket, database directories, exports, or `.env` into Git/Vercel.
 They are excluded from deployment and version control.
@@ -40,15 +35,12 @@ Run `bash /opt/portfolio-api/backup-selfhosted.sh` as root. It creates a Postgre
 custom dump, bucket archive, and environment copy under `/root/portfolio-backups`.
 Copy backups to another machine for protection against losing the VPS.
 The local backup destination is `api/backups/migration-20261005` on the development
-computer. Database, configuration, and Firebase export copies are saved there.
+computer. Database, configuration, and source export copies are saved there.
 Use the full bucket archive only after its SCP transfer has completed. This
 directory is ignored by Git and Vercel.
 
-The original code/configuration and the complete Firebase export are preserved
-under `/root/portfolio-migration-backup`. Firebase source data was copied, not
-deleted. Do not rerun the Firebase importer after writing new PostgreSQL data: it
-overwrites records with matching IDs. A deliberate maintenance window is required
-for another import or restore.
+The original code, configuration, and source export are preserved under
+`/root/portfolio-migration-backup`.
 
 Restore a backup into a new database for verification with `pg_restore`, then stop
 the API and switch DATABASE_URL to the restored database. Extract the matching

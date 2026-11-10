@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS migration_state (key text PRIMARY KEY, data jsonb NOT
 `;
 
 function decode(value) {
-  if (value?.__firestoreType === 'timestamp') return { ...value, toDate:()=>new Date(value.seconds*1000+value.nanoseconds/1e6), toJSON:()=>value };
+  if (value?.__portfolioType === 'timestamp') return { ...value, toDate:()=>new Date(value.seconds*1000+value.nanoseconds/1e6), toJSON:()=>value };
   if (Array.isArray(value)) return value.map(decode);
   if (value && typeof value==='object') return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,decode(v)]));
   return value;
@@ -33,8 +33,9 @@ class Document {
     this.store = store; this.collection = collection; this.id = id;
     this.parent = {id:collection.split('/').at(-1)};
   }
-  async get() {
-    const result = await this.store.pool.query('SELECT data FROM documents WHERE collection=$1 AND id=$2', [this.collection, this.id]);
+  async get({ forUpdate = false } = {}) {
+    const sql = 'SELECT data FROM documents WHERE collection=$1 AND id=$2' + (forUpdate ? ' FOR UPDATE' : '');
+    const result = await this.store.pool.query(sql, [this.collection, this.id]);
     return snapshot(this, result.rows[0]?.data);
   }
   async set(data, options = {}) {
@@ -67,7 +68,7 @@ class Collection {
     if (!Number.isInteger(max) || max < 1) throw new Error('Invalid limit');
     return new Collection(this.store,this.name,this.filters,this.order,max);
   }
-  async get() {
+  async get({ forUpdate = false } = {}) {
     const args=[this.name];
     let sql='SELECT id,data FROM documents WHERE collection=$1';
     for (const {field,value} of this.filters) {
@@ -79,6 +80,7 @@ class Collection {
       sql+=` AND data ? $${args.length}::text ORDER BY data -> $${args.length}::text ${this.order.direction}, id`;
     } else sql+=' ORDER BY id';
     if (this.max) { args.push(this.max); sql+=` LIMIT $${args.length}`; }
+    if (forUpdate) sql += ' FOR UPDATE';
     const result=await this.store.pool.query(sql,args);
     const docs=result.rows.map(row=>snapshot(this.doc(row.id),row.data));
     return {docs, size:docs.length, empty:!docs.length, forEach:fn=>docs.forEach(fn)};
@@ -100,6 +102,24 @@ function createStore(connectionString = process.env.DATABASE_URL) {
       } catch(error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
     }};
   }};
+  store.transaction = async operation => {
+    const client = await pool.connect();
+    const transaction = {
+      collection: name => new Collection({ pool: client }, name),
+      lock: key => client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [key])
+    };
+    try {
+      await client.query('BEGIN');
+      const result = await operation(transaction);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
   return store;
 }
 module.exports={createStore,schema};

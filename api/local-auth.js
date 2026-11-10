@@ -2,8 +2,7 @@ const crypto = require('crypto');
 const { promisify } = require('util');
 const scrypt = promisify(crypto.scrypt);
 
-// Firebase's exported SCRYPT hashes use scrypt followed by AES-256-CTR.
-// Verification is entirely local; no Firebase requests or SDK are needed.
+// Stored SCRYPT hashes use scrypt followed by AES-256-CTR.
 async function passwordMatches(password, salt, expectedHash, config) {
   if (config?.algorithm !== 'SCRYPT' || !salt || !expectedHash) return false;
   const key = await scrypt(password, Buffer.concat([

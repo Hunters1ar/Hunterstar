@@ -18,7 +18,7 @@
 
     const { useState, useEffect, useRef, useMemo, useCallback } = window.React;
     const h = window.React.createElement;
-    const firebaseTools = window.firebaseConfig;
+    const portfolioApi = window.portfolioApi;
 
     // =========================================================================
     // 1. SERVICES LAYER
@@ -28,7 +28,7 @@
         const code = error.code || '';
         switch (code) {
             case 'auth/operation-not-allowed':
-                return 'Email/Password sign-in is disabled in Firebase.';
+                return 'Email/password sign-in is disabled.';
             case 'auth/invalid-login-credentials':
             case 'auth/wrong-password':
             case 'auth/user-not-found':
@@ -38,7 +38,7 @@
                 return 'Too many attempts. Wait a moment and try again.';
             case 'permission-denied':
             case 'PERMISSION_DENIED':
-                return 'Firestore permission denied.';
+                return 'Permission denied.';
             case 'storage/unauthorized':
                 return 'Storage upload unauthorized.';
             case 'storage/quota-exceeded':
@@ -62,8 +62,8 @@
     }
 
     function getFileKind(contentType, fileName) {
-        if (firebaseTools && typeof firebaseTools.getAttachmentKind === 'function') {
-            return firebaseTools.getAttachmentKind(contentType, fileName);
+        if (portfolioApi && typeof portfolioApi.getAttachmentKind === 'function') {
+            return portfolioApi.getAttachmentKind(contentType, fileName);
         }
         const type = String(contentType || '').toLowerCase();
         const name = String(fileName || '').toLowerCase();
@@ -80,108 +80,111 @@
     const adminServices = {
         auth: {
             signIn: async (email, password) => {
-                if (!firebaseTools || !firebaseTools.signInAdmin) throw new Error('Auth service uninitialized.');
-                return await firebaseTools.signInAdmin(email, password);
+                if (!portfolioApi || !portfolioApi.signInAdmin) throw new Error('Auth service uninitialized.');
+                return await portfolioApi.signInAdmin(email, password);
             },
             verify2FA: async (token, code) => {
-                if (!firebaseTools || !firebaseTools.verifyAdminTwoFactor) throw new Error('2FA service unavailable.');
-                return await firebaseTools.verifyAdminTwoFactor(token, code);
+                if (!portfolioApi || !portfolioApi.verifyAdminTwoFactor) throw new Error('2FA service unavailable.');
+                return await portfolioApi.verifyAdminTwoFactor(token, code);
             },
             signOut: async () => {
-                if (!firebaseTools || !firebaseTools.signOutAdmin) return;
-                await firebaseTools.signOutAdmin();
+                if (!portfolioApi || !portfolioApi.signOutAdmin) return;
+                await portfolioApi.signOutAdmin();
             },
             touchSession: async () => {
-                if (firebaseTools && typeof firebaseTools.touchAdminSession === 'function') {
-                    await firebaseTools.touchAdminSession();
+                if (portfolioApi && typeof portfolioApi.touchAdminSession === 'function') {
+                    await portfolioApi.touchAdminSession();
                 }
             },
             expireSession: async () => {
-                if (firebaseTools && typeof firebaseTools.expireAdminSession === 'function') {
-                    await firebaseTools.expireAdminSession();
+                if (portfolioApi && typeof portfolioApi.expireAdminSession === 'function') {
+                    await portfolioApi.expireAdminSession();
                 }
             },
             onAuthStateChanged: (callback) => {
-                if (firebaseTools && firebaseTools.onAdminAuthStateChanged) {
-                    return firebaseTools.onAdminAuthStateChanged(callback);
+                if (portfolioApi && portfolioApi.onAdminAuthStateChanged) {
+                    return portfolioApi.onAdminAuthStateChanged(callback);
                 }
                 return () => {};
             },
             getCurrentUser: () => {
-                return (firebaseTools && firebaseTools.getCurrentAdminUser) ? firebaseTools.getCurrentAdminUser() : null;
+                return (portfolioApi && portfolioApi.getCurrentAdminUser) ? portfolioApi.getCurrentAdminUser() : null;
             },
             getIdleTimeoutMs: () => {
-                return (firebaseTools && firebaseTools.getAdminIdleTimeoutMs) ? firebaseTools.getAdminIdleTimeoutMs() : 5 * 60 * 1000;
+                return (portfolioApi && portfolioApi.getAdminIdleTimeoutMs) ? portfolioApi.getAdminIdleTimeoutMs() : 5 * 60 * 1000;
             }
         },
 
         submissions: {
             subscribe: (onData, onError) => {
-                if (!firebaseTools || !firebaseTools.subscribeToSubmissions) {
+                if (!portfolioApi || !portfolioApi.subscribeToSubmissions) {
                     onError && onError(new Error('Submissions service unavailable.'));
                     return () => {};
                 }
-                return firebaseTools.subscribeToSubmissions(onData, onError);
+                return portfolioApi.subscribeToSubmissions(onData, onError);
             },
             markRead: async (id, read, collectionName) => {
-                if (!firebaseTools || !firebaseTools.updateSubmissionReadState) return;
-                await firebaseTools.updateSubmissionReadState(id, read, collectionName);
+                if (!portfolioApi || !portfolioApi.updateSubmissionReadState) return;
+                await portfolioApi.updateSubmissionReadState(id, read, collectionName);
             },
             delete: async (id, collectionName) => {
-                if (!firebaseTools || !firebaseTools.deleteSubmission) return;
-                await firebaseTools.deleteSubmission(id, collectionName);
+                if (!portfolioApi || !portfolioApi.deleteSubmission) return;
+                await portfolioApi.deleteSubmission(id, collectionName);
             }
         },
 
         content: {
             subscribe: (onData, onError) => {
-                if (!firebaseTools || !firebaseTools.subscribeToContentBoxes) {
+                if (!portfolioApi || !portfolioApi.subscribeToContentBoxes) {
                     onError && onError(new Error('Content boxes service unavailable.'));
                     return () => {};
                 }
-                return firebaseTools.subscribeToContentBoxes(onData, onError);
+                return portfolioApi.subscribeToContentBoxes(onData, onError);
             },
             saveBox: async (payload) => {
-                if (!firebaseTools || !firebaseTools.saveContentBox) throw new Error('Content save service unavailable.');
-                return await firebaseTools.saveContentBox(payload);
+                if (!portfolioApi || !portfolioApi.saveContentBox) throw new Error('Content save service unavailable.');
+                return await portfolioApi.saveContentBox(payload);
             },
             deleteBox: async (id) => {
-                if (!firebaseTools || !firebaseTools.deleteContentBox) throw new Error('Content delete service unavailable.');
-                await firebaseTools.deleteContentBox(id);
+                if (!portfolioApi || !portfolioApi.deleteContentBox) throw new Error('Content delete service unavailable.');
+                await portfolioApi.deleteContentBox(id);
             }
         },
 
         playlists: {
             list: async () => {
-                if (!firebaseTools || !firebaseTools.listAdminPlaylists) return [];
-                return await firebaseTools.listAdminPlaylists();
+                if (!portfolioApi || !portfolioApi.listAdminPlaylists) return [];
+                return await portfolioApi.listAdminPlaylists();
             },
             add: async (urlOrId) => {
-                if (!firebaseTools || !firebaseTools.addAdminPlaylist) throw new Error('Playlist add service unavailable.');
-                return await firebaseTools.addAdminPlaylist(urlOrId);
+                if (!portfolioApi || !portfolioApi.addAdminPlaylist) throw new Error('Playlist add service unavailable.');
+                return await portfolioApi.addAdminPlaylist(urlOrId);
             },
             delete: async (id) => {
-                if (!firebaseTools || !firebaseTools.deleteAdminPlaylist) throw new Error('Playlist delete service unavailable.');
-                await firebaseTools.deleteAdminPlaylist(id);
+                if (!portfolioApi || !portfolioApi.deleteAdminPlaylist) throw new Error('Playlist delete service unavailable.');
+                await portfolioApi.deleteAdminPlaylist(id);
             }
         },
 
         openerAccounts: {
             list: async () => {
-                if (!firebaseTools || !firebaseTools.listAdminOpenerAccounts) return [];
-                return await firebaseTools.listAdminOpenerAccounts();
+                if (!portfolioApi || !portfolioApi.listAdminOpenerAccounts) return [];
+                return await portfolioApi.listAdminOpenerAccounts();
             },
+            getDefaults: () => portfolioApi.getOpenerDefaults(),
+            saveDefaults: (apps) => portfolioApi.saveOpenerDefaults(apps),
+            addLinksToAll: (apps) => portfolioApi.addLinksToAllOpenerAccounts(apps),
             add: async (account) => {
-                if (!firebaseTools || !firebaseTools.addOpenerAccount) throw new Error('Opener account service unavailable.');
-                return await firebaseTools.addOpenerAccount(account);
+                if (!portfolioApi || !portfolioApi.addOpenerAccount) throw new Error('Opener account service unavailable.');
+                return await portfolioApi.addOpenerAccount(account);
             },
             update: async (id, updates) => {
-                if (!firebaseTools || !firebaseTools.updateOpenerAccount) throw new Error('Opener account service unavailable.');
-                return await firebaseTools.updateOpenerAccount(id, updates);
+                if (!portfolioApi || !portfolioApi.updateOpenerAccount) throw new Error('Opener account service unavailable.');
+                return await portfolioApi.updateOpenerAccount(id, updates);
             },
             delete: async (id) => {
-                if (!firebaseTools || !firebaseTools.deleteOpenerAccount) throw new Error('Opener account service unavailable.');
-                await firebaseTools.deleteOpenerAccount(id);
+                if (!portfolioApi || !portfolioApi.deleteOpenerAccount) throw new Error('Opener account service unavailable.');
+                await portfolioApi.deleteOpenerAccount(id);
             }
         }
     };
@@ -698,7 +701,7 @@
             return () => clearInterval(scanTimer);
         }, []);
 
-        // Live Telemetry from Firebase / API
+        // Live telemetry from the portfolio API
         const [telemetry, setTelemetry] = useState({
             cameras: 147,
             facilities: 12,
@@ -709,8 +712,8 @@
 
         useEffect(() => {
             let unsubscribe = null;
-            if (firebaseTools && typeof firebaseTools.subscribeToPublicContentBoxes === 'function') {
-                unsubscribe = firebaseTools.subscribeToPublicContentBoxes((boxes) => {
+            if (portfolioApi && typeof portfolioApi.subscribeToPublicContentBoxes === 'function') {
+                unsubscribe = portfolioApi.subscribeToPublicContentBoxes((boxes) => {
                     if (Array.isArray(boxes)) {
                         let totalBytes = 0;
                         boxes.forEach(b => {
@@ -1181,7 +1184,7 @@
 
                     loading && h('div', { className: 'cr-state-box' },
                         h('div', { className: 'cr-spinner' }),
-                        h('span', { className: 'cr-state-desc' }, 'Loading live submissions from Firestore...')
+                        h('span', { className: 'cr-state-desc' }, 'Loading submissions from the portfolio API…')
                     ),
 
                     !loading && error && h('div', { className: 'cr-state-box' },
@@ -1293,7 +1296,7 @@
         const [existingAttachments, setExistingAttachments] = useState([]);
         const [removedAttachments, setRemovedAttachments] = useState([]);
         const [pendingFiles, setPendingFiles] = useState([]); // [{ id, file, name, size, kind }]
-        const [uploadProgress, setUploadProgress] = useState(null); // { percent, meta }
+        const [uploadProgress, setUploadProgress] = useState(null);
         const [saving, setSaving] = useState(false);
         const notesRef = useRef(null);
         const fileInputRef = useRef(null);
@@ -1312,6 +1315,7 @@
 
         // When a box is selected in the library, populate editor
         const handleSelectBox = (box) => {
+            if (saving) return;
             if (!box) {
                 handleNewBox();
                 return;
@@ -1366,6 +1370,7 @@
         };
 
         const handleAddFiles = (files) => {
+            if (saving) return;
             const newEntries = Array.from(files || []).map(f => ({
                 id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
                 file: f,
@@ -1383,7 +1388,7 @@
                 return;
             }
             setSaving(true);
-            setUploadProgress(null);
+            setUploadProgress(pendingFiles.length ? 0 : null);
 
             try {
                 // Parse links
@@ -1409,23 +1414,19 @@
                     files: pendingFiles.map(p => p.file),
                     order: Number(order) || 0,
                     published: Boolean(published),
-                    onUploadProgress: (prog) => {
-                        setUploadProgress({
-                            percent: prog.percent || 0,
-                            meta: `${prog.percent}% • ${prog.fileName || 'uploading'}`
-                        });
-                    }
+                    onUploadProgress: setUploadProgress
                 };
 
-                const savedId = await adminServices.content.saveBox(payload);
+                const saved = await adminServices.content.saveBox(payload);
                 toast(selectedBoxId ? 'Box updated successfully.' : 'New box created.', 'success');
-                setSelectedBoxId(savedId);
+                setSelectedBoxId(saved.id);
+                setExistingAttachments(saved.attachments || []);
                 setPendingFiles([]);
                 setRemovedAttachments([]);
-                setUploadProgress(null);
             } catch (err) {
                 toast(getFriendlyError(err), 'error');
             } finally {
+                setUploadProgress(null);
                 setSaving(false);
             }
         };
@@ -1620,21 +1621,22 @@
                                 ref: fileInputRef,
                                 type: 'file',
                                 multiple: true,
+                                disabled: saving,
                                 style: { display: 'none' },
                                 onChange: e => handleAddFiles(e.target.files)
                             }),
                             h('div', { className: 'cr-dropzone-icon' }, h(Icon, { name: 'upload', size: 28 })),
                             h('div', { className: 'cr-dropzone-text' }, 'Drop archive files here or click to browse'),
-                            h('div', { className: 'cr-dropzone-sub' }, 'Supports images, audio, video, PDFs, archives, and executables (download-only).')
+                            h('div', { className: 'cr-dropzone-sub' }, 'Files upload when you save the box. Up to 20 files and 150 MiB total per save. Executables are download-only.')
                         ),
 
-                        uploadProgress && h('div', { className: 'cr-progress-wrap' },
+                        uploadProgress !== null && h('div', { className: 'cr-progress-wrap' },
                             h('div', { className: 'cr-progress-meta' },
-                                h('span', null, 'Uploading files to storage...'),
-                                h('span', null, uploadProgress.meta)
+                                h('span', null, uploadProgress < 100 ? 'Uploading attachments…' : 'Saving attachments to storage…'),
+                                h('span', null, `${uploadProgress}%`)
                             ),
                             h('div', { className: 'cr-progress-bar' },
-                                h('div', { className: 'cr-progress-fill', style: { width: `${uploadProgress.percent}%` } })
+                                h('div', { className: 'cr-progress-fill', style: { width: `${uploadProgress}%` } })
                             )
                         ),
 
@@ -1661,6 +1663,7 @@
                                     type: 'button',
                                     className: 'cr-btn cr-btn-danger',
                                     style: { padding: '4px 8px' },
+                                    disabled: saving,
                                     onClick: () => {
                                         setExistingAttachments(prev => prev.filter(x => x.id !== att.id));
                                         setRemovedAttachments(prev => [...prev, att]);
@@ -1672,13 +1675,14 @@
                                     p.kind.toUpperCase()
                                 ),
                                 h('div', { className: 'cr-attachment-info' },
-                                    h('div', { className: 'cr-attachment-name' }, `[Pending] ${p.name}`),
-                                    h('div', { className: 'cr-attachment-size' }, formatFileSize(p.size))
+                                    h('div', { className: 'cr-attachment-name', title: p.name }, p.name),
+                                    h('div', { className: 'cr-attachment-size' }, `${formatFileSize(p.size)} · ${saving ? 'Saving' : 'Uploads on save'}`)
                                 ),
                                 h('button', {
                                     type: 'button',
                                     className: 'cr-btn cr-btn-danger',
                                     style: { padding: '4px 8px' },
+                                    disabled: saving,
                                     onClick: () => setPendingFiles(prev => prev.filter(x => x.id !== p.id))
                                 }, h(Icon, { name: 'x', size: 14 }))
                             ))
@@ -1870,110 +1874,72 @@
     // =========================================================================
     // 8.5. WORKSPACE 4: ACCOUNTS
     // =========================================================================
+    const OPENER_PRESETS = [
+        { id: 'chatgpt', name: 'ChatGPT', url: 'https://chatgpt.com', color: '#10a37f' },
+        { id: 'claude', name: 'Claude', url: 'https://claude.ai', color: '#da7756' },
+        { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/app', color: '#4285f4' },
+        { id: 'kimi', name: 'Kimi AI', url: 'https://www.kimi.ai/', color: '#10b981' },
+        { id: 'deepseek', name: 'DeepSeek', url: 'https://chat.deepseek.com', color: '#4d6bfe' },
+        { id: 'grok', name: 'Grok', url: 'https://grok.com', color: '#888888' },
+        { id: 'copilot', name: 'Copilot', url: 'https://copilot.microsoft.com', color: '#0078d4' },
+        { id: 'poe', name: 'Poe', url: 'https://poe.com', color: '#5b3cc4' }
+    ];
+
+    function normalizeOpenerApps(apps) {
+        if (!Array.isArray(apps)) return [];
+        return apps.map(item => {
+            if (typeof item !== 'string') return item;
+            const preset = OPENER_PRESETS.find(p => p.id === item.toLowerCase().trim());
+            return preset && { name: preset.name, url: preset.url, icon: '' };
+        }).filter(item => item && item.name && item.url);
+    }
+
+    function openerUrlKey(url) {
+        try { return new URL(url).href; } catch { return url; }
+    }
+
     function AccountsWorkspace({ accounts, loading, error, onRefresh, toast, onConfirm }) {
-        const PRESET_APPS = [
-            { id: 'chatgpt', name: 'ChatGPT', url: 'https://chatgpt.com', color: '#10a37f' },
-            { id: 'claude', name: 'Claude', url: 'https://claude.ai', color: '#da7756' },
-            { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/app', color: '#4285f4' },
-            { id: 'kimi', name: 'Kimi AI', url: 'https://www.kimi.ai/', color: '#10b981' },
-            { id: 'deepseek', name: 'DeepSeek', url: 'https://chat.deepseek.com', color: '#4d6bfe' },
-            { id: 'grok', name: 'Grok', url: 'https://grok.com', color: '#888888' },
-            { id: 'copilot', name: 'Copilot', url: 'https://copilot.microsoft.com', color: '#0078d4' },
-            { id: 'poe', name: 'Poe', url: 'https://poe.com', color: '#5b3cc4' }
-        ];
-
-        const normalizeApps = (apps) => {
-            if (!Array.isArray(apps)) return [];
-            return apps.map(item => {
-                if (typeof item === 'string') {
-                    const found = PRESET_APPS.find(p => p.id === item.toLowerCase());
-                    return found ? { name: found.name, url: found.url, icon: '' } : { name: item, url: '', icon: '' };
-                }
-                return item;
-            }).filter(item => item && item.name && item.url);
-        };
-
         const [nameInput, setNameInput] = useState('');
         const [emailInput, setEmailInput] = useState('');
-        const [selectedApps, setSelectedApps] = useState([
-            { name: 'ChatGPT', url: 'https://chatgpt.com', icon: '' },
-            { name: 'Claude', url: 'https://claude.ai', icon: '' },
-            { name: 'Gemini', url: 'https://gemini.google.com/app', icon: '' },
-            { name: 'Kimi AI', url: 'https://www.kimi.ai/', icon: '' }
-        ]);
-
-        // Custom Link state for Add form
-        const [customName, setCustomName] = useState('');
-        const [customUrl, setCustomUrl] = useState('');
-        const [customIcon, setCustomIcon] = useState('');
+        const [accountApps, setAccountApps] = useState(null);
+        const [defaultApps, setDefaultApps] = useState(null);
+        const [defaultsError, setDefaultsError] = useState('');
+        const [defaultsDraft, setDefaultsDraft] = useState(null);
+        const [bulkApps, setBulkApps] = useState([]);
+        const [linkPanel, setLinkPanel] = useState(null);
+        const [updatingLinks, setUpdatingLinks] = useState(false);
 
         const [adding, setAdding] = useState(false);
-        const [editingId, setEditingId] = useState(null);
+        const [editingAccount, setEditingAccount] = useState(null);
         const [editName, setEditName] = useState('');
         const [editEmail, setEditEmail] = useState('');
         const [editApps, setEditApps] = useState([]);
-        const [editCustomName, setEditCustomName] = useState('');
-        const [editCustomUrl, setEditCustomUrl] = useState('');
         const [saving, setSaving] = useState(false);
 
-        const togglePreset = (preset, currentList, setter) => {
-            const exists = currentList.some(a => (a.url || '').toLowerCase() === preset.url.toLowerCase());
-            if (exists) {
-                setter(currentList.filter(a => (a.url || '').toLowerCase() !== preset.url.toLowerCase()));
-            } else {
-                setter([...currentList, { name: preset.name, url: preset.url, icon: '' }]);
-            }
-        };
-
-        const removeApp = (urlToRemove, currentList, setter) => {
-            setter(currentList.filter(a => a.url !== urlToRemove));
-        };
-
-        const addCustomApp = (cName, cUrl, cIcon, currentList, setter, clearInputs) => {
-            const cleanName = (cName || '').trim().slice(0, 50);
-            const cleanUrl = (cUrl || '').trim();
-            if (!cleanName || !cleanUrl) {
-                toast('Please enter both name and URL for the custom link.', 'warning');
-                return;
-            }
+        const loadDefaults = useCallback(async () => {
+            setDefaultsError('');
             try {
-                const parsed = new URL(cleanUrl);
-                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-                    toast('URL must begin with http:// or https://', 'warning');
-                    return;
-                }
-            } catch {
-                toast('Please enter a valid website URL (e.g. https://www.kimi.ai/)', 'warning');
-                return;
+                setDefaultApps(await adminServices.openerAccounts.getDefaults());
+            } catch (err) {
+                setDefaultsError(getFriendlyError(err));
             }
-
-            setter([...currentList, { name: cleanName, url: cleanUrl, icon: (cIcon || '').trim() }]);
-            clearInputs();
-        };
+        }, []);
+        useEffect(() => { loadDefaults(); }, [loadDefaults]);
 
         const handleAdd = async (e) => {
             e.preventDefault();
-            if (!nameInput.trim()) return;
-            if (selectedApps.length === 0) {
-                toast('Please select or add at least one app/link.', 'warning');
-                return;
-            }
+            if (!nameInput.trim() || defaultApps === null) return;
             setAdding(true);
             try {
                 await adminServices.openerAccounts.add({
                     name: nameInput.trim(),
                     email: emailInput.trim(),
-                    enabledApps: selectedApps
+                    ...(accountApps === null ? {} : { enabledApps: accountApps })
                 });
                 toast(`Added account "${nameInput.trim()}".`, 'success');
                 setNameInput('');
                 setEmailInput('');
-                setSelectedApps([
-                    { name: 'ChatGPT', url: 'https://chatgpt.com', icon: '' },
-                    { name: 'Claude', url: 'https://claude.ai', icon: '' },
-                    { name: 'Gemini', url: 'https://gemini.google.com/app', icon: '' },
-                    { name: 'Kimi AI', url: 'https://www.kimi.ai/', icon: '' }
-                ]);
+                setAccountApps(null);
                 onRefresh();
             } catch (err) {
                 toast(getFriendlyError(err), 'error');
@@ -1983,38 +1949,73 @@
         };
 
         const startEdit = (account) => {
-            setEditingId(account.id);
+            setEditingAccount(account);
             setEditName(account.name);
             setEditEmail(account.email || '');
-            setEditApps(normalizeApps(account.enabledApps));
-            setEditCustomName('');
-            setEditCustomUrl('');
+            setEditApps(normalizeOpenerApps(account.enabledApps));
         };
 
         const cancelEdit = () => {
-            setEditingId(null);
+            setEditingAccount(null);
         };
 
         const saveEdit = async () => {
-            if (!editingId) return;
-            if (editApps.length === 0) {
-                toast('Please select or add at least one app/link.', 'warning');
+            if (!editingAccount) return;
+            const originalApps = normalizeOpenerApps(editingAccount.enabledApps);
+            const updates = {};
+            if (editName.trim() !== editingAccount.name) updates.name = editName.trim();
+            if (editEmail.trim() !== (editingAccount.email || '')) updates.email = editEmail.trim();
+            if (JSON.stringify(editApps) !== JSON.stringify(originalApps)) {
+                updates.enabledApps = editApps;
+                updates.expectedEnabledApps = originalApps;
+            }
+            if (Object.keys(updates).length === 0) {
+                cancelEdit();
                 return;
             }
             setSaving(true);
             try {
-                await adminServices.openerAccounts.update(editingId, {
-                    name: editName.trim(),
-                    email: editEmail.trim(),
-                    enabledApps: editApps
-                });
+                await adminServices.openerAccounts.update(editingAccount.id, updates);
                 toast('Account updated.', 'success');
-                setEditingId(null);
+                cancelEdit();
+                onRefresh();
+            } catch (err) {
+                if (err.status === 409) onRefresh();
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        const saveDefaults = async () => {
+            if (defaultsDraft === null) return;
+            setUpdatingLinks(true);
+            try {
+                setDefaultApps(await adminServices.openerAccounts.saveDefaults(defaultsDraft));
+                setDefaultsDraft(null);
+                toast('New-account defaults saved.', 'success');
+            } catch (err) {
+                toast(getFriendlyError(err), 'error');
+            } finally {
+                setUpdatingLinks(false);
+            }
+        };
+
+        const applyBulkLinks = async () => {
+            if (!bulkApps.length) return;
+            setUpdatingLinks(true);
+            try {
+                const { updatedCount, accountCount } = await adminServices.openerAccounts.addLinksToAll(bulkApps);
+                setBulkApps([]);
+                setLinkPanel(null);
+                toast(updatedCount
+                    ? `Added links to ${updatedCount} of ${accountCount} accounts.`
+                    : accountCount ? 'Every account already has these links.' : 'No registered accounts to update.', 'success');
                 onRefresh();
             } catch (err) {
                 toast(getFriendlyError(err), 'error');
             } finally {
-                setSaving(false);
+                setUpdatingLinks(false);
             }
         };
 
@@ -2037,123 +2038,14 @@
             });
         };
 
-        const renderAppEditor = (currentList, setter, customN, setCustomN, customU, setCustomU) => {
-            return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' } },
-                // Preset quick buttons
-                h('div', null,
-                    h('span', { style: { fontSize: '0.72rem', color: 'var(--cr-text-muted)', fontFamily: 'var(--font-mono)' } }, 'QUICK PRESETS:'),
-                    h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' } },
-                        PRESET_APPS.map(preset => {
-                            const isSelected = currentList.some(a => (a.url || '').toLowerCase() === preset.url.toLowerCase());
-                            return h('button', {
-                                key: preset.id,
-                                type: 'button',
-                                onClick: () => togglePreset(preset, currentList, setter),
-                                style: {
-                                    fontSize: '0.74rem',
-                                    fontFamily: 'var(--font-mono, monospace)',
-                                    padding: '3px 8px',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    border: '1px solid ' + (isSelected ? preset.color : 'var(--cr-border)'),
-                                    background: isSelected ? preset.color + '22' : 'transparent',
-                                    color: isSelected ? preset.color : 'var(--cr-text-secondary)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '5px'
-                                }
-                            },
-                                h('img', {
-                                    src: `https://www.google.com/s2/favicons?domain=${new URL(preset.url).hostname}&sz=32`,
-                                    style: { width: '12px', height: '12px', borderRadius: '2px' }
-                                }),
-                                preset.name
-                            );
-                        })
-                    )
-                ),
+        const renderDefaultsStatus = () => defaultsError
+            ? h('div', { className: 'cr-opener-defaults-error', role: 'alert' },
+                h('span', null, defaultsError),
+                h('button', { type: 'button', className: 'cr-btn cr-btn-secondary', onClick: loadDefaults }, 'Retry')
+            )
+            : h('p', { className: 'cr-opener-help', role: 'status' }, 'Loading new-account defaults…');
 
-                // Selected Links Chips
-                h('div', null,
-                    h('span', { style: { fontSize: '0.72rem', color: 'var(--cr-text-muted)', fontFamily: 'var(--font-mono)' } }, `ACTIVE LINKS (${currentList.length}):`),
-                    currentList.length === 0 && h('div', { style: { fontSize: '0.74rem', color: 'var(--cr-danger)', marginTop: '4px' } }, 'No links selected. Please add presets or custom links.'),
-                    h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' } },
-                        currentList.map(app => {
-                            let domain = '';
-                            try { domain = new URL(app.url).hostname; } catch {}
-                            return h('span', {
-                                key: app.url,
-                                style: {
-                                    fontSize: '0.74rem',
-                                    fontFamily: 'var(--font-mono, monospace)',
-                                    padding: '3px 8px',
-                                    borderRadius: '4px',
-                                    background: 'var(--cr-bg-card)',
-                                    border: '1px solid var(--cr-border)',
-                                    color: 'var(--cr-text)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }
-                            },
-                                h('img', {
-                                    src: app.icon || (domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : ''),
-                                    style: { width: '14px', height: '14px', borderRadius: '2px' }
-                                }),
-                                h('span', { style: { fontWeight: 500 } }, app.name),
-                                h('button', {
-                                    type: 'button',
-                                    title: `Remove ${app.name}`,
-                                    onClick: () => removeApp(app.url, currentList, setter),
-                                    style: {
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: 'var(--cr-danger)',
-                                        cursor: 'pointer',
-                                        fontWeight: 'bold',
-                                        padding: '0 2px',
-                                        fontSize: '0.85rem',
-                                        lineHeight: 1
-                                    }
-                                }, '×')
-                            );
-                        })
-                    )
-                ),
-
-                // Add Custom Link Inputs
-                h('div', { style: { background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '4px', border: '1px dashed var(--cr-border)' } },
-                    h('div', { style: { fontSize: '0.72rem', color: 'var(--cr-accent)', fontFamily: 'var(--font-mono)', marginBottom: '6px' } }, '+ ADD CUSTOM LINK'),
-                    h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } },
-                        h('input', {
-                            type: 'text',
-                            placeholder: 'Name (e.g. Kimi, Perplexity)',
-                            value: customN,
-                            onChange: e => setCustomN(e.target.value),
-                            className: 'cr-form-input',
-                            style: { flex: '1 1 120px', fontSize: '0.75rem', padding: '4px 8px' }
-                        }),
-                        h('input', {
-                            type: 'url',
-                            placeholder: 'URL (https://...)',
-                            value: customU,
-                            onChange: e => setCustomU(e.target.value),
-                            className: 'cr-form-input',
-                            style: { flex: '2 1 180px', fontSize: '0.75rem', padding: '4px 8px' }
-                        }),
-                        h('button', {
-                            type: 'button',
-                            className: 'cr-btn cr-btn-secondary',
-                            style: { padding: '4px 10px', fontSize: '0.72rem' },
-                            onClick: () => addCustomApp(customN, customU, '', currentList, setter, () => {
-                                setCustomN('');
-                                setCustomU('');
-                            })
-                        }, '+ Add Link')
-                    )
-                )
-            );
-        };
+        const toggleLinkPanel = (panel) => setLinkPanel(current => current === panel ? null : panel);
 
         return h('div', { className: 'cr-split-layout' },
             // Left Panel: Add Account
@@ -2165,12 +2057,13 @@
                     )
                 ),
                 h('form', { onSubmit: handleAdd, className: 'cr-panel-body' },
-                    h('p', { style: { fontSize: '0.82rem', color: 'var(--cr-text-secondary)', lineHeight: '1.5', margin: '0 0 10px 0' } },
+                    h('p', { className: 'cr-opener-help' },
                         'Add an account to the Opener. Each account gets an isolated Chrome profile with arbitrary custom links.'
                     ),
                     h('div', { className: 'cr-form-group' },
-                        h('label', { className: 'cr-form-label' }, 'Account Name'),
+                        h('label', { className: 'cr-form-label', htmlFor: 'opener-account-name' }, 'Account Name'),
                         h('input', {
+                            id: 'opener-account-name',
                             type: 'text',
                             className: 'cr-form-input',
                             placeholder: 'Hunterstardeveloper',
@@ -2180,8 +2073,9 @@
                         })
                     ),
                     h('div', { className: 'cr-form-group' },
-                        h('label', { className: 'cr-form-label' }, 'Email (optional)'),
+                        h('label', { className: 'cr-form-label', htmlFor: 'opener-account-email' }, 'Email (optional)'),
                         h('input', {
+                            id: 'opener-account-email',
                             type: 'email',
                             className: 'cr-form-input',
                             placeholder: 'user@example.com',
@@ -2190,14 +2084,22 @@
                         })
                     ),
                     h('div', { className: 'cr-form-group' },
-                        h('label', { className: 'cr-form-label' }, 'Enabled Apps & Links'),
-                        renderAppEditor(selectedApps, setSelectedApps, customName, setCustomName, customUrl, setCustomUrl)
+                        h('span', { className: 'cr-form-label' }, 'Enabled Apps & Links'),
+                        defaultApps === null ? renderDefaultsStatus() : h(OpenerAppEditor, {
+                            apps: accountApps ?? defaultApps, onChange: setAccountApps, toast, disabled: adding
+                        }),
+                        accountApps !== null && h('button', {
+                            type: 'button',
+                            className: 'cr-btn cr-btn-secondary cr-opener-use-defaults',
+                            onClick: () => setAccountApps(null),
+                            disabled: adding
+                        }, 'Use saved defaults')
                     ),
                     h('button', {
                         type: 'submit',
                         className: 'cr-btn cr-btn-primary',
                         style: { marginTop: '12px' },
-                        disabled: adding || !nameInput.trim() || selectedApps.length === 0
+                        disabled: adding || !nameInput.trim() || defaultApps === null
                     },
                         h(Icon, { name: 'plus', size: 16 }),
                         adding ? 'Adding...' : 'Add Account'
@@ -2215,6 +2117,54 @@
                     h('span', { className: 'cr-badge cr-badge-accent' }, `${(accounts || []).length} ACCOUNTS`)
                 ),
                 h('div', { className: 'cr-panel-body' },
+                    h('div', { className: 'cr-opener-link-tools' },
+                        h('div', { className: 'cr-opener-link-actions' },
+                            h('button', {
+                                type: 'button',
+                                className: 'cr-btn cr-btn-secondary',
+                                'aria-expanded': linkPanel === 'bulk',
+                                'aria-controls': 'opener-bulk-links',
+                                disabled: updatingLinks,
+                                onClick: () => toggleLinkPanel('bulk')
+                            }, 'Add links to all accounts'),
+                            h('button', {
+                                type: 'button',
+                                className: 'cr-btn cr-btn-secondary',
+                                'aria-expanded': linkPanel === 'defaults',
+                                'aria-controls': 'opener-default-links',
+                                disabled: updatingLinks,
+                                onClick: () => toggleLinkPanel('defaults')
+                            }, 'New-account defaults')
+                        ),
+                        h('div', { id: 'opener-bulk-links', hidden: linkPanel !== 'bulk' },
+                            h('p', { className: 'cr-opener-help' },
+                                'Add these links to every registered account. Accounts keep their existing links, and matching URLs are skipped.'
+                            ),
+                            h(OpenerAppEditor, { apps: bulkApps, onChange: setBulkApps, toast, disabled: updatingLinks }),
+                            h('button', {
+                                type: 'button',
+                                className: 'cr-btn cr-btn-primary cr-opener-link-submit',
+                                onClick: applyBulkLinks,
+                                disabled: updatingLinks || !bulkApps.length
+                            }, updatingLinks ? 'Applying…' : 'Apply to all accounts')
+                        ),
+                        h('div', { id: 'opener-default-links', hidden: linkPanel !== 'defaults' },
+                            h('p', { className: 'cr-opener-help' },
+                                'Choose the sites prefilled for new accounts. You can adjust the links for each account before adding it.'
+                            ),
+                            defaultApps === null ? renderDefaultsStatus() : h(window.React.Fragment, null,
+                                h(OpenerAppEditor, {
+                                    apps: defaultsDraft ?? defaultApps, onChange: setDefaultsDraft, toast, disabled: updatingLinks
+                                }),
+                                h('button', {
+                                    type: 'button',
+                                    className: 'cr-btn cr-btn-primary cr-opener-link-submit',
+                                    onClick: saveDefaults,
+                                    disabled: updatingLinks || defaultsDraft === null
+                                }, updatingLinks ? 'Saving…' : 'Save defaults')
+                            )
+                        )
+                    ),
                     loading && h('div', { className: 'cr-state-box' },
                         h('div', { className: 'cr-spinner' }),
                         h('span', { className: 'cr-state-desc' }, 'Loading accounts...')
@@ -2229,8 +2179,8 @@
                     ),
                     !loading && h('div', { className: 'cr-playlist-grid' },
                         (accounts || []).map(acct => {
-                            const isEditing = editingId === acct.id;
-                            const normalized = normalizeApps(acct.enabledApps);
+                            const isEditing = editingAccount?.id === acct.id;
+                            const normalized = normalizeOpenerApps(acct.enabledApps);
 
                             if (isEditing) {
                                 return h('div', { key: acct.id, className: 'cr-playlist-card', style: { borderColor: 'var(--cr-accent)' } },
@@ -2255,21 +2205,22 @@
                                         })
                                     ),
                                     h('div', { className: 'cr-form-group', style: { marginBottom: '6px' } },
-                                        h('label', { className: 'cr-form-label' }, 'Apps & Links'),
-                                        renderAppEditor(editApps, setEditApps, editCustomName, setEditCustomName, editCustomUrl, setEditCustomUrl)
+                                        h('span', { className: 'cr-form-label' }, 'Apps & Links'),
+                                        h(OpenerAppEditor, { apps: editApps, onChange: setEditApps, toast, disabled: saving })
                                     ),
                                     h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '12px' } },
                                         h('button', {
                                             type: 'button',
                                             className: 'cr-btn cr-btn-secondary',
                                             style: { padding: '4px 10px', fontSize: '0.74rem' },
+                                            disabled: saving,
                                             onClick: cancelEdit
                                         }, 'Cancel'),
                                         h('button', {
                                             type: 'button',
                                             className: 'cr-btn cr-btn-primary',
                                             style: { padding: '4px 10px', fontSize: '0.74rem' },
-                                            disabled: saving || !editName.trim() || editApps.length === 0,
+                                            disabled: saving || !editName.trim(),
                                             onClick: saveEdit
                                         }, saving ? 'Saving...' : 'Save')
                                     )
@@ -2283,11 +2234,11 @@
                                     h('div', { className: 'cr-playlist-id' }, acct.profileId || 'No profile ID')
                                 ),
                                 h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '10px 0' } },
-                                    normalized.map(app => {
+                                    normalized.map((app, index) => {
                                         let domain = '';
                                         try { domain = new URL(app.url).hostname; } catch {}
                                         return h('span', {
-                                            key: app.url,
+                                            key: `${app.url}-${index}`,
                                             style: {
                                                 fontSize: '0.68rem',
                                                 fontFamily: 'var(--font-mono, monospace)',
@@ -2303,6 +2254,7 @@
                                         },
                                             domain && h('img', {
                                                 src: app.icon || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+                                                alt: '',
                                                 style: { width: '12px', height: '12px', borderRadius: '2px' }
                                             }),
                                             app.name
@@ -2335,6 +2287,169 @@
                 )
             )
         );
+    }
+
+    function OpenerAppEditor({ apps, onChange, toast, disabled }) {
+        const [customN, setCustomN] = useState('');
+        const [customU, setCustomU] = useState('');
+
+        const addCustomApp = () => {
+            const name = customN.trim().slice(0, 50);
+            if (!name || !customU.trim()) {
+                toast('Please enter both name and URL for the custom link.', 'warning');
+                return;
+            }
+            let url;
+            try {
+                url = new URL(customU.trim());
+            } catch {
+                toast('Please enter a valid website URL.', 'warning');
+                return;
+            }
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                toast('URL must begin with http:// or https://', 'warning');
+                return;
+            }
+            if (apps.some(app => openerUrlKey(app.url) === url.href)) {
+                toast('This URL is already selected.', 'warning');
+                return;
+            }
+            onChange([...apps, { name, url: url.href, icon: '' }]);
+            setCustomN('');
+            setCustomU('');
+        };
+
+        const handleCustomEnter = (event) => {
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+            event.preventDefault();
+            addCustomApp();
+        };
+
+        return h('fieldset', { className: 'cr-opener-app-editor', disabled, 'aria-label': 'Apps and links' },
+            // Preset quick buttons
+            h('div', null,
+                h('span', { style: { fontSize: '0.72rem', color: 'var(--cr-text-muted)', fontFamily: 'var(--font-mono)' } }, 'QUICK PRESETS:'),
+                h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' } },
+                    OPENER_PRESETS.map(preset => {
+                        const url = openerUrlKey(preset.url);
+                        const isSelected = apps.some(app => openerUrlKey(app.url) === url);
+                        return h('button', {
+                            key: preset.id,
+                            type: 'button',
+                            'aria-pressed': isSelected,
+                            onClick: () => onChange(isSelected
+                                ? apps.filter(app => openerUrlKey(app.url) !== url)
+                                : [...apps, { name: preset.name, url, icon: '' }]),
+                            style: {
+                                fontSize: '0.74rem',
+                                fontFamily: 'var(--font-mono, monospace)',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                border: '1px solid ' + (isSelected ? preset.color : 'var(--cr-border)'),
+                                background: isSelected ? preset.color + '22' : 'transparent',
+                                color: isSelected ? preset.color : 'var(--cr-text-secondary)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                            }
+                        },
+                            h('img', {
+                                src: `https://www.google.com/s2/favicons?domain=${new URL(preset.url).hostname}&sz=32`,
+                                alt: '',
+                                style: { width: '12px', height: '12px', borderRadius: '2px' }
+                            }),
+                            preset.name
+                        );
+                    })
+                )
+            ),
+
+            // Selected Links Chips
+            h('div', null,
+                h('span', { style: { fontSize: '0.72rem', color: 'var(--cr-text-muted)', fontFamily: 'var(--font-mono)' } }, `SELECTED LINKS (${apps.length})`),
+                apps.length === 0 && h('p', { className: 'cr-opener-help' }, 'No links selected.'),
+                h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' } },
+                    apps.map((app, index) => {
+                        let domain = '';
+                        try { domain = new URL(app.url).hostname; } catch {}
+                        return h('span', {
+                            key: `${app.url}-${index}`,
+                            style: {
+                                fontSize: '0.74rem',
+                                fontFamily: 'var(--font-mono, monospace)',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                background: 'var(--cr-surface-2)',
+                                border: '1px solid var(--cr-border)',
+                                color: 'var(--cr-text-primary)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }
+                        },
+                            domain && h('img', {
+                                src: app.icon || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+                                alt: '',
+                                style: { width: '14px', height: '14px', borderRadius: '2px' }
+                            }),
+                            h('span', { style: { fontWeight: 500 } }, app.name),
+                            h('button', {
+                                type: 'button',
+                                title: `Remove ${app.name}`,
+                                'aria-label': `Remove ${app.name}`,
+                                onClick: () => onChange(apps.filter((_, appIndex) => appIndex !== index)),
+                                style: {
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'var(--cr-danger)',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    padding: '0 2px',
+                                    fontSize: '0.85rem',
+                                    lineHeight: 1
+                                }
+                            }, '×')
+                        );
+                    })
+                )
+            ),
+
+            // Add Custom Link Inputs
+            h('div', { style: { background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '4px', border: '1px dashed var(--cr-border)' } },
+                h('div', { style: { fontSize: '0.72rem', color: 'var(--cr-accent)', fontFamily: 'var(--font-mono)', marginBottom: '6px' } }, '+ ADD CUSTOM LINK'),
+                h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } },
+                    h('input', {
+                        type: 'text',
+                        placeholder: 'Name (e.g. Kimi, Perplexity)',
+                        'aria-label': 'Custom link name',
+                        maxLength: 50,
+                        value: customN,
+                        onChange: e => setCustomN(e.target.value),
+                        onKeyDown: handleCustomEnter,
+                        className: 'cr-form-input',
+                        style: { flex: '1 1 120px', fontSize: '0.75rem', padding: '4px 8px' }
+                    }),
+                    h('input', {
+                        type: 'text',
+                        inputMode: 'url',
+                        placeholder: 'URL (https://...)',
+                        'aria-label': 'Custom link URL',
+                        value: customU,
+                        onChange: e => setCustomU(e.target.value),
+                        onKeyDown: handleCustomEnter,
+                        className: 'cr-form-input',
+                        style: { flex: '2 1 180px', fontSize: '0.75rem', padding: '4px 8px' }
+                    }),
+                    h('button', {
+                        type: 'button',
+                        className: 'cr-btn cr-btn-secondary',
+                        style: { padding: '4px 10px', fontSize: '0.72rem' },
+                        onClick: addCustomApp
+                    }, '+ Add Link')
+                )
+            )
+            );
     }
 
     // =========================================================================

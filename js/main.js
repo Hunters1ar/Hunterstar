@@ -33,7 +33,7 @@
 
     const consoleProfileLines = [
         'Backend Architect // AI Engineer // Fullstack Developer',
-        'AI systems | secure APIs | Firebase | SQL | NoSQL | polished web apps',
+        'AI systems | secure APIs | PostgreSQL | SQL | NoSQL | polished web apps',
         'GitHub   https://github.com/Hunters1ar',
         'LinkedIn https://www.linkedin.com/in/khurshidkhursandov',
         'Telegram https://t.me/Hunters1ar'
@@ -635,7 +635,7 @@
             },
             stack: {
                 lines: [
-                    'Core stack: HTML, CSS, JavaScript, TypeScript, React, Next.js, Node.js, Firebase, Python, SQL, NoSQL, Three.js.',
+                    'Core stack: HTML, CSS, JavaScript, TypeScript, React, Next.js, Node.js, PostgreSQL, Python, SQL, NoSQL, Three.js.',
                     'Opening the stack section...'
                 ],
                 target: '#stack'
@@ -889,8 +889,8 @@
                 message: document.getElementById('message').value
             };
 
-            if (window.firebaseConfig && window.firebaseConfig.validateFormData) {
-                const validation = window.firebaseConfig.validateFormData(formData);
+            if (window.portfolioApi && window.portfolioApi.validateFormData) {
+                const validation = window.portfolioApi.validateFormData(formData);
 
                 if (!validation.valid) {
                     showStatus(validation.error, 'error');
@@ -898,18 +898,18 @@
                 }
             }
 
-            if (window.firebaseConfig && window.firebaseConfig.sanitizeInput) {
-                formData.name = window.firebaseConfig.sanitizeInput(formData.name);
-                formData.email = window.firebaseConfig.sanitizeInput(formData.email);
-                formData.subject = window.firebaseConfig.sanitizeInput(formData.subject);
-                formData.message = window.firebaseConfig.sanitizeInput(formData.message);
+            if (window.portfolioApi && window.portfolioApi.sanitizeInput) {
+                formData.name = window.portfolioApi.sanitizeInput(formData.name);
+                formData.email = window.portfolioApi.sanitizeInput(formData.email);
+                formData.subject = window.portfolioApi.sanitizeInput(formData.subject);
+                formData.message = window.portfolioApi.sanitizeInput(formData.message);
             }
 
             setLoading(true);
 
             try {
-                if (window.firebaseConfig && window.firebaseConfig.submitToFirebase) {
-                    const result = await window.firebaseConfig.submitToFirebase(formData);
+                if (window.portfolioApi && window.portfolioApi.submitContactForm) {
+                    const result = await window.portfolioApi.submitContactForm(formData);
 
                     if (result.success) {
                         showStatus(result.message, 'success');
@@ -918,9 +918,7 @@
                         showStatus(result.message, 'error');
                     }
                 } else {
-                    await new Promise((resolve) => window.setTimeout(resolve, 1000));
-                    showStatus('Message received! Configure Firebase for real submissions.', 'success');
-                    contactForm.reset();
+                    showStatus('The contact service could not load. Refresh and try again.', 'error');
                 }
             } catch (error) {
                 console.error('Form submission error:', error);
@@ -1003,8 +1001,8 @@
     }
 
     function getArchiveAttachmentKind(contentType, fileName) {
-        if (window.firebaseConfig && typeof window.firebaseConfig.getAttachmentKind === 'function') {
-            return window.firebaseConfig.getAttachmentKind(contentType, fileName);
+        if (window.portfolioApi && typeof window.portfolioApi.getAttachmentKind === 'function') {
+            return window.portfolioApi.getAttachmentKind(contentType, fileName);
         }
 
         const type = String(contentType || '').toLowerCase();
@@ -1693,9 +1691,9 @@
         setKnowledgeStatus(boxes.length === 1 ? '1 note published.' : boxes.length + ' notes published.');
     }
 
-    if (window.firebaseConfig && typeof window.firebaseConfig.subscribeToPublicContentBoxes === 'function') {
+    if (window.portfolioApi && typeof window.portfolioApi.subscribeToPublicContentBoxes === 'function') {
         try {
-            window.firebaseConfig.subscribeToPublicContentBoxes((boxes) => {
+            window.portfolioApi.subscribeToPublicContentBoxes((boxes) => {
                 renderKnowledgeBoxes(boxes);
             }, (error) => {
                 console.warn('Public content boxes are unavailable:', error);
@@ -1721,7 +1719,7 @@
         }
     } else if (knowledgeSection) {
         if (document.body.classList.contains('archive-page-body')) {
-            setKnowledgeStatus('Firebase content helper is missing.');
+            setKnowledgeStatus('The archive API client could not load.');
         } else {
             knowledgeSection.classList.add('hidden');
         }

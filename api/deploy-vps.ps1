@@ -44,7 +44,7 @@ $sshOptions = @(
 Set-Location -LiteralPath $projectRoot
 
 Invoke-Step {
-    $items = @('.firebaserc', '.gitignore', '.vercelignore', 'vercel.json', 'firebase.json', 'firestore.rules', 'storage.rules', 'package.json', 'cspell.json', 'README.md', 'robots.txt', 'sitemap.xml', 'deploy.bat', '*.html', 'css', 'js', 'assets', 'private', 'functions', 'api')
+    $items = @('.gitignore', '.vercelignore', 'vercel.json', 'package.json', 'cspell.json', 'README.md', 'robots.txt', 'sitemap.xml', 'deploy.bat', '*.html', 'css', 'js', 'assets', 'private', 'functions', 'api')
     $existingItems = $items | Where-Object { $_ -eq '*.html' -or (Test-Path -Path $_) }
     & git add -A -- $existingItems
 } 'git add failed'
@@ -98,7 +98,7 @@ if (Test-Path -LiteralPath 'private') {
     Invoke-Step { & scp @sshOptions private/index.html private/book.html ($vpsHost + ':' + $remoteDir + '/site/private/') } 'SCP private HTML upload failed'
 }
 Invoke-Step { & scp @sshOptions css/styles.css css/admin-dashboard.css ($vpsHost + ':' + $remoteDir + '/site/css/') } 'SCP admin CSS upload failed'
-Invoke-Step { & scp @sshOptions js/admin.js js/firebase-config.js ($vpsHost + ':' + $remoteDir + '/site/js/') } 'SCP admin JS upload failed'
+Invoke-Step { & scp @sshOptions js/admin.js js/portfolio-api.js ($vpsHost + ':' + $remoteDir + '/site/js/') } 'SCP admin JS upload failed'
 
 $privateStaticFiles = @(
     'favicon-96x96.png',

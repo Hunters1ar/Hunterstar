@@ -8,8 +8,14 @@ and port **8080** are never restarted, edited, or used by this API.
 The Python standard-library API runs on loopback port 8091. Caddy exposes only
 its portfolio routes through the existing HTTPS domain:
 
-- `POST https://api.moonlightsoldiers.xyz/api/pet/chat`
-- `GET https://api.moonlightsoldiers.xyz/api/pet/health`
+- `POST https://image.hunterstar.uz/api/pet/chat`
+- `GET https://image.hunterstar.uz/api/pet/health`
+
+The pet route shares Hunterella's existing `image.hunterstar.uz` HTTPS host;
+other paths retain the image service's existing proxy. `proxy.py` adds only the
+pet handler and preserves all other Caddy routes. The former
+`api.moonlightsoldiers.xyz` address no longer resolves to Hunterella and must not
+be used by the portfolio.
 
 Chat accepts `{ "messages": [{ "role": "user", "content": "Hello" }], "stream": true }`.
 It returns `text/event-stream` with `start`, `token` (`{ "token": "…" }`), and
@@ -37,11 +43,16 @@ upstream deadline; the browser waits up to 125 seconds.
 Run checks locally:
 
 ```powershell
-python -m unittest discover -s api/pet -p test_server.py
+python -m unittest discover -s api/pet -p "test_*.py"
 npm run test:pet
 ```
 
-To deploy an update, copy this directory to a temporary directory on Hunterella
+The original systemd deployment is described below. The current production API
+and model run in the `hunterella-ai` container, with ports 8090 and 8091 published
+on the host's loopback interface. For a proxy-only update, validate and reload
+host Caddy; do not run the systemd installer against these occupied ports.
+
+For a systemd deployment, copy this directory to a temporary directory on Hunterella
 using the existing SSH alias, then run `python3 install.py` there as root.
 `python3 download-q3.py` obtains and verifies an optional additional Q3 model;
 the CLI model remains in place. `python3 benchmark.py` measures only port 8090. The

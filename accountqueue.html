@@ -234,10 +234,30 @@
             text-transform: uppercase;
         }
 
-        .quick-tool-btn:hover {
+        .quick-tool-btn:hover:not(:disabled) {
             border-color: var(--color-text-primary);
             color: var(--color-text-primary);
             background: var(--color-bg-tertiary);
+        }
+
+        .quick-tool-btn:disabled {
+            cursor: wait;
+            opacity: 0.65;
+        }
+
+        .queue-admin-export-status {
+            color: var(--color-text-secondary);
+            font-size: 0.8rem;
+            margin: 0;
+        }
+
+        .queue-admin-export-status:not(:empty) {
+            margin-top: 0.5rem;
+        }
+
+        .queue-admin-export-status a {
+            color: var(--color-text-primary);
+            text-decoration: underline;
         }
 
         /* Inline Duplicate Warning Banner */
@@ -999,11 +1019,15 @@
                     <button type="button" class="quick-tool-btn" id="openExportBtn">
                         <span>📥</span> Export
                     </button>
+                    <button type="button" class="quick-tool-btn" id="exportToAdminBtn">
+                        Export account to admin
+                    </button>
                 </div>
                 <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-muted);" id="queueSyncIndicator">
                     ● Synced
                 </div>
             </div>
+            <p class="queue-admin-export-status" id="adminExportStatus" role="status"></p>
         </div>
 
         <!-- Filter / Search Toolbar -->
@@ -1199,9 +1223,9 @@
     <script src="js/main.js"></script>
 
     <script type="module">
-        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3001'
-            : 'https://api.hunterstar.uz';
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const API_BASE = isLocal ? 'http://localhost:3001' : 'https://api.hunterstar.uz';
+        const ADMIN_URL = isLocal ? '/admin.html' : 'https://admin.hunterstar.uz/';
 
         async function queueRequest(route='', method='GET', body) {
             const response = await fetch(API_BASE + '/api/account-queue' + route, {
@@ -1398,7 +1422,7 @@
                 infoInput.classList.add('input-warning');
                 dupBanner.classList.add('show');
                 const colName = existing.isPast ? 'Available' : 'Upcoming';
-                dupBannerText.innerHTML = `Account already in <strong>${colName}</strong> (${formatDateDisplay(existing.date)})`;
+                dupBannerText.innerHTML = `Account already in <strong>${colName}</strong> (${escapeHtml(formatDateDisplay(existing.date))})`;
                 inputStatusText.textContent = '⚠ DUPLICATE DETECTED';
                 inputStatusText.style.color = '#ffaa00';
 
@@ -1842,6 +1866,47 @@
         // --- Export Feature ---
         document.getElementById('openExportBtn').addEventListener('click', () => openModal('exportModal'));
 
+        const exportToAdminBtn = document.getElementById('exportToAdminBtn');
+        const adminExportStatus = document.getElementById('adminExportStatus');
+
+        exportToAdminBtn.addEventListener('click', async () => {
+            exportToAdminBtn.disabled = true;
+            adminExportStatus.textContent = 'Exporting the full queue to Opener Accounts…';
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/opener-accounts/import-queue`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'X-Admin-Activity': '1' }
+                });
+                if (response.status === 401) {
+                    const link = document.createElement('a');
+                    link.href = ADMIN_URL;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    link.textContent = 'Sign in to admin';
+                    adminExportStatus.replaceChildren(link, ', then return here and try again.');
+                    return;
+                }
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    adminExportStatus.textContent = data.error || 'Could not export accounts. Try again.';
+                    return;
+                }
+                const { addedCount, skippedCount } = data;
+                const exported = addedCount === 1 ? 'Exported 1 account' : `Exported ${addedCount} accounts`;
+                const skipped = skippedCount ? ` Skipped ${skippedCount} ${skippedCount === 1 ? 'entry' : 'entries'}.` : '';
+                adminExportStatus.textContent = addedCount || skippedCount
+                    ? `${exported} to Opener Accounts.${skipped}`
+                    : 'The queue is empty.';
+            } catch (error) {
+                console.error('Queue export to admin failed:', error);
+                adminExportStatus.textContent = 'Could not export accounts. Try again.';
+            } finally {
+                exportToAdminBtn.disabled = false;
+            }
+        });
+
         document.getElementById('btnExportCopyAvailable').addEventListener('click', () => {
             const available = items.filter(i => i.isPast).map(i => i.text).join('\n');
             navigator.clipboard.writeText(available);
@@ -2041,8 +2106,8 @@
                     el.innerHTML = `
                         <div class="card-edit-form">
                             <div class="card-edit-inputs">
-                                <input type="text" class="queue-input card-edit-text" value="${escapeHtml(item.text)}" placeholder="Account email/username">
-                                <input type="date" class="queue-input card-edit-date" value="${item.date}">
+                                <input type="text" class="queue-input card-edit-text" placeholder="Account email/username">
+                                <input type="date" class="queue-input card-edit-date">
                             </div>
                             <div class="card-edit-actions">
                                 <button type="button" class="btn-action" style="border-color:#10b981; color:#34d399;" onclick="window.saveItem('${item.id}')">✓ Save</button>
@@ -2050,10 +2115,12 @@
                             </div>
                         </div>
                     `;
+                    el.querySelector('.card-edit-text').value = item.text;
+                    el.querySelector('.card-edit-date').value = item.date;
                 } else {
                     // Normal View Mode
                     let actionButtonsHtml = `
-                        <button type="button" class="btn-action btn-copy" onclick="window.copyItemText('${escapeHtml(item.text)}', this)">📋 Copy</button>
+                        <button type="button" class="btn-action btn-copy">📋 Copy</button>
                         <button type="button" class="btn-action btn-edit" onclick="window.startItemEdit('${item.id}')">✏ Edit</button>
                     `;
 
@@ -2081,12 +2148,14 @@
                                     ${isDup ? `<span class="badge-dup" title="This account appears multiple times">⚠ Duplicate (${dupMap.get(key).length})</span>` : ''}
                                 </div>
                             </div>
-                            <div class="item-date">${formatDateDisplay(item.date)}</div>
+                            <div class="item-date">${escapeHtml(formatDateDisplay(item.date))}</div>
                         </div>
                         <div class="item-actions">
                             ${actionButtonsHtml}
                         </div>
                     `;
+                    const copyButton = el.querySelector('.btn-copy');
+                    copyButton.addEventListener('click', () => copyAccountText(item.text, copyButton));
                 }
 
                 container.appendChild(el);
@@ -2138,7 +2207,6 @@
         window.deleteItem = promptDelete;
         window.rescheduleDays = rescheduleDays;
         window.makeAvailableNow = setDateToToday;
-        window.copyItemText = copyAccountText;
         window.startItemEdit = startEditing;
         window.cancelItemEdit = cancelEditing;
         window.saveItem = saveEditing;

@@ -6,9 +6,11 @@ const { createStore } = require('./postgres-store');
 const { createBucket } = require('./local-bucket');
 const { verifyPassword } = require('./local-auth');
 const multer = require('multer');
+const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { isDeepStrictEqual } = require('node:util');
 const QRCode = require('qrcode');
 const { generateSecret, generateURI, verify: verifyOtpToken } = require('otplib');
 
@@ -93,6 +95,8 @@ const PRIVATE_DIARY_COLLECTION = 'private_diary_pages';
 const PRIVATE_DIARY_STORAGE_FOLDER = 'private-diary';
 const PRIVATE_DIARY_TEXT_MAX_LENGTH = 120000;
 const OPENER_ACCOUNTS_COLLECTION = 'opener_accounts';
+const OPENER_CREATION_LOCK = 'portfolio:opener-account-creation';
+const ACCOUNT_QUEUE_COLLECTION = 'account_queue';
 
 // PostgreSQL and filesystem storage
 const db = createStore();
@@ -467,7 +471,7 @@ GitHub: https://github.com/Hunters1ar
 
 === TECHNICAL EXPERTISE ===
 Backend: Node.js, Express, NestJS, FastAPI, Python, REST APIs, GraphQL, Microservices
-Databases: Firebase (Firestore, Storage, Auth), PostgreSQL, MySQL, MongoDB, Redis, Prisma, SQL, NoSQL
+Databases: PostgreSQL, MySQL, MongoDB, Redis, Prisma, SQL, NoSQL
 Frontend: React, Next.js, TypeScript, JavaScript, HTML/CSS, Three.js
 AI/ML: Machine Learning, TensorFlow, PyTorch, LLMs, NLP, Computer Vision, AI Engineering
 DevOps: VPS deployment, PM2, Nginx, SSL/Certbot, SSH, Linux, CI/CD
@@ -568,6 +572,28 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
 });
+const MAX_ARCHIVE_UPLOAD_BYTES = 150 * 1024 * 1024;
+const archiveUpload = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, done) => done(null, req.archiveUploadDir)
+    }),
+    limits: { fileSize: MAX_ARCHIVE_UPLOAD_BYTES + 1 }
+}).array('files', 20);
+
+function readArchiveFiles(req, res) {
+    return new Promise((resolve, reject) => {
+        const handleClose = () => {
+            if (!req.complete) reject(Object.assign(new Error('Archive upload interrupted.'), { code: 'UPLOAD_INTERRUPTED' }));
+        };
+        if (req.destroyed && !req.complete) return handleClose();
+        req.once('close', handleClose);
+        archiveUpload(req, res, (error) => {
+            req.off('close', handleClose);
+            if (error) reject(error);
+            else resolve();
+        });
+    });
+}
 
 // ---------------------------------------------------------------------------
 // Session Management (simple token-based via secure httpOnly cookie)
@@ -1097,11 +1123,11 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Account queue has the same public access as the previous Firestore rules.
+// The account queue is public.
 const queueWriteLimiter=rateLimit({windowMs:15*60*1000,max:120,standardHeaders:true,legacyHeaders:false});
 app.get('/api/account-queue', publicLimiter, async (req, res, next) => {
     try {
-        const result=await db.collection('account_queue').get();
+        const result=await db.collection(ACCOUNT_QUEUE_COLLECTION).get();
         res.json({ok:true,items:result.docs.map(doc=>({id:doc.id,...doc.data()}))});
     } catch(error) { next(error); }
 });
@@ -1113,7 +1139,7 @@ app.post('/api/account-queue', queueWriteLimiter, async (req, res, next) => {
         }
         const trimmed = text.trim();
         if (!allowDuplicate) {
-            const allDocs = await db.collection('account_queue').get();
+            const allDocs = await db.collection(ACCOUNT_QUEUE_COLLECTION).get();
             const lower = trimmed.toLowerCase();
             const existing = allDocs.docs.find(d => {
                 const itemData = d.data();
@@ -1128,7 +1154,7 @@ app.post('/api/account-queue', queueWriteLimiter, async (req, res, next) => {
                 });
             }
         }
-        const ref = await db.collection('account_queue').add({ text: trimmed, date, createdAt: Date.now() });
+        const ref = await db.collection(ACCOUNT_QUEUE_COLLECTION).add({ text: trimmed, date, createdAt: Date.now() });
         res.json({ ok: true, id: ref.id });
     } catch(error) { next(error); }
 });
@@ -1141,7 +1167,7 @@ app.post('/api/account-queue/batch', queueWriteLimiter, async (req, res, next) =
         if (batchItems.length > 200) {
             return res.status(400).json({ ok: false, error: 'Maximum 200 items per batch.' });
         }
-        const allDocs = await db.collection('account_queue').get();
+        const allDocs = await db.collection(ACCOUNT_QUEUE_COLLECTION).get();
         const existingSet = new Set(
             allDocs.docs
                 .map(d => typeof d.data().text === 'string' ? d.data().text.trim().toLowerCase() : '')
@@ -1165,7 +1191,7 @@ app.post('/api/account-queue/batch', queueWriteLimiter, async (req, res, next) =
                 continue;
             }
             existingSet.add(lower);
-            const ref = await db.collection('account_queue').add({ text: trimmed, date, createdAt: now });
+            const ref = await db.collection(ACCOUNT_QUEUE_COLLECTION).add({ text: trimmed, date, createdAt: now });
             added.push({ id: ref.id, text: trimmed, date });
         }
         res.json({ ok: true, addedCount: added.length, skippedCount: skipped.length, added, skipped });
@@ -1188,7 +1214,7 @@ app.patch('/api/account-queue/:id', queueWriteLimiter, async (req, res, next) =>
             }
             updateData.text = text.trim();
         }
-        const ref = db.collection('account_queue').doc(req.params.id);
+        const ref = db.collection(ACCOUNT_QUEUE_COLLECTION).doc(req.params.id);
         if (!(await ref.get()).exists) return res.status(404).json({ ok: false, error: 'Item not found.' });
         await ref.update(updateData);
         res.json({ ok: true });
@@ -1201,14 +1227,14 @@ app.delete('/api/account-queue/batch', queueWriteLimiter, async (req, res, next)
             return res.status(400).json({ ok: false, error: 'Array of ids required.' });
         }
         for (const id of ids) {
-            await db.collection('account_queue').doc(id).delete();
+            await db.collection(ACCOUNT_QUEUE_COLLECTION).doc(id).delete();
         }
         res.json({ ok: true, deletedCount: ids.length });
     } catch(error) { next(error); }
 });
 app.delete('/api/account-queue/:id', queueWriteLimiter, async (req, res, next) => {
     try {
-        await db.collection('account_queue').doc(req.params.id).delete();
+        await db.collection(ACCOUNT_QUEUE_COLLECTION).doc(req.params.id).delete();
         res.json({ ok: true });
     } catch(error) { next(error); }
 });
@@ -1929,8 +1955,17 @@ app.get('/api/admin/content-boxes', requireAdmin, adminLimiter, async (req, res)
 });
 
 // Save content box (create or update) (admin)
-app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, upload.array('files', 20), async (req, res) => {
+app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, async (req, res) => {
+    const uploadedAttachments = [];
+    let boxSaved = false;
     try {
+        req.archiveUploadDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'portfolio-archive-'));
+        await readArchiveFiles(req, res);
+        const files = req.files || [];
+        if (files.reduce((total, file) => total + file.size, 0) > MAX_ARCHIVE_UPLOAD_BYTES) {
+            return res.status(413).json({ ok: false, error: 'Archive attachments must total 150 MiB or less per save.' });
+        }
+
         const payload = JSON.parse(req.body.payload || '{}');
         const title = typeof payload.title === 'string' ? payload.title.trim() : '';
         const summary = typeof payload.summary === 'string' ? payload.summary.trim() : '';
@@ -1951,39 +1986,34 @@ app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, upload.array('f
         const boxId = docRef.id;
 
         // Upload new files to the VPS bucket
-        const uploadedAttachments = [];
-        if (req.files && req.files.length > 0) {
-            for (const file of req.files) {
-                const attachmentId = crypto.randomBytes(16).toString('hex');
-                const safeName = sanitizeStorageFileName(file.originalname);
-                const storagePath = `${ARCHIVE_STORAGE_FOLDER}/${boxId}/${Date.now()}-${attachmentId}-${safeName}`;
-                const contentType = file.mimetype || 'application/octet-stream';
-                const downloadToken = crypto.randomBytes(16).toString('hex');
-                const fileRef = bucket.file(storagePath);
-                await fileRef.save(file.buffer, {
-                    metadata: {
-                        contentType,
-                        cacheControl: 'private, max-age=0, no-transform',
-                        metadata: {
-                            downloadTokens: downloadToken,
-                            boxId,
-                            originalName: file.originalname,
-                            uploadedBy: req.adminSession.uid
-                        }
-                    }
-                });
-                const url = bucket.url(storagePath, downloadToken);
-                uploadedAttachments.push({
-                    id: attachmentId,
-                    name: file.originalname,
-                    path: storagePath,
-                    url,
+        for (const file of files) {
+            const attachmentId = crypto.randomBytes(16).toString('hex');
+            const safeName = sanitizeStorageFileName(file.originalname);
+            const storagePath = `${ARCHIVE_STORAGE_FOLDER}/${boxId}/${Date.now()}-${attachmentId}-${safeName}`;
+            const contentType = file.mimetype || 'application/octet-stream';
+            const downloadToken = crypto.randomBytes(16).toString('hex');
+            uploadedAttachments.push({
+                id: attachmentId,
+                name: file.originalname,
+                path: storagePath,
+                url: bucket.url(storagePath, downloadToken),
+                contentType,
+                size: file.size,
+                kind: getAttachmentKind(contentType, file.originalname),
+                uploadedAt: new Date().toISOString()
+            });
+            await bucket.file(storagePath).saveFromFile(file.path, file.size, {
+                metadata: {
                     contentType,
-                    size: file.size,
-                    kind: getAttachmentKind(contentType, file.originalname),
-                    uploadedAt: new Date().toISOString()
-                });
-            }
+                    cacheControl: 'private, max-age=0, no-transform',
+                    metadata: {
+                        downloadTokens: downloadToken,
+                        boxId,
+                        originalName: file.originalname,
+                        uploadedBy: req.adminSession.uid
+                    }
+                }
+            });
         }
 
 
@@ -2012,6 +2042,7 @@ app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, upload.array('f
         }
 
         await docRef.set(boxData, { merge: Boolean(payload.id) });
+        boxSaved = true;
 
         // Delete removed attachment files from Storage
         for (const att of removedAttachments) {
@@ -2026,10 +2057,27 @@ app.post('/api/admin/content-boxes', requireAdmin, adminLimiter, upload.array('f
             }
         }
 
-        res.json({ ok: true, id: boxId });
+        res.json({ ok: true, id: boxId, attachments: boxData.attachments });
     } catch (error) {
+        if (error.code === 'UPLOAD_INTERRUPTED') return;
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ ok: false, error: 'Archive attachments must total 150 MiB or less per save.' });
+        }
+        if (error instanceof multer.MulterError) {
+            return res.status(400).json({ ok: false, error: 'Attach up to 20 files per save.' });
+        }
         console.error('Save content box error:', error);
         res.status(500).json({ ok: false, error: 'Failed to save content box: ' + error.message });
+    } finally {
+        if (!boxSaved) {
+            for (const attachment of uploadedAttachments) {
+                await bucket.file(attachment.path).delete().catch(error => console.warn('Could not clean up archive file:', error.message));
+            }
+        }
+        if (req.archiveUploadDir) {
+            await fs.promises.rm(req.archiveUploadDir, { recursive: true, force: true })
+                .catch(error => console.warn('Could not clean up archive upload:', error.message));
+        }
     }
 });
 
@@ -2152,8 +2200,6 @@ app.delete('/api/admin/playlists/:id', requireAdmin, adminLimiter, async (req, r
 });
 
 // ---------------------------------------------------------------------------
-// OPENER ACCOUNT ROUTES
-// ---------------------------------------------------------------------------
 // OPENER ACCOUNT ROUTES & HELPERS
 // ---------------------------------------------------------------------------
 
@@ -2167,6 +2213,9 @@ const PRESET_APPS = {
     copilot: { name: 'Copilot', url: 'https://copilot.microsoft.com', icon: '' },
     poe: { name: 'Poe', url: 'https://poe.com', icon: '' }
 };
+const DEFAULT_OPENER_PRESETS = ['chatgpt', 'claude', 'gemini', 'kimi'];
+const openerDefaultsDoc = db.collection('opener_settings').doc('defaults');
+const QUEUE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isPrivateIpOrHost(hostname) {
     if (!hostname) return true;
@@ -2209,31 +2258,41 @@ function validateAndSanitizeUrl(value) {
 function normalizeEnabledApps(apps) {
     if (!Array.isArray(apps)) return [];
     const normalized = [];
-    for (const item of apps) {
-        if (!item) continue;
-        if (typeof item === 'string') {
-            const key = item.toLowerCase().trim();
-            if (PRESET_APPS[key]) {
-                normalized.push({
-                    name: PRESET_APPS[key].name,
-                    url: PRESET_APPS[key].url,
-                    icon: PRESET_APPS[key].icon || ''
-                });
-            }
-        } else if (typeof item === 'object') {
-            const name = typeof item.name === 'string' ? item.name.trim().slice(0, 50) : '';
-            const validUrl = validateAndSanitizeUrl(item.url);
-            const icon = typeof item.icon === 'string' ? (validateAndSanitizeUrl(item.icon) || '') : '';
-            if (name && validUrl) {
-                normalized.push({
-                    name,
-                    url: validUrl,
-                    icon
-                });
-            }
+    for (const entry of apps) {
+        let item = entry;
+        if (typeof entry === 'string') {
+            const key = entry.toLowerCase().trim();
+            item = Object.hasOwn(PRESET_APPS, key) ? PRESET_APPS[key] : null;
+        }
+        if (!item || typeof item !== 'object') continue;
+
+        const name = typeof item.name === 'string' ? item.name.trim().slice(0, 50) : '';
+        const url = validateAndSanitizeUrl(item.url);
+        const icon = validateAndSanitizeUrl(item.icon) || '';
+        if (name && url) {
+            normalized.push({ name, url, icon });
         }
     }
     return normalized;
+}
+
+function parseOpenerLinks(apps) {
+    if (!Array.isArray(apps)) return null;
+    const links = normalizeEnabledApps(apps);
+    return links.length === apps.length ? links : null;
+}
+
+async function getOpenerDefaults() {
+    const doc = await openerDefaultsDoc.get();
+    return normalizeEnabledApps(doc.data()?.enabledApps ?? DEFAULT_OPENER_PRESETS);
+}
+
+function openerProfileId() {
+    return 'acct_' + crypto.randomBytes(6).toString('hex');
+}
+
+function openerIdentity(value) {
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
 // Public: list opener accounts (no email exposed)
@@ -2288,6 +2347,119 @@ app.get('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, re
     }
 });
 
+app.get('/api/admin/opener-accounts/defaults', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        res.json({ ok: true, enabledApps: await getOpenerDefaults() });
+    } catch (error) {
+        console.error('Load opener defaults error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to load default opener links.' });
+    }
+});
+
+app.put('/api/admin/opener-accounts/defaults', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        const links = parseOpenerLinks(req.body?.enabledApps);
+        if (!links) {
+            return res.status(400).json({ ok: false, error: 'Each default link needs a name and a valid public HTTP or HTTPS URL.' });
+        }
+        const enabledApps = [...new Map(links.map(link => [link.url, link])).values()];
+        await openerDefaultsDoc.set({ enabledApps });
+        res.json({ ok: true, enabledApps });
+    } catch (error) {
+        console.error('Save opener defaults error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to save default opener links.' });
+    }
+});
+
+app.post('/api/admin/opener-accounts/bulk-links', requireAdmin, adminLimiter, async (req, res) => {
+    try {
+        const links = parseOpenerLinks(req.body?.enabledApps);
+        if (!links?.length) {
+            return res.status(400).json({ ok: false, error: 'Add at least one link with a name and a valid public HTTP or HTTPS URL.' });
+        }
+        const requested = [...new Map(links.map(link => [link.url, link])).values()];
+        const counts = await db.transaction(async transaction => {
+            const accounts = await transaction.collection(OPENER_ACCOUNTS_COLLECTION).get({ forUpdate: true });
+            let updatedCount = 0;
+            const updatedAt = Date.now();
+            for (const account of accounts.docs) {
+                const { enabledApps } = account.data();
+                const existingUrls = new Set(normalizeEnabledApps(enabledApps).map(link => link.url));
+                const additions = requested.filter(link => !existingUrls.has(link.url));
+                if (!additions.length) continue;
+
+                const existing = Array.isArray(enabledApps) ? enabledApps : [];
+                await account.ref.update({ enabledApps: [...existing, ...additions], updatedAt });
+                updatedCount++;
+            }
+            return { updatedCount, accountCount: accounts.size };
+        });
+        res.json({ ok: true, ...counts });
+    } catch (error) {
+        console.error('Add opener links to all accounts error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to add links to all opener accounts.' });
+    }
+});
+
+// Admin: copy all queued account identifiers to the Opener
+app.post('/api/admin/opener-accounts/import-queue', requireAdmin, adminLimiter, async (req, res) => {
+    if (req.get('x-admin-activity') !== '1') {
+        return res.status(400).json({ ok: false, error: 'Admin activity header is required.' });
+    }
+
+    try {
+        const enabledApps = await getOpenerDefaults();
+        const counts = await db.transaction(async transaction => {
+            await transaction.lock(OPENER_CREATION_LOCK);
+            const queue = await transaction.collection(ACCOUNT_QUEUE_COLLECTION).get();
+            if (queue.empty) return { addedCount: 0, skippedCount: 0 };
+
+            const accounts = transaction.collection(OPENER_ACCOUNTS_COLLECTION);
+            const existing = await accounts.get({ forUpdate: true });
+            const identities = new Set();
+            const profileIds = new Set();
+            let nextOrder = 0;
+            for (const doc of existing.docs) {
+                const { name, email, queueIdentifier, profileId, order } = doc.data();
+                identities.add(openerIdentity(queueIdentifier || name));
+                identities.add(openerIdentity(email));
+                profileIds.add(profileId);
+                if (Number.isFinite(order)) nextOrder = Math.max(nextOrder, order + 1);
+            }
+
+            let addedCount = 0;
+            const createdAt = Date.now();
+            for (const doc of queue.docs) {
+                const { text } = doc.data();
+                const identifier = typeof text === 'string' ? text.trim() : '';
+                const identity = openerIdentity(identifier);
+                if (!identity || identities.has(identity)) continue;
+
+                const email = QUEUE_EMAIL_PATTERN.test(identifier) ? identifier : '';
+                const displayName = email ? email.slice(0, email.indexOf('@')) : identifier;
+                const name = Array.from(displayName).slice(0, 50).join('');
+                let profileId;
+                do {
+                    profileId = openerProfileId();
+                } while (profileIds.has(profileId));
+
+                await accounts.add({
+                    name, email, enabledApps, profileId, order: nextOrder, createdAt, queueIdentifier: identifier
+                });
+                identities.add(identity);
+                profileIds.add(profileId);
+                nextOrder++;
+                addedCount++;
+            }
+            return { addedCount, skippedCount: queue.size - addedCount };
+        });
+        res.json({ ok: true, ...counts });
+    } catch (error) {
+        console.error('Import queue to opener accounts error:', error);
+        res.status(500).json({ ok: false, error: 'Failed to export the queue to Opener Accounts.' });
+    }
+});
+
 // Admin: add opener account
 app.post('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, res) => {
     try {
@@ -2298,37 +2470,35 @@ app.post('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, r
             return res.status(400).json({ ok: false, error: 'Account name is required (max 50 characters).' });
         }
 
-        const cleanApps = normalizeEnabledApps(enabledApps);
+        const cleanApps = enabledApps === undefined
+            ? await getOpenerDefaults()
+            : normalizeEnabledApps(enabledApps);
 
-        // Generate stable 12-char hex profileId, check uniqueness
-        let profileId;
-        let isUnique = false;
-        while (!isUnique) {
-            profileId = 'acct_' + crypto.randomBytes(6).toString('hex');
-            const existing = await db.collection(OPENER_ACCOUNTS_COLLECTION)
-                .where('profileId', '==', profileId)
-                .limit(1)
-                .get();
-            isUnique = existing.empty;
-        }
+        const result = await db.transaction(async transaction => {
+            await transaction.lock(OPENER_CREATION_LOCK);
+            const accounts = transaction.collection(OPENER_ACCOUNTS_COLLECTION);
+            let profileId;
+            let isUnique = false;
+            while (!isUnique) {
+                profileId = openerProfileId();
+                const existing = await accounts.where('profileId', '==', profileId).limit(1).get();
+                isUnique = existing.empty;
+            }
 
-        // Determine next order value
-        const lastDoc = await db.collection(OPENER_ACCOUNTS_COLLECTION)
-            .orderBy('order', 'desc')
-            .limit(1)
-            .get();
-        const nextOrder = lastDoc.empty ? 0 : (lastDoc.docs[0].data().order || 0) + 1;
-
-        const docRef = await db.collection(OPENER_ACCOUNTS_COLLECTION).add({
-            name: cleanName,
-            email: (email || '').trim().slice(0, 100),
-            enabledApps: cleanApps,
-            profileId,
-            order: nextOrder,
-            createdAt: Date.now()
+            const lastDoc = await accounts.orderBy('order', 'desc').limit(1).get();
+            const nextOrder = lastDoc.empty ? 0 : (lastDoc.docs[0].data().order || 0) + 1;
+            const docRef = await accounts.add({
+                name: cleanName,
+                email: (email || '').trim().slice(0, 100),
+                enabledApps: cleanApps,
+                profileId,
+                order: nextOrder,
+                createdAt: Date.now()
+            });
+            return { id: docRef.id, profileId };
         });
 
-        res.json({ ok: true, id: docRef.id, profileId });
+        res.json({ ok: true, ...result });
     } catch (error) {
         console.error('Add opener account error:', error);
         res.status(500).json({ ok: false, error: 'Failed to add opener account.' });
@@ -2338,14 +2508,8 @@ app.post('/api/admin/opener-accounts', requireAdmin, adminLimiter, async (req, r
 // Admin: update opener account
 app.patch('/api/admin/opener-accounts/:id', requireAdmin, adminLimiter, async (req, res) => {
     try {
-        const docRef = db.collection(OPENER_ACCOUNTS_COLLECTION).doc(req.params.id);
-        const doc = await docRef.get();
-        if (!doc.exists) {
-            return res.status(404).json({ ok: false, error: 'Account not found.' });
-        }
-
         const updates = {};
-        const { name, email, enabledApps, order } = req.body;
+        const { name, email, enabledApps, order, expectedEnabledApps } = req.body;
 
         if (name !== undefined) {
             const cleanName = String(name).trim().slice(0, 50);
@@ -2363,8 +2527,26 @@ app.patch('/api/admin/opener-accounts/:id', requireAdmin, adminLimiter, async (r
             return res.status(400).json({ ok: false, error: 'No valid fields to update.' });
         }
 
+        const expected = expectedEnabledApps === undefined ? undefined : parseOpenerLinks(expectedEnabledApps);
+        if (expected === null) {
+            return res.status(400).json({ ok: false, error: 'Invalid original opener links.' });
+        }
         updates.updatedAt = Date.now();
-        await docRef.update(updates);
+        const status = await db.transaction(async transaction => {
+            const docRef = transaction.collection(OPENER_ACCOUNTS_COLLECTION).doc(req.params.id);
+            const doc = await docRef.get({ forUpdate: true });
+            if (!doc.exists) return 404;
+            if (expected && !isDeepStrictEqual(normalizeEnabledApps(doc.data().enabledApps), expected)) {
+                return 409;
+            }
+            await docRef.update(updates);
+            return 200;
+        });
+
+        if (status === 404) return res.status(404).json({ ok: false, error: 'Account not found.' });
+        if (status === 409) {
+            return res.status(409).json({ ok: false, error: 'Opener links changed while you were editing. Reopen the account and try again.' });
+        }
 
         res.json({ ok: true });
     } catch (error) {

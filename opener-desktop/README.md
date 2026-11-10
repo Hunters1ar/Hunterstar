@@ -1,6 +1,6 @@
 # Hunterstar Account Opener for Windows
 
-A C# .NET 10 Windows Forms application. WebView2 renders the original opener HTML/CSS from the local `Web` folder so the appearance stays the same. C# fetches accounts from the self-hosted PostgreSQL API (`/api/opener-accounts`) and launches Chrome directly; there is no web server, no Firebase dependency, and no service-account credentials needed. `https://opener.local` is an internal WebView2 mapping, not a hosted website.
+A C# .NET 10 Windows Forms application. WebView2 renders the original opener HTML/CSS from the local `Web` folder so the appearance stays the same. C# fetches accounts from the self-hosted PostgreSQL API (`/api/opener-accounts`) and launches Chrome directly. The desktop app only needs access to the API. `https://opener.local` is an internal WebView2 mapping, not a hosted website.
 
 ## Open
 

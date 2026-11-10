@@ -100,7 +100,7 @@ if errorlevel 1 (
     echo ERROR: SCP admin CSS upload failed.
     goto fail
 )
-scp %SSH_OPTS% "%PROJECT_ROOT%\js\admin.js" "%PROJECT_ROOT%\js\firebase-config.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/"
+scp %SSH_OPTS% "%PROJECT_ROOT%\js\admin.js" "%PROJECT_ROOT%\js\portfolio-api.js" "%VPS_HOST%:%VPS_ADMIN_DIR%/js/"
 if errorlevel 1 (
     echo ERROR: SCP admin JS upload failed.
     goto fail

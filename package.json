@@ -9,7 +9,7 @@
     "dev": "npx --yes serve -l 3000 .",
     "start": "npx --yes serve -l 3000 .",
     "check": "npm run check:js && npm run validate:html && npm run check:spell",
-    "check:js": "node --check js/pet-world.js && node --check js/web-pet.js && node --check js/pet-comments.js && node --check js/chat-widget.js && node --check js/main.js && node --check js/three-scene.js && node --check js/server-room-scene.js && node --check js/emblem-scene.js && node --check js/firebase-config.js && node --check js/admin.js && node --check api/server.js && node --check api/postgres-store.js && node --check api/local-auth.js && node --check api/local-bucket.js",
+    "check:js": "node --check js/pet-world.js && node --check js/web-pet.js && node --check js/pet-comments.js && node --check js/chat-widget.js && node --check js/main.js && node --check js/three-scene.js && node --check js/server-room-scene.js && node --check js/emblem-scene.js && node --check js/portfolio-api.js && node --check js/admin.js && node --check api/server.js && node --check api/postgres-store.js && node --check api/local-auth.js && node --check api/local-bucket.js",
     "check:spell": "npx --yes cspell index.html admin.html archives.html eduventure.html README.md js/*.js css/styles.css",
     "validate:html": "npx --yes html-validate index.html admin.html archives.html eduventure.html",
     "deploy:vercel:preview": "vercel",

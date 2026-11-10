@@ -1,7 +1,7 @@
 /* The companion is the chat launcher; answers stay beside the character. */
 (() => {
     'use strict';
-    const PET_API = 'https://api.moonlightsoldiers.xyz/api/pet/chat';
+    const PET_API = 'https://image.hunterstar.uz/api/pet/chat';
 
     async function readReply(response, onToken, signal) {
         if (!response.headers?.get('content-type')?.includes('text/event-stream')) {
